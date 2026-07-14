@@ -99,9 +99,11 @@ const SystemSettings = mongoose.model("SystemSettings", systemSettingsSchema);
 // TTL index: automatically remove orders 25 days after they were marked Delivered
 orderSchema.index({ deliveredAt: 1 }, { expireAfterSeconds: 2160000 });
 
-app.get("/", (req, res) => {
-  res.send("School uniform order book server is running...");
-});
+if (process.env.NODE_ENV !== "production") {
+  app.get("/", (req, res) => {
+    res.send("School uniform order book server is running...");
+  });
+}
 
 // Auth Routes
 app.post("/api/auth/login", (req, res) => {
