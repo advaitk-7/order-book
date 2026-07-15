@@ -2838,11 +2838,7 @@ Liberty Uniform`
                   borderRadius: '20px',
                   border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E5E7EB',
                   background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(200px, 1fr) 3.5fr',
-                  gap: '20px',
-                  alignItems: 'stretch'
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)'
                 }}>
                   {/* Total Cost Block */}
                   <div style={{

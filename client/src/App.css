@@ -1121,6 +1121,13 @@ tbody tr:hover {
   font-size: 13px;
 }
 
+.production-cost-panel {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 3.5fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
 @media (max-width: 1160px) {
   .stats-grid {
     grid-template-columns: repeat(3, 1fr) !important;
@@ -1157,6 +1164,11 @@ tbody tr:hover {
 }
 
 @media (max-width: 780px) {
+  .production-cost-panel {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
   /* Prevent horizontal document scrolling (critical to keep position: fixed bottom bar visible) */
   html, body {
     max-width: 100vw !important;
