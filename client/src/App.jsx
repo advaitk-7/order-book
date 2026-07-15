@@ -3642,7 +3642,6 @@ Liberty Uniform`
                             <option value="Order">Orders</option>
                             <option value="System">System</option>
                             <option value="Backup">Backups</option>
-                            <option value="Tailor">Tailors</option>
                           </select>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -765,14 +765,21 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
     const query = {};
 
     if (type && type !== "All") {
-      query.type = type;
+      if (type === "System") {
+        query.orderNumber = "System";
+      } else if (type === "Order") {
+        query.orderNumber = { $ne: "System" };
+      } else if (type === "Backup") {
+        query.action = { $in: ["Backup", "Restore"] };
+      }
     }
 
     if (search) {
       query.$or = [
         { message: { $regex: search, $options: "i" } },
         { username: { $regex: search, $options: "i" } },
-        { action: { $regex: search, $options: "i" } }
+        { action: { $regex: search, $options: "i" } },
+        { details: { $regex: search, $options: "i" } }
       ];
     }
 
