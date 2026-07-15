@@ -412,13 +412,19 @@ const performBackup = async () => {
 
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const month = monthNames[now.getMonth()];
     const year = now.getFullYear();
-    const hours = String(now.getHours()).padStart(2, '0');
+    
+    let rawHours = now.getHours();
+    const ampm = rawHours >= 12 ? 'PM' : 'AM';
+    let hours12 = rawHours % 12;
+    hours12 = hours12 ? hours12 : 12;
+    const hours = String(hours12).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
 
-    const filename = `backup_${day}-${month}-${year}_${hours}-${minutes}-${seconds}.json.gz`;
+    const filename = `liberty_backup_${day}-${month}-${year}_at_${hours}-${minutes}-${seconds}-${ampm}.json.gz`;
     const filepath = path.join(BACKUP_DIR, filename);
 
     fs.writeFileSync(filepath, compressed);
