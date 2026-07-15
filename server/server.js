@@ -433,13 +433,29 @@ const performBackup = async () => {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (botToken && chatId) {
-      const text = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}`;
-      const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+      const caption = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}`;
+      
+      const formData = new FormData();
+      formData.append("chat_id", chatId);
+      
+      const fileBlob = new Blob([compressed], { type: "application/x-gzip" });
+      formData.append("document", fileBlob, filename);
+      formData.append("caption", caption);
+      formData.append("parse_mode", "Markdown");
+
+      const url = `https://api.telegram.org/bot${botToken}/sendDocument`;
       fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" })
-      }).catch(err => console.error("Failed to send Telegram backup notification:", err.message));
+        body: formData
+      })
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(errData => {
+            console.error("Telegram document upload failed response:", errData);
+          });
+        }
+      })
+      .catch(err => console.error("Failed to send Telegram backup document:", err.message));
     }
 
     return { filename, size: compressed.length };
