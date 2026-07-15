@@ -2003,16 +2003,26 @@ Liberty Uniform`
         </div>
 
         <nav className="sidebar-nav">
-          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Settings'].map((page) => (
-            <button
-              key={page}
-              type="button"
-              className={`nav-link ${activePage === page ? 'active' : ''}`}
-              onClick={() => goToPage(page)}
-            >
-              {page}
-            </button>
-          ))}
+          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Settings'].map((page) => {
+            const emojis = {
+              'Dashboard': '📊',
+              'New Order': '➕',
+              'Orders': '📋',
+              'Production Queue': '🧵',
+              'Settings': '⚙️'
+            };
+            return (
+              <button
+                key={page}
+                type="button"
+                className={`nav-link ${activePage === page ? 'active' : ''}`}
+                onClick={() => goToPage(page)}
+              >
+                <span className="nav-icon">{emojis[page]}</span>
+                <span className="nav-text">{page}</span>
+              </button>
+            );
+          })}
         </nav>
       </aside>
 
