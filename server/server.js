@@ -761,7 +761,33 @@ app.delete("/api/orders/:id", async (req, res) => {
 // Audit Logs Endpoint
 app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
   try {
-    const logs = await AuditLog.find({}).sort({ createdAt: -1 }).limit(100);
+    const { search, type, date } = req.query;
+    const query = {};
+
+    if (type && type !== "All") {
+      query.type = type;
+    }
+
+    if (search) {
+      query.$or = [
+        { message: { $regex: search, $options: "i" } },
+        { username: { $regex: search, $options: "i" } },
+        { action: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    if (date) {
+      const startOfDayIST = new Date(`${date}T00:00:00`);
+      const startOffset = startOfDayIST.getTime() - (5.5 * 60 * 60 * 1000);
+      const endOffset = startOffset + (24 * 60 * 60 * 1000) - 1;
+
+      query.createdAt = {
+        $gte: new Date(startOffset),
+        $lte: new Date(endOffset)
+      };
+    }
+
+    const logs = await AuditLog.find(query).sort({ createdAt: -1 }).limit(100);
     res.json(logs);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch audit logs", error: error.message });

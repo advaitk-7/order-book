@@ -368,6 +368,9 @@ function App() {
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [sessions, setSessions] = useState([])
   const [loadingSessions, setLoadingSessions] = useState(false)
+  const [logSearch, setLogSearch] = useState('')
+  const [logTypeFilter, setLogTypeFilter] = useState('All')
+  const [logDateFilter, setLogDateFilter] = useState('')
   const [activePage, setActivePage] = useState('Dashboard')
   const [visibleCount, setVisibleCount] = useState(20)
   const loadStep = 20
@@ -727,11 +730,15 @@ function App() {
     }
   }
 
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = async (search = logSearch, type = logTypeFilter, date = logDateFilter) => {
     if (!token) return
     setLoadingAuditLogs(true)
     try {
-      const response = await fetch(`${API_BASE}/api/audit-logs`, {
+      let url = `${API_BASE}/api/audit-logs?search=${encodeURIComponent(search)}&type=${type}`;
+      if (date) {
+        url += `&date=${date}`;
+      }
+      const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
@@ -748,10 +755,15 @@ function App() {
   useEffect(() => {
     if (activePage === 'Settings' && token) {
       fetchBackups()
-      fetchAuditLogs()
       fetchPricingRates()
     }
   }, [activePage, token])
+
+  useEffect(() => {
+    if (activePage === 'Settings' && token) {
+      fetchAuditLogs(logSearch, logTypeFilter, logDateFilter)
+    }
+  }, [logSearch, logTypeFilter, logDateFilter, activePage, token])
 
   const handleCreateBackup = async () => {
     if (!token) return
@@ -3584,6 +3596,93 @@ Liberty Uniform`
                     <div className="settings-box" style={{ height: '100%' }}>
                       <p className="settings-box-title">📋 System Audit Logs</p>
                       <p className="settings-box-desc">Real-time trail of edits, creations, deletions, and status changes made to your data.</p>
+
+                      {/* Search and Filters Controls */}
+                      <div className="log-filters-container" style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                        background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
+                        padding: '12px',
+                        borderRadius: '12px',
+                        border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid #E2E8F0'
+                      }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            placeholder="🔍 Search log messages..."
+                            value={logSearch}
+                            onChange={(e) => setLogSearch(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              fontSize: '12px',
+                              borderRadius: '8px',
+                              minHeight: '34px',
+                              background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                              color: 'inherit',
+                              border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
+                            }}
+                          />
+                          <select
+                            value={logTypeFilter}
+                            onChange={(e) => setLogTypeFilter(e.target.value)}
+                            style={{
+                              width: '110px',
+                              padding: '8px 10px',
+                              fontSize: '12px',
+                              borderRadius: '8px',
+                              minHeight: '34px',
+                              background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                              color: 'inherit',
+                              border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
+                            }}
+                          >
+                            <option value="All">All Types</option>
+                            <option value="Order">Orders</option>
+                            <option value="System">System</option>
+                            <option value="Backup">Backups</option>
+                            <option value="Tailor">Tailors</option>
+                          </select>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>📅 View Specific Day:</span>
+                          <input
+                            type="date"
+                            value={logDateFilter}
+                            onChange={(e) => setLogDateFilter(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '6px 10px',
+                              fontSize: '12px',
+                              borderRadius: '8px',
+                              minHeight: '32px',
+                              background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                              color: 'inherit',
+                              border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
+                            }}
+                          />
+                          {logDateFilter && (
+                            <button
+                              type="button"
+                              onClick={() => setLogDateFilter('')}
+                              className="danger-btn"
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '11px',
+                                borderRadius: '8px',
+                                minWidth: 'auto',
+                                height: '32px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      </div>
 
                       <div className="audit-timeline" style={{ maxHeight: '620px', overflowY: 'auto' }}>
                         {loadingAuditLogs ? (
