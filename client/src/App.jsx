@@ -366,6 +366,8 @@ function App() {
   const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingOrders, setLoadingOrders] = useState(false)
+  const [sessions, setSessions] = useState([])
+  const [loadingSessions, setLoadingSessions] = useState(false)
   const [activePage, setActivePage] = useState('Dashboard')
   const [visibleCount, setVisibleCount] = useState(20)
   const loadStep = 20
@@ -559,6 +561,78 @@ function App() {
     }
   };
 
+  const fetchSessions = async () => {
+    if (!token) return
+    setLoadingSessions(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/sessions`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.status === 401 || response.status === 403) {
+        handleLogout()
+        return
+      }
+      const data = await response.json()
+      if (response.ok) {
+        setSessions(data)
+      } else {
+        console.error('Failed to load active sessions:', data.message)
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error)
+    } finally {
+      setLoadingSessions(false)
+    }
+  }
+
+  const handleRevokeSession = async (sessionId) => {
+    if (!token) return
+    if (!window.confirm('Are you sure you want to log out this device?')) return
+
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.status === 401 || response.status === 403) {
+        handleLogout()
+        return
+      }
+      const data = await response.json()
+      if (response.ok) {
+        fetchSessions()
+      } else {
+        alert(data.message || 'Failed to revoke session')
+      }
+    } catch (error) {
+      console.error('Error revoking session:', error)
+    }
+  }
+
+  const handleRevokeOthers = async () => {
+    if (!token) return
+    if (!window.confirm('Are you sure you want to log out all other devices?')) return
+
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/sessions/logout-others`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.status === 401 || response.status === 403) {
+        handleLogout()
+        return
+      }
+      const data = await response.json()
+      if (response.ok) {
+        fetchSessions()
+      } else {
+        alert(data.message || 'Failed to bulk log out other devices')
+      }
+    } catch (error) {
+      console.error('Error bulk revoking sessions:', error)
+    }
+  }
+
   useEffect(() => {
     if (token) {
       fetchCurrentUser();
@@ -567,6 +641,12 @@ function App() {
       setNewUsernameInput('');
     }
   }, [token]);
+
+  useEffect(() => {
+    if (activePage === 'Settings' && token) {
+      fetchSessions()
+    }
+  }, [activePage, token]);
 
   const fetchPricingRates = async () => {
     if (!token) return
@@ -3415,7 +3495,7 @@ Liberty Uniform`
                       </div>
                     </div>
 
-                    {/* WhatsApp integration configuration card */}
+                     {/* WhatsApp integration configuration card */}
                     <div className="settings-box">
                       <p className="settings-box-title">💬 WhatsApp Integration Mode</p>
                       <p className="settings-box-desc">Choose whether customer alerts launch the native WhatsApp app (supporting drafts stack-to-top) or load WhatsApp Web in browser tabs.</p>
@@ -3430,6 +3510,66 @@ Liberty Uniform`
                           <option value="app">WhatsApp App (Desktop/Mobile App)</option>
                         </select>
                       </div>
+                    </div>
+
+                    {/* Active Logged-In Devices card */}
+                    <div className="settings-box">
+                      <p className="settings-box-title">📱 Active Logged-In Devices</p>
+                      <p className="settings-box-desc">Manage other devices that are currently logged in to your account.</p>
+
+                      <div className="backups-list" style={{ maxHeight: '200px' }}>
+                        {loadingSessions ? (
+                          <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '16px 0' }}>Loading active devices...</p>
+                        ) : sessions.length === 0 ? (
+                          <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '16px 0' }}>No active devices found.</p>
+                        ) : (
+                          sessions.map((s) => (
+                            <div key={s.id} className="backup-item" style={{ gap: '10px' }}>
+                              <div className="backup-details" style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                                  <span style={{ fontSize: '14px' }}>
+                                    {s.userAgent.toLowerCase().includes('iphone') || s.userAgent.toLowerCase().includes('android') || s.userAgent.toLowerCase().includes('ios') ? '📱' : '💻'}
+                                  </span>
+                                  <span style={{ fontWeight: '600', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                                    {s.userAgent}
+                                  </span>
+                                  {s.isCurrent && (
+                                    <span style={{ fontSize: '9px', background: 'rgba(37, 211, 102, 0.15)', color: '#25D366', padding: '2px 6px', borderRadius: '6px', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                      Current
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="backup-meta" style={{ fontSize: '10px' }}>
+                                  IP: {s.ipAddress} • Active: {new Date(s.lastActive).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="backup-actions">
+                                {!s.isCurrent && (
+                                  <button
+                                    type="button"
+                                    className="danger-btn"
+                                    onClick={() => handleRevokeSession(s.id)}
+                                    style={{ padding: '6px 12px', fontSize: '11px', minWidth: 'auto', borderRadius: '8px', height: '28px', display: 'flex', alignItems: 'center' }}
+                                  >
+                                    Log Out
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {sessions.filter(s => !s.isCurrent).length > 0 && (
+                        <button
+                          type="button"
+                          className="danger-btn"
+                          onClick={handleRevokeOthers}
+                          style={{ marginTop: 'auto', width: '100%', borderRadius: '12px', height: '38px', fontSize: '12px', fontWeight: 'bold' }}
+                        >
+                          🚪 Log Out All Other Devices
+                        </button>
+                      )}
                     </div>
                   </div>
 

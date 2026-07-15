@@ -21,16 +21,57 @@ const JWT_SECRET = process.env.JWT_SECRET || "liberty_uniform_secret_key_12345";
 let ADMIN_USERNAME = process.env.ADMIN_USERNAME || "sarju";
 let currentAdminPassword = process.env.ADMIN_PASSWORD || "1";
 
-const authenticateJWT = (req, res, next) => {
+const Session = mongoose.model("Session", new mongoose.Schema({
+  token: { type: String, required: true, index: true },
+  username: { type: String, required: true },
+  userAgent: { type: String, default: 'Unknown Device' },
+  ipAddress: { type: String, default: 'Unknown IP' },
+  createdAt: { type: Date, default: Date.now },
+  lastActive: { type: Date, default: Date.now }
+}));
+
+function parseUserAgent(ua) {
+  if (!ua) return 'Unknown Device';
+  let os = 'Unknown OS';
+  let browser = 'Unknown Browser';
+
+  if (/like Mac OS X/.test(ua)) os = 'iOS';
+  else if (/Android/.test(ua)) os = 'Android';
+  else if (/Macintosh/.test(ua)) os = 'macOS';
+  else if (/Windows/.test(ua)) os = 'Windows';
+  else if (/Linux/.test(ua)) os = 'Linux';
+
+  if (/Chrome/.test(ua) && !/Chromium/.test(ua) && !/Edg/.test(ua)) browser = 'Chrome';
+  else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+  else if (/Firefox/.test(ua)) browser = 'Firefox';
+  else if (/Edg/.test(ua)) browser = 'Edge';
+  else if (/Trident/.test(ua)) browser = 'Internet Explorer';
+
+  return `${browser} on ${os}`;
+}
+
+const authenticateJWT = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader) {
     const token = authHeader.split(' ')[1];
-    jwt.verify(token, JWT_SECRET, (err, user) => {
+    jwt.verify(token, JWT_SECRET, async (err, user) => {
       if (err) {
         return res.status(403).json({ message: "Invalid or expired token" });
       }
-      req.user = user;
-      next();
+      try {
+        const session = await Session.findOne({ token });
+        if (!session) {
+          return res.status(401).json({ message: "Session expired or logged out" });
+        }
+        session.lastActive = new Date();
+        session.save().catch(() => {});
+
+        req.user = user;
+        req.token = token;
+        next();
+      } catch (error) {
+        res.status(500).json({ message: "Auth server database error" });
+      }
     });
   } else {
     res.status(401).json({ message: "Authorization token required" });
@@ -106,10 +147,29 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // Auth Routes
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
   if (username === ADMIN_USERNAME && bcrypt.compareSync(password, currentAdminPassword)) {
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "24h" });
+
+    const rawUa = req.headers['user-agent'] || 'Unknown User-Agent';
+    const userAgent = parseUserAgent(rawUa);
+
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown IP';
+    const ipAddress = rawIp.split(',')[0].trim();
+
+    try {
+      await Session.create({
+        token,
+        username,
+        userAgent,
+        ipAddress
+      });
+      await logAudit(null, "System", "Login Success", `User logged in from ${userAgent} (IP: ${ipAddress})`);
+    } catch (err) {
+      console.error("Failed to store session:", err);
+    }
+
     return res.json({ token });
   }
   return res.status(401).json({ message: "Invalid username or password" });
@@ -233,6 +293,59 @@ app.post("/api/auth/update-credentials", authenticateJWT, (req, res) => {
     return res.status(403).json({ message: "Permission denied." });
   } catch (err) {
     return res.status(403).json({ message: "Verification session expired. Please re-verify password." });
+  }
+});
+
+app.get("/api/auth/sessions", authenticateJWT, async (req, res) => {
+  try {
+    const sessions = await Session.find({ username: req.user.username })
+      .sort({ lastActive: -1 });
+
+    const formatted = sessions.map(s => ({
+      id: s._id,
+      userAgent: s.userAgent,
+      ipAddress: s.ipAddress,
+      createdAt: s.createdAt,
+      lastActive: s.lastActive,
+      isCurrent: s.token === req.token
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch active sessions", error: error.message });
+  }
+});
+
+app.delete("/api/auth/sessions/:id", authenticateJWT, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    if (session.username !== req.user.username) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    await Session.findByIdAndDelete(req.params.id);
+    await logAudit(null, "System", "Device Logged Out", `Session ${session.userAgent} (IP: ${session.ipAddress}) revoked by user`);
+    res.json({ message: "Device session logged out successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to revoke session", error: error.message });
+  }
+});
+
+app.post("/api/auth/sessions/logout-others", authenticateJWT, async (req, res) => {
+  try {
+    const result = await Session.deleteMany({
+      username: req.user.username,
+      token: { $ne: req.token }
+    });
+
+    await logAudit(null, "System", "Device Bulk Logout", `Logged out ${result.deletedCount} other device sessions`);
+    res.json({ message: `Successfully logged out ${result.deletedCount} other devices` });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to clear other sessions", error: error.message });
   }
 });
 
