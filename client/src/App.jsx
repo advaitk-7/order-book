@@ -1544,7 +1544,7 @@ function App() {
   const computeTimeLeftDescription = (deliveredAt, updatedAt, createdAt) => {
     const timestamp = deliveredAt || updatedAt || createdAt
     if (!timestamp) return 'unknown'
-    const timeLeftMs = new Date(timestamp).getTime() + 25 * 24 * 60 * 60 * 1000 - now
+    const timeLeftMs = new Date(timestamp).getTime() + 75 * 24 * 60 * 60 * 1000 - now
     if (timeLeftMs <= 0) {
       return 'Due for deletion'
     }

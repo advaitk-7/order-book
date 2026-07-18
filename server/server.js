@@ -235,8 +235,8 @@ const waitlistSchoolSchema = new mongoose.Schema({
 });
 const WaitlistSchool = mongoose.model("WaitlistSchool", waitlistSchoolSchema);
 
-// TTL index: automatically remove orders 25 days after they were marked Delivered
-orderSchema.index({ deliveredAt: 1 }, { expireAfterSeconds: 2160000 });
+// TTL index: automatically remove orders 75 days after they were marked Delivered
+orderSchema.index({ deliveredAt: 1 }, { expireAfterSeconds: 6480000 });
 
 if (process.env.NODE_ENV !== "production") {
   app.get("/", (req, res) => {
@@ -1303,6 +1303,14 @@ async function startServer() {
   try {
     await mongoose.connect(MONGO_URI);
     console.log("Connected to MongoDB");
+
+    // Drop old deliveredAt index to ensure options are rebuilt with 75 days TTL
+    try {
+      await mongoose.connection.collection('orders').dropIndex('deliveredAt_1');
+      console.log("Dropped old deliveredAt TTL index to apply new duration option");
+    } catch (e) {
+      // Index might not exist yet, safe to ignore
+    }
 
     // Initialize/Seed admin credentials from/to MongoDB
     let adminRecord = await Admin.findOne();
