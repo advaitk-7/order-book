@@ -850,7 +850,8 @@ button:hover {
   border: none;
   outline: none;
   background: transparent;
-  width: 220px;
+  flex: 1;
+  width: 100%;
 }
 
 .table-wrap {
