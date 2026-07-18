@@ -45,7 +45,7 @@ const createEmptyWaitlistForm = () => ({
   customerName: '',
   contactNumber: '',
   school: '',
-  items: [''],
+  items: [{ name: '', status: 'Pending' }],
   notes: ''
 })
 
@@ -894,7 +894,13 @@ function App() {
     const url = isEditing ? `${API_BASE}/api/waitlist/${selectedWaitlistRequest._id}` : `${API_BASE}/api/waitlist`
     const method = isEditing ? 'PATCH' : 'POST'
 
-    const cleanedItems = (waitlistFormData.items || []).map(i => i.trim()).filter(Boolean)
+    const cleanedItems = (waitlistFormData.items || [])
+      .map(item => ({
+        name: item.name ? item.name.trim() : '',
+        status: item.status || 'Pending'
+      }))
+      .filter(item => item.name)
+
     if (cleanedItems.length === 0) {
       alert("Please fill in at least one item details field.")
       return
@@ -1015,14 +1021,38 @@ function App() {
     setWaitlistFormData(createEmptyWaitlistForm())
   }
 
-  const handleSendWhatsAppNotification = (request) => {
+  const handleToggleItemStatus = async (request, itemIndex) => {
+    if (!token) return
+    const updatedItems = [...request.items]
+    const currentStatus = updatedItems[itemIndex].status || 'Pending'
+    updatedItems[itemIndex].status = currentStatus === 'Pending' ? 'Notified' : 'Pending'
+
+    try {
+      const response = await fetch(`${API_BASE}/api/waitlist/${request._id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ items: updatedItems })
+      })
+      if (response.ok) {
+        fetchWaitlist()
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to update item status')
+      }
+    } catch (error) {
+      console.error('Failed to toggle item status', error)
+    }
+  }
+
+  const handleSendSingleWhatsAppNotification = async (request, itemIndex) => {
+    const item = request.items[itemIndex]
     const cleanPhone = request.contactNumber.replace(/\D/g, '')
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone
     
-    const itemsLabel = request.items && request.items.length > 0
-      ? request.items.join(', ')
-      : request.itemDetails || ''
-    const messageText = `Hi ${request.customerName}, this is Liberty Uniforms. Your requested items: "${itemsLabel}" are now back in stock! Please visit our shop to collect it.`
+    const messageText = `Hi ${request.customerName}, this is Liberty Uniforms. Your requested item: "${item.name}" is now back in stock! Please visit our shop to collect it.`
     const encodedText = encodeURIComponent(messageText)
     
     const link = whatsappMode === 'app'
@@ -1030,6 +1060,24 @@ function App() {
       : `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`
       
     window.open(link, '_blank')
+
+    if (item.status === 'Pending') {
+      const updatedItems = [...request.items]
+      updatedItems[itemIndex].status = 'Notified'
+      try {
+        await fetch(`${API_BASE}/api/waitlist/${request._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ items: updatedItems })
+        })
+        fetchWaitlist()
+      } catch (error) {
+        console.error('Failed to auto-toggle status after WhatsApp notify', error)
+      }
+    }
   }
 
   useEffect(() => {
@@ -3738,9 +3786,55 @@ Liberty Uniform`
                             </td>
                             <td style={{ padding: '12px 16px' }}>
                               {request.items && request.items.length > 0 ? (
-                                <ul style={{ margin: 0, paddingLeft: '16px', fontWeight: '500' }}>
+                                <ul style={{ margin: 0, paddingLeft: '16px', listStyleType: 'disc' }}>
                                   {request.items.map((item, idx) => (
-                                    <li key={idx}>{item}</li>
+                                    <li key={idx} style={{ marginBottom: '8px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontWeight: '500' }}>{item.name}</span>
+                                        <span
+                                          className={`status-badge ${item.status === 'Pending' ? 'pending' : 'ready'}`}
+                                          style={{ fontSize: '10px', padding: '2px 6px', height: '18px', display: 'inline-flex', alignItems: 'center' }}
+                                        >
+                                          {item.status || 'Pending'}
+                                        </span>
+                                        
+                                        <button
+                                          type="button"
+                                          title="Send WhatsApp for this item"
+                                          onClick={() => handleSendSingleWhatsAppNotification(request, idx)}
+                                          style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '11px',
+                                            padding: '2px 4px',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            color: '#10B981',
+                                            fontWeight: '700'
+                                          }}
+                                        >
+                                          💬 Notify
+                                        </button>
+                                        <button
+                                          type="button"
+                                          title="Toggle status"
+                                          onClick={() => handleToggleItemStatus(request, idx)}
+                                          style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '11px',
+                                            padding: '2px 4px',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            color: '#64748B'
+                                          }}
+                                        >
+                                          {item.status === 'Pending' ? '✅' : '⏳'}
+                                        </button>
+                                      </div>
+                                    </li>
                                   ))}
                                 </ul>
                               ) : (
@@ -3751,47 +3845,17 @@ Liberty Uniform`
                               {request.notes || '-'}
                             </td>
                             <td style={{ padding: '12px 16px' }}>
-                              <span className={`status-badge ${request.status === 'Pending' ? 'pending' : 'ready'}`}>
-                                {request.status}
-                              </span>
+                              {(() => {
+                                const allNotified = request.items && request.items.length > 0 && request.items.every(i => i.status === 'Notified');
+                                return (
+                                  <span className={`status-badge ${allNotified ? 'ready' : 'pending'}`}>
+                                    {allNotified ? 'Notified' : 'Pending'}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                <button
-                                  type="button"
-                                  title="Send WhatsApp Notification"
-                                  onClick={() => handleSendWhatsAppNotification(request)}
-                                  className="secondary-btn"
-                                  style={{
-                                    padding: '6px 10px',
-                                    fontSize: '12px',
-                                    height: '32px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    border: '1px solid #10B981',
-                                    color: '#10B981'
-                                  }}
-                                >
-                                  💬 WhatsApp
-                                </button>
-                                <button
-                                  type="button"
-                                  title={request.status === 'Pending' ? "Mark as Notified" : "Mark as Pending"}
-                                  onClick={() => handleToggleWaitlistStatus(request)}
-                                  className="secondary-btn"
-                                  style={{
-                                    padding: '6px 8px',
-                                    fontSize: '12px',
-                                    height: '32px',
-                                    minWidth: '32px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                >
-                                  {request.status === 'Pending' ? '✅' : '⏳'}
-                                </button>
                                 <button
                                   type="button"
                                   title="Edit Entry"
@@ -4526,14 +4590,14 @@ Liberty Uniform`
                 <label style={{ fontWeight: '600', marginBottom: '6px', display: 'block' }}>
                   Desired Product Details *
                 </label>
-                {(waitlistFormData.items || ['']).map((item, idx) => (
+                {(waitlistFormData.items || [{ name: '', status: 'Pending' }]).map((item, idx) => (
                   <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
                     <input
                       type="text"
-                      value={item}
+                      value={item.name || ''}
                       onChange={(e) => {
-                        const updated = [...(waitlistFormData.items || [''])]
-                        updated[idx] = e.target.value
+                        const updated = [...(waitlistFormData.items || [{ name: '', status: 'Pending' }])]
+                        updated[idx] = { ...updated[idx], name: e.target.value }
                         setWaitlistFormData({ ...waitlistFormData, items: updated })
                       }}
                       placeholder={`Item #${idx + 1} (e.g. Blazer Size 34)`}
@@ -4543,18 +4607,18 @@ Liberty Uniform`
                     <button
                       type="button"
                       onClick={() => {
-                        const updated = [...(waitlistFormData.items || [''])]
+                        const updated = [...(waitlistFormData.items || [{ name: '', status: 'Pending' }])]
                         updated.splice(idx, 1)
                         setWaitlistFormData({ ...waitlistFormData, items: updated })
                       }}
-                      disabled={(waitlistFormData.items || ['']).length <= 1}
+                      disabled={(waitlistFormData.items || [{ name: '', status: 'Pending' }]).length <= 1}
                       style={{
                         background: 'none',
                         border: 'none',
-                        cursor: (waitlistFormData.items || ['']).length > 1 ? 'pointer' : 'not-allowed',
+                        cursor: (waitlistFormData.items || [{ name: '', status: 'Pending' }]).length > 1 ? 'pointer' : 'not-allowed',
                         fontSize: '14px',
                         padding: '0 4px',
-                        opacity: (waitlistFormData.items || ['']).length <= 1 ? 0.3 : 1
+                        opacity: (waitlistFormData.items || [{ name: '', status: 'Pending' }]).length <= 1 ? 0.3 : 1
                       }}
                       title="Remove Item"
                     >
@@ -4565,7 +4629,7 @@ Liberty Uniform`
                 <button
                   type="button"
                   onClick={() => {
-                    const updated = [...(waitlistFormData.items || ['']), '']
+                    const updated = [...(waitlistFormData.items || [{ name: '', status: 'Pending' }]), { name: '', status: 'Pending' }]
                     setWaitlistFormData({ ...waitlistFormData, items: updated })
                   }}
                   className="secondary-btn"

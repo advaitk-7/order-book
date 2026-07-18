@@ -142,8 +142,12 @@ const waitlistSchema = new mongoose.Schema(
     customerName: { type: String, required: true, trim: true },
     contactNumber: { type: String, required: true, trim: true },
     school: { type: String, trim: true, default: "" },
-    items: [{ type: String, required: true, trim: true }],
-    status: { type: String, enum: ["Pending", "Notified"], default: "Pending" },
+    items: [
+      {
+        name: { type: String, required: true, trim: true },
+        status: { type: String, enum: ["Pending", "Notified"], default: "Pending" }
+      }
+    ],
     notes: { type: String, default: "" }
   },
   { timestamps: true }
@@ -797,7 +801,11 @@ app.get("/api/waitlist", authenticateJWT, async (req, res) => {
     const query = {};
 
     if (status && status !== "All") {
-      query.status = status;
+      if (status === "Pending") {
+        query["items.status"] = "Pending";
+      } else if (status === "Notified") {
+        query["items.status"] = { $ne: "Pending" };
+      }
     }
 
     if (school && school !== "All") {
@@ -809,12 +817,33 @@ app.get("/api/waitlist", authenticateJWT, async (req, res) => {
         { customerName: { $regex: search, $options: "i" } },
         { contactNumber: { $regex: search, $options: "i" } },
         { school: { $regex: search, $options: "i" } },
-        { items: { $regex: search, $options: "i" } }
+        { "items.name": { $regex: search, $options: "i" } }
       ];
     }
 
     const requests = await Waitlist.find(query).sort({ createdAt: -1 });
-    res.json(requests);
+
+    const normalized = requests.map(r => {
+      const obj = r.toObject();
+      if (obj.items && obj.items.length > 0) {
+        obj.items = obj.items.map(item => {
+          if (typeof item === 'string') {
+            return { name: item, status: 'Pending' };
+          }
+          if (item && !item.status) {
+            item.status = 'Pending';
+          }
+          return item;
+        });
+      } else if (obj.itemDetails) {
+        obj.items = [{ name: obj.itemDetails, status: obj.status || 'Pending' }];
+      } else {
+        obj.items = [];
+      }
+      return obj;
+    });
+
+    res.json(normalized);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch waitlist", error: error.message });
   }
@@ -827,7 +856,18 @@ app.post("/api/waitlist", authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: "Customer Name, Contact Number, and at least one Waitlist Item are required." });
     }
 
-    const cleanedItems = items.map(item => item.trim()).filter(Boolean);
+    const cleanedItems = items
+      .map(item => {
+        if (typeof item === 'string') {
+          return { name: item.trim(), status: 'Pending' };
+        }
+        if (item && typeof item === 'object' && item.name) {
+          return { name: item.name.trim(), status: item.status || 'Pending' };
+        }
+        return null;
+      })
+      .filter(item => item && item.name);
+
     if (cleanedItems.length === 0) {
       return res.status(400).json({ message: "Waitlist Items cannot be empty." });
     }
@@ -837,11 +877,10 @@ app.post("/api/waitlist", authenticateJWT, async (req, res) => {
       contactNumber,
       school,
       items: cleanedItems,
-      notes,
-      status: "Pending"
+      notes
     });
 
-    await logAudit(newRequest._id, "System", "Waitlist Add", `Added waitlist request for customer '${customerName}' - ${cleanedItems.join(", ")}`);
+    await logAudit(newRequest._id, "System", "Waitlist Add", `Added waitlist request for customer '${customerName}' - ${cleanedItems.map(i => i.name).join(", ")}`);
     res.status(201).json(newRequest);
   } catch (error) {
     res.status(500).json({ message: "Failed to create waitlist entry", error: error.message });
@@ -856,15 +895,23 @@ app.patch("/api/waitlist/:id", authenticateJWT, async (req, res) => {
       return res.status(404).json({ message: "Waitlist entry not found" });
     }
 
-    const oldStatus = request.status;
-
-    if (status !== undefined) request.status = status;
     if (customerName !== undefined) request.customerName = customerName;
     if (contactNumber !== undefined) request.contactNumber = contactNumber;
     if (school !== undefined) request.school = school;
     if (notes !== undefined) request.notes = notes;
     if (items !== undefined && Array.isArray(items)) {
-      const cleanedItems = items.map(item => item.trim()).filter(Boolean);
+      const cleanedItems = items
+        .map(item => {
+          if (typeof item === 'string') {
+            return { name: item.trim(), status: 'Pending' };
+          }
+          if (item && typeof item === 'object' && item.name) {
+            return { name: item.name.trim(), status: item.status || 'Pending' };
+          }
+          return null;
+        })
+        .filter(item => item && item.name);
+
       if (cleanedItems.length > 0) {
         request.items = cleanedItems;
       }
@@ -872,11 +919,7 @@ app.patch("/api/waitlist/:id", authenticateJWT, async (req, res) => {
 
     await request.save();
 
-    if (status && status !== oldStatus) {
-      await logAudit(request._id, "System", "Waitlist Status", `Waitlist status for customer '${request.customerName}' changed from '${oldStatus}' to '${status}'`);
-    } else {
-      await logAudit(request._id, "System", "Waitlist Update", `Updated waitlist entry for customer '${request.customerName}'`);
-    }
+    await logAudit(request._id, "System", "Waitlist Update", `Updated waitlist entry for customer '${request.customerName}'`);
 
     res.json(request);
   } catch (error) {
