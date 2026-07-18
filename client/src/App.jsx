@@ -1566,11 +1566,13 @@ function App() {
       return `${hours} hour${hours === 1 ? '' : 's'} ${minutes} minute${minutes === 1 ? '' : 's'} ${seconds} second${seconds === 1 ? '' : 's'}`
     }
     const days = Math.ceil(timeLeftMs / oneDay)
+    return `${days} day${days === 1 ? '' : 's'}`
   }
 
-  const computeWaitlistTimeLeftDescription = (notifiedAt) => {
-    if (!notifiedAt) return 'unknown'
-    const timeLeftMs = new Date(notifiedAt).getTime() + 7 * 24 * 60 * 60 * 1000 - now
+  const computeWaitlistTimeLeftDescription = (notifiedAt, updatedAt, createdAt) => {
+    const timestamp = notifiedAt || updatedAt || createdAt
+    if (!timestamp) return 'unknown'
+    const timeLeftMs = new Date(timestamp).getTime() + 7 * 24 * 60 * 60 * 1000 - now
     if (timeLeftMs <= 0) {
       return 'Due for deletion'
     }
@@ -3972,7 +3974,7 @@ Liberty Uniform`
                                       {allNotified ? 'Notified' : 'Pending'}
                                     </span>
 
-                                    {timerAlertWaitlist && timerAlertWaitlist._id === request._id && request.notifiedAt && (
+                                    {timerAlertWaitlist && timerAlertWaitlist._id === request._id && (
                                       <div
                                         className="timer-popup"
                                         style={{
@@ -3998,7 +4000,7 @@ Liberty Uniform`
                                       >
                                         <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
                                         <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
-                                          {computeWaitlistTimeLeftDescription(request.notifiedAt)}
+                                          {computeWaitlistTimeLeftDescription(request.notifiedAt, request.updatedAt, request.createdAt)}
                                         </span>
                                         <div style={{
                                           position: 'absolute',
