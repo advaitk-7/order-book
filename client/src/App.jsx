@@ -1093,9 +1093,15 @@ function App() {
   const handleSendAllWhatsAppNotification = async (request) => {
     const cleanPhone = request.contactNumber.replace(/\D/g, '')
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone
-    const itemNames = (request.items || []).map(i => `"${i.name}"`).join(', ')
     
-    const messageText = `Hi ${request.customerName}, this is Liberty Uniforms. Your requested items: ${itemNames} are now back in stock! Please visit our shop to collect them.`
+    const remainingItems = (request.items || []).filter(i => i.status !== 'Notified')
+    if (remainingItems.length === 0) return
+    
+    const itemNames = remainingItems.map(i => `"${i.name}"`).join(', ')
+    const messageText = remainingItems.length === 1
+      ? `Hi ${request.customerName}, this is Liberty Uniforms. Your requested item: ${itemNames} is now back in stock! Please visit our shop to collect it.`
+      : `Hi ${request.customerName}, this is Liberty Uniforms. Your requested items: ${itemNames} are now back in stock! Please visit our shop to collect them.`
+      
     const encodedText = encodeURIComponent(messageText)
     
     const link = whatsappMode === 'app'
@@ -3887,12 +3893,14 @@ Liberty Uniform`
                                   {request.items.length > 1 && (
                                     <div style={{ marginTop: '8px', borderTop: '1px dashed var(--border-color, #E5E7EB)', paddingTop: '8px' }}>
                                       {(() => {
-                                        const allAlreadyNotified = request.items.every(i => i.status === 'Notified');
+                                        const pendingItems = request.items.filter(i => i.status !== 'Notified');
+                                        const allAlreadyNotified = pendingItems.length === 0;
+                                        const isAllPending = pendingItems.length === request.items.length;
                                         return (
                                           <button
                                             type="button"
                                             disabled={allAlreadyNotified}
-                                            title={allAlreadyNotified ? "All items already notified" : "Notify all items together"}
+                                            title={allAlreadyNotified ? "All items already notified" : (isAllPending ? "Notify all items together" : "Notify remaining items")}
                                             onClick={() => handleSendAllWhatsAppNotification(request)}
                                             style={{
                                               background: allAlreadyNotified ? '#E2E8F0' : '#10B981',
@@ -3912,7 +3920,7 @@ Liberty Uniform`
                                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={allAlreadyNotified ? "#64748B" : "#FFFFFF"} style={{ verticalAlign: 'middle' }}>
                                               <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.49-3.99c1.657.982 3.585 1.502 5.547 1.503 5.714 0 10.364-4.65 10.368-10.366.002-2.772-1.077-5.378-3.037-7.338C17.466 2.25 14.86 1.17 12.088 1.17c-5.722 0-10.371 4.65-10.375 10.367a10.29 10.29 0 0 0 1.523 5.44L2.247 20.91l4.3-1.129-.001.001zM18.06 14.65c-.328-.164-1.94-.957-2.24-1.068-.3-.11-.518-.164-.737.164-.219.328-.847 1.068-1.038 1.286-.19.219-.382.246-.71.082a10.428 10.428 0 0 1-2.737-1.69 11.48 11.48 0 0 1-1.895-2.36c-.19-.328-.02-.507.143-.672.147-.148.328-.382.492-.574.164-.19.219-.328.328-.548.11-.219.055-.41-.027-.574-.082-.164-.737-1.777-1.01-2.435-.267-.643-.56-.553-.768-.564-.199-.01-.427-.01-.656-.01-.228 0-.6-.086-.913.256-.312.342-1.192 1.166-1.192 2.842 0 1.677 1.22 3.296 1.39 3.515.17.219 2.4 3.666 5.816 5.143.812.35 1.447.56 1.942.718.816.26 1.56.223 2.148.135.656-.098 1.94-.794 2.213-1.56.273-.767.273-1.423.19-1.56-.081-.137-.3-.22-.627-.383z"/>
                                             </svg>
-                                            Notify All Items
+                                            {isAllPending ? "Notify All Items" : "Notify Remaining Items"}
                                           </button>
                                         );
                                       })()}
