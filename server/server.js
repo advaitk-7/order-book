@@ -142,7 +142,7 @@ const waitlistSchema = new mongoose.Schema(
     customerName: { type: String, required: true, trim: true },
     contactNumber: { type: String, required: true, trim: true },
     school: { type: String, trim: true, default: "" },
-    itemDetails: { type: String, required: true, trim: true },
+    items: [{ type: String, required: true, trim: true }],
     status: { type: String, enum: ["Pending", "Notified"], default: "Pending" },
     notes: { type: String, default: "" }
   },
@@ -809,7 +809,7 @@ app.get("/api/waitlist", authenticateJWT, async (req, res) => {
         { customerName: { $regex: search, $options: "i" } },
         { contactNumber: { $regex: search, $options: "i" } },
         { school: { $regex: search, $options: "i" } },
-        { itemDetails: { $regex: search, $options: "i" } }
+        { items: { $regex: search, $options: "i" } }
       ];
     }
 
@@ -822,21 +822,26 @@ app.get("/api/waitlist", authenticateJWT, async (req, res) => {
 
 app.post("/api/waitlist", authenticateJWT, async (req, res) => {
   try {
-    const { customerName, contactNumber, school, itemDetails, notes } = req.body;
-    if (!customerName || !contactNumber || !itemDetails) {
-      return res.status(400).json({ message: "Customer Name, Contact Number, and Item Details are required." });
+    const { customerName, contactNumber, school, items, notes } = req.body;
+    if (!customerName || !contactNumber || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Customer Name, Contact Number, and at least one Waitlist Item are required." });
+    }
+
+    const cleanedItems = items.map(item => item.trim()).filter(Boolean);
+    if (cleanedItems.length === 0) {
+      return res.status(400).json({ message: "Waitlist Items cannot be empty." });
     }
 
     const newRequest = await Waitlist.create({
       customerName,
       contactNumber,
       school,
-      itemDetails,
+      items: cleanedItems,
       notes,
       status: "Pending"
     });
 
-    await logAudit(newRequest._id, "System", "Waitlist Add", `Added waitlist request for customer '${customerName}' - ${itemDetails}`);
+    await logAudit(newRequest._id, "System", "Waitlist Add", `Added waitlist request for customer '${customerName}' - ${cleanedItems.join(", ")}`);
     res.status(201).json(newRequest);
   } catch (error) {
     res.status(500).json({ message: "Failed to create waitlist entry", error: error.message });
@@ -845,7 +850,7 @@ app.post("/api/waitlist", authenticateJWT, async (req, res) => {
 
 app.patch("/api/waitlist/:id", authenticateJWT, async (req, res) => {
   try {
-    const { status, customerName, contactNumber, school, itemDetails, notes } = req.body;
+    const { status, customerName, contactNumber, school, items, notes } = req.body;
     const request = await Waitlist.findById(req.params.id);
     if (!request) {
       return res.status(404).json({ message: "Waitlist entry not found" });
@@ -857,8 +862,13 @@ app.patch("/api/waitlist/:id", authenticateJWT, async (req, res) => {
     if (customerName !== undefined) request.customerName = customerName;
     if (contactNumber !== undefined) request.contactNumber = contactNumber;
     if (school !== undefined) request.school = school;
-    if (itemDetails !== undefined) request.itemDetails = itemDetails;
     if (notes !== undefined) request.notes = notes;
+    if (items !== undefined && Array.isArray(items)) {
+      const cleanedItems = items.map(item => item.trim()).filter(Boolean);
+      if (cleanedItems.length > 0) {
+        request.items = cleanedItems;
+      }
+    }
 
     await request.save();
 

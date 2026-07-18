@@ -45,7 +45,7 @@ const createEmptyWaitlistForm = () => ({
   customerName: '',
   contactNumber: '',
   school: '',
-  itemDetails: '',
+  items: [''],
   notes: ''
 })
 
@@ -894,6 +894,17 @@ function App() {
     const url = isEditing ? `${API_BASE}/api/waitlist/${selectedWaitlistRequest._id}` : `${API_BASE}/api/waitlist`
     const method = isEditing ? 'PATCH' : 'POST'
 
+    const cleanedItems = (waitlistFormData.items || []).map(i => i.trim()).filter(Boolean)
+    if (cleanedItems.length === 0) {
+      alert("Please fill in at least one item details field.")
+      return
+    }
+
+    const payload = {
+      ...waitlistFormData,
+      items: cleanedItems
+    }
+
     try {
       const response = await fetch(url, {
         method,
@@ -901,7 +912,7 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(waitlistFormData)
+        body: JSON.stringify(payload)
       })
 
       if (response.status === 401 || response.status === 403) {
@@ -989,13 +1000,16 @@ function App() {
       customerName: request.customerName || '',
       contactNumber: request.contactNumber || '',
       school: request.school || '',
-      itemDetails: request.itemDetails || '',
+      items: request.items && request.items.length > 0
+        ? [...request.items]
+        : [request.itemDetails || ''],
       notes: request.notes || ''
     })
     setShowWaitlistModal(true)
   }
 
   const handleCloseWaitlistModal = () => {
+    setShowSchoolManager(false)
     setShowWaitlistModal(false)
     setSelectedWaitlistRequest(null)
     setWaitlistFormData(createEmptyWaitlistForm())
@@ -1005,7 +1019,10 @@ function App() {
     const cleanPhone = request.contactNumber.replace(/\D/g, '')
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone
     
-    const messageText = `Hi ${request.customerName}, this is Liberty Uniforms. Your requested item: "${request.itemDetails}" is now back in stock! Please visit our shop to collect it.`
+    const itemsLabel = request.items && request.items.length > 0
+      ? request.items.join(', ')
+      : request.itemDetails || ''
+    const messageText = `Hi ${request.customerName}, this is Liberty Uniforms. Your requested items: "${itemsLabel}" are now back in stock! Please visit our shop to collect it.`
     const encodedText = encodeURIComponent(messageText)
     
     const link = whatsappMode === 'app'
@@ -3719,8 +3736,16 @@ Liberty Uniform`
                             <td style={{ padding: '12px 16px', color: request.school ? 'inherit' : '#94A3B8' }}>
                               {request.school || 'General'}
                             </td>
-                            <td style={{ padding: '12px 16px', fontWeight: '500' }}>
-                              {request.itemDetails}
+                            <td style={{ padding: '12px 16px' }}>
+                              {request.items && request.items.length > 0 ? (
+                                <ul style={{ margin: 0, paddingLeft: '16px', fontWeight: '500' }}>
+                                  {request.items.map((item, idx) => (
+                                    <li key={idx}>{item}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span style={{ fontWeight: '500' }}>{request.itemDetails}</span>
+                              )}
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748B' }}>
                               {request.notes || '-'}
@@ -4498,16 +4523,65 @@ Liberty Uniform`
               </div>
 
               <div className="manage-input-group">
-                <label>
+                <label style={{ fontWeight: '600', marginBottom: '6px', display: 'block' }}>
                   Desired Product Details *
-                  <input
-                    type="text"
-                    value={waitlistFormData.itemDetails}
-                    onChange={(e) => setWaitlistFormData({ ...waitlistFormData, itemDetails: e.target.value })}
-                    placeholder="e.g. Navy Blue Blazer Size 34, Tie & Belt Set"
-                    required
-                  />
                 </label>
+                {(waitlistFormData.items || ['']).map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={item}
+                      onChange={(e) => {
+                        const updated = [...(waitlistFormData.items || [''])]
+                        updated[idx] = e.target.value
+                        setWaitlistFormData({ ...waitlistFormData, items: updated })
+                      }}
+                      placeholder={`Item #${idx + 1} (e.g. Blazer Size 34)`}
+                      required
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...(waitlistFormData.items || [''])]
+                        updated.splice(idx, 1)
+                        setWaitlistFormData({ ...waitlistFormData, items: updated })
+                      }}
+                      disabled={(waitlistFormData.items || ['']).length <= 1}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: (waitlistFormData.items || ['']).length > 1 ? 'pointer' : 'not-allowed',
+                        fontSize: '14px',
+                        padding: '0 4px',
+                        opacity: (waitlistFormData.items || ['']).length <= 1 ? 0.3 : 1
+                      }}
+                      title="Remove Item"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = [...(waitlistFormData.items || ['']), '']
+                    setWaitlistFormData({ ...waitlistFormData, items: updated })
+                  }}
+                  className="secondary-btn"
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    height: '28px',
+                    minWidth: 'auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    marginTop: '4px'
+                  }}
+                >
+                  ➕ Add Item
+                </button>
               </div>
 
               <div className="manage-input-group">
