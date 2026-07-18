@@ -2825,7 +2825,11 @@ Liberty Uniform`
                             setHighlightedOrderId(order._id)
                             setShouldScrollToDetails(true)
                           }}
-                          style={{ cursor: 'pointer' }}
+                          style={{
+                            cursor: 'pointer',
+                            position: (timerAlertOrder && timerAlertOrder._id === order._id) ? 'relative' : 'static',
+                            zIndex: (timerAlertOrder && timerAlertOrder._id === order._id) ? 10 : 'auto'
+                          }}
                         >
                           <td>
                             <input
@@ -3832,7 +3836,14 @@ Liberty Uniform`
                       </thead>
                       <tbody>
                         {waitlist.map((request) => (
-                          <tr key={request._id} style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)' }}>
+                          <tr
+                            key={request._id}
+                            style={{
+                              borderBottom: '1px solid var(--border-color, #E5E7EB)',
+                              position: (timerAlertWaitlist && timerAlertWaitlist._id === request._id) ? 'relative' : 'static',
+                              zIndex: (timerAlertWaitlist && timerAlertWaitlist._id === request._id) ? 10 : 'auto'
+                            }}
+                          >
                             <td style={{ padding: '12px 16px' }}>
                               <div style={{ fontWeight: '600' }}>{request.customerName}</div>
                               <div style={{ fontSize: '12px', color: '#64748B' }}>{request.contactNumber}</div>
