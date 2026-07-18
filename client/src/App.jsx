@@ -2845,61 +2845,63 @@ Liberty Uniform`
                               {order.paymentStatus || 'Unpaid'}
                             </span>
                           </td>
-                          <td style={{ position: 'relative' }}>
-                            <span
-                              className={`status-badge ${order.status === 'Delivered' ? 'clickable' : ''} ${order.status.toLowerCase()}`}
-                              onClick={(e) => {
-                                if (order.status === 'Delivered') {
-                                  e.stopPropagation();
-                                  handleStatusTap(order)
-                                }
-                              }}
-                            >
-                              {statusLabel[order.status] || order.status}
-                            </span>
+                           <td>
+                             <div style={{ display: 'inline-block', position: 'relative' }}>
+                               <span
+                                 className={`status-badge ${order.status === 'Delivered' ? 'clickable' : ''} ${order.status.toLowerCase()}`}
+                                 onClick={(e) => {
+                                   if (order.status === 'Delivered') {
+                                     e.stopPropagation();
+                                     handleStatusTap(order)
+                                   }
+                                 }}
+                               >
+                                 {statusLabel[order.status] || order.status}
+                               </span>
 
-                            {timerAlertOrder && timerAlertOrder._id === order._id && (
-                              <div
-                                className="timer-popup"
-                                style={{
-                                  position: 'absolute',
-                                  bottom: '100%',
-                                  left: '50%',
-                                  transform: 'translateX(-50%) translateY(-8px)',
-                                  background: '#1E293B',
-                                  color: 'white',
-                                  padding: '10px 14px',
-                                  borderRadius: '12px',
-                                  boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
-                                  zIndex: 100,
-                                  fontSize: '13px',
-                                  fontWeight: '500',
-                                  whiteSpace: 'nowrap',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  pointerEvents: 'none'
-                                }}
-                              >
-                                <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
-                                <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
-                                  {computeTimeLeftDescription(order.deliveredAt, order.updatedAt, order.createdAt)}
-                                </span>
-                                <div style={{
-                                  position: 'absolute',
-                                  top: '100%',
-                                  left: '50%',
-                                  transform: 'translateX(-50%)',
-                                  width: 0,
-                                  height: 0,
-                                  borderLeft: '6px solid transparent',
-                                  borderRight: '6px solid transparent',
-                                  borderTop: '6px solid #1E293B'
-                                }} />
-                              </div>
-                            )}
-                          </td>
+                               {timerAlertOrder && timerAlertOrder._id === order._id && (
+                                 <div
+                                   className="timer-popup"
+                                   style={{
+                                     position: 'absolute',
+                                     bottom: '100%',
+                                     left: '50%',
+                                     transform: 'translateX(-50%) translateY(-8px)',
+                                     background: '#1E293B',
+                                     color: 'white',
+                                     padding: '10px 14px',
+                                     borderRadius: '12px',
+                                     boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
+                                     zIndex: 100,
+                                     fontSize: '13px',
+                                     fontWeight: '500',
+                                     whiteSpace: 'nowrap',
+                                     display: 'flex',
+                                     flexDirection: 'column',
+                                     alignItems: 'center',
+                                     gap: '4px',
+                                     pointerEvents: 'none'
+                                   }}
+                                 >
+                                   <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
+                                   <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
+                                     {computeTimeLeftDescription(order.deliveredAt, order.updatedAt, order.createdAt)}
+                                   </span>
+                                   <div style={{
+                                     position: 'absolute',
+                                     top: '100%',
+                                     left: '50%',
+                                     transform: 'translateX(-50%)',
+                                     width: 0,
+                                     height: 0,
+                                     borderLeft: '6px solid transparent',
+                                     borderRight: '6px solid transparent',
+                                     borderTop: '6px solid #1E293B'
+                                   }} />
+                                 </div>
+                               )}
+                             </div>
+                           </td>
                           <td>
                             {order.contactStatus || 'Not contacted'}
                           </td>
@@ -3942,11 +3944,11 @@ Liberty Uniform`
                             <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748B' }}>
                               {request.notes || '-'}
                             </td>
-                            <td style={{ padding: '12px 16px', position: 'relative' }}>
+                            <td style={{ padding: '12px 16px' }}>
                               {(() => {
                                 const allNotified = request.items && request.items.length > 0 && request.items.every(i => i.status === 'Notified');
                                 return (
-                                  <>
+                                  <div style={{ display: 'inline-block', position: 'relative' }}>
                                     <span
                                       className={`status-badge ${allNotified ? 'ready clickable' : 'pending'}`}
                                       onClick={(e) => {
@@ -4000,7 +4002,7 @@ Liberty Uniform`
                                         }} />
                                       </div>
                                     )}
-                                  </>
+                                  </div>
                                 );
                               })()}
                             </td>
