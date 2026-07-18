@@ -387,11 +387,12 @@ function App() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false)
   const [selectedWaitlistRequest, setSelectedWaitlistRequest] = useState(null)
   const [waitlistFormData, setWaitlistFormData] = useState(createEmptyWaitlistForm())
-  const [schools, setSchools] = useState([])
-  const [loadingSchools, setLoadingSchools] = useState(false)
-  const [newSchoolInput, setNewSchoolInput] = useState('')
+  const [waitlistSchools, setWaitlistSchools] = useState([])
+  const [waitlistSchoolFilter, setWaitlistSchoolFilter] = useState('All')
+  const [showSchoolManager, setShowSchoolManager] = useState(false)
+  const [newSchoolNameInput, setNewSchoolNameInput] = useState('')
   const [editingSchoolId, setEditingSchoolId] = useState(null)
-  const [editingSchoolName, setEditingSchoolName] = useState('')
+  const [editingSchoolNameInput, setEditingSchoolNameInput] = useState('')
   const [activePage, setActivePage] = useState('Dashboard')
   const [visibleCount, setVisibleCount] = useState(20)
   const loadStep = 20
@@ -772,159 +773,12 @@ function App() {
       setLoadingAuditLogs(false)
     }
   }
-  const fetchSchools = async () => {
-    if (!token) return
-    setLoadingSchools(true)
-    try {
-      const response = await fetch(`${API_BASE}/api/schools`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.status === 401 || response.status === 403) {
-        handleLogout()
-        return
-      }
-      if (response.ok) {
-        const data = await response.json()
-        setSchools(data)
-      }
-    } catch (error) {
-      console.error('Failed to load schools', error)
-    } finally {
-      setLoadingSchools(false)
-    }
-  }
 
-  const handleAddSchool = async (e) => {
-    if (e) e.preventDefault()
-    if (!token || !newSchoolInput.trim()) return
-    try {
-      const response = await fetch(`${API_BASE}/api/schools`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: newSchoolInput.trim() })
-      })
-
-      if (response.status === 401 || response.status === 403) {
-        handleLogout()
-        return
-      }
-
-      const data = await response.json()
-      if (response.ok) {
-        setNewSchoolInput('')
-        fetchSchools()
-      } else {
-        alert(data.message || 'Failed to add school')
-      }
-    } catch (error) {
-      console.error('Add school error:', error)
-    }
-  }
-
-  const handleUpdateSchool = async (id, e) => {
-    if (e) e.preventDefault()
-    if (!token || !editingSchoolName.trim()) return
-    try {
-      const response = await fetch(`${API_BASE}/api/schools/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: editingSchoolName.trim() })
-      })
-
-      if (response.status === 401 || response.status === 403) {
-        handleLogout()
-        return
-      }
-
-      const data = await response.json()
-      if (response.ok) {
-        setEditingSchoolId(null)
-        setEditingSchoolName('')
-        fetchSchools()
-        fetchOrders(searchTerm)
-        fetchWaitlist()
-      } else {
-        alert(data.message || 'Failed to update school')
-      }
-    } catch (error) {
-      console.error('Update school error:', error)
-    }
-  }
-
-  const handleDeleteSchool = async (id, name) => {
-    if (!token) return
-    if (!window.confirm(`Are you sure you want to delete "${name}" from the master school list?`)) return
-    try {
-      const response = await fetch(`${API_BASE}/api/schools/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-
-      if (response.status === 401 || response.status === 403) {
-        handleLogout()
-        return
-      }
-
-      if (response.ok) {
-        fetchSchools()
-      } else {
-        const data = await response.json()
-        alert(data.message || 'Failed to delete school')
-      }
-    } catch (error) {
-      console.error('Delete school error:', error)
-    }
-  }
-
-  const handleQuickAddSchool = async (onSuccessCallback) => {
-    const input = window.prompt("Enter new school name:")
-    if (!input || !input.trim()) return
-    const schoolName = input.trim()
-    try {
-      const response = await fetch(`${API_BASE}/api/schools`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: schoolName })
-      })
-
-      if (response.status === 401 || response.status === 403) {
-        handleLogout()
-        return
-      }
-
-      const data = await response.json()
-      if (response.ok) {
-        await fetchSchools()
-        if (onSuccessCallback) {
-          onSuccessCallback(schoolName)
-        }
-      } else {
-        alert(data.message || 'Failed to add school')
-      }
-    } catch (error) {
-      console.error('Quick add school error:', error)
-    }
-  }
-
-  useEffect(() => {
-    if (token) {
-      fetchSchools()
-    }
-  }, [token])
-  const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter) => {
+  const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter, school = waitlistSchoolFilter) => {
     if (!token) return
     setLoadingWaitlist(true)
     try {
-      const response = await fetch(`${API_BASE}/api/waitlist?search=${encodeURIComponent(search)}&status=${status}`, {
+      const response = await fetch(`${API_BASE}/api/waitlist?search=${encodeURIComponent(search)}&status=${status}&school=${school}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.status === 401 || response.status === 403) {
@@ -939,6 +793,97 @@ function App() {
       console.error('Failed to load waitlist', error)
     } finally {
       setLoadingWaitlist(false)
+    }
+  }
+
+  const fetchWaitlistSchools = async () => {
+    if (!token) return
+    try {
+      const response = await fetch(`${API_BASE}/api/waitlist/schools`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setWaitlistSchools(data)
+      }
+    } catch (error) {
+      console.error('Failed to load waitlist schools', error)
+    }
+  }
+
+  const handleSaveWaitlistSchool = async (e) => {
+    e.preventDefault()
+    if (!token || !newSchoolNameInput.trim()) return
+    try {
+      const response = await fetch(`${API_BASE}/api/waitlist/schools`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newSchoolNameInput.trim() })
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        setNewSchoolNameInput('')
+        fetchWaitlistSchools()
+        setWaitlistFormData(prev => ({ ...prev, school: data.name }))
+      } else {
+        alert(data.message || 'Failed to create school')
+      }
+    } catch (error) {
+      console.error('Failed to save school', error)
+    }
+  }
+
+  const handleRenameWaitlistSchool = async (id, newName) => {
+    if (!token || !newName.trim()) return
+    try {
+      const response = await fetch(`${API_BASE}/api/waitlist/schools/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newName.trim() })
+      })
+
+      if (response.ok) {
+        setEditingSchoolId(null)
+        setEditingSchoolNameInput('')
+        fetchWaitlistSchools()
+        fetchWaitlist()
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to rename school')
+      }
+    } catch (error) {
+      console.error('Failed to rename school', error)
+    }
+  }
+
+  const handleDeleteWaitlistSchool = async (id, name) => {
+    if (!token) return
+    if (!window.confirm(`Are you sure you want to delete "${name}" from the school list? This will clear this school name from active waitlist requests.`)) return
+    try {
+      const response = await fetch(`${API_BASE}/api/waitlist/schools/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        fetchWaitlistSchools()
+        fetchWaitlist()
+        if (waitlistFormData.school === name) {
+          setWaitlistFormData(prev => ({ ...prev, school: '' }))
+        }
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to delete school')
+      }
+    } catch (error) {
+      console.error('Failed to delete school', error)
     }
   }
 
@@ -1072,9 +1017,15 @@ function App() {
 
   useEffect(() => {
     if (activePage === 'Stock Waitlist' && token) {
-      fetchWaitlist(waitlistSearch, waitlistStatusFilter)
+      fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter)
     }
-  }, [waitlistSearch, waitlistStatusFilter, activePage, token])
+  }, [waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, activePage, token])
+
+  useEffect(() => {
+    if (activePage === 'Stock Waitlist' && token) {
+      fetchWaitlistSchools()
+    }
+  }, [activePage, token])
 
   useEffect(() => {
     if (activePage === 'Settings' && token) {
@@ -2472,38 +2423,9 @@ Liberty Uniform`
                             <option value="Female">Female</option>
                           </select>
                         </label>
-                        <label style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                            <span>School *</span>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickAddSchool((newName) => {
-                                setFormData(prev => ({ ...prev, school: newName }))
-                              })}
-                              style={{
-                                border: 'none',
-                                background: 'none',
-                                padding: '0',
-                                color: '#2563EB',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              ➕ Add New
-                            </button>
-                          </span>
-                          <select
-                            name="school"
-                            value={formData.school}
-                            onChange={handleChange}
-                            required
-                          >
-                            <option value="">-- Select School --</option>
-                            {schools.map((s) => (
-                              <option key={s._id} value={s.name}>{s.name}</option>
-                            ))}
-                          </select>
+                        <label>
+                          School
+                          <input name="school" value={formData.school} onChange={handleChange} required />
                         </label>
                       </div>
                     </div>
@@ -2720,8 +2642,8 @@ Liberty Uniform`
                     <span>School</span>
                     <select value={orderSchoolFilter} onChange={(event) => applyOrderSchoolFilter(event.target.value)}>
                       <option value="All">All Schools</option>
-                      {schools.map((s) => (
-                        <option key={s._id} value={s.name}>{s.name}</option>
+                      {tailorAvailableSchools.map((s) => (
+                        <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
                   </label>
@@ -3140,8 +3062,8 @@ Liberty Uniform`
                     <span>School</span>
                     <select value={tailorSchoolFilter} onChange={(e) => setTailorSchoolFilter(e.target.value)}>
                       <option value="All">All Schools</option>
-                      {schools.map((s) => (
-                        <option key={s._id} value={s.name}>{s.name}</option>
+                      {tailorAvailableSchools.map((s) => (
+                        <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
                   </label>
@@ -3728,7 +3650,7 @@ Liberty Uniform`
                     />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>Status:</span>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>Notification Status:</span>
                     <select
                       value={waitlistStatusFilter}
                       onChange={(e) => setWaitlistStatusFilter(e.target.value)}
@@ -3745,6 +3667,27 @@ Liberty Uniform`
                       <option value="All">All Statuses</option>
                       <option value="Pending">Pending</option>
                       <option value="Notified">Notified</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>School:</span>
+                    <select
+                      value={waitlistSchoolFilter}
+                      onChange={(e) => setWaitlistSchoolFilter(e.target.value)}
+                      style={{
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        borderRadius: '8px',
+                        minHeight: '34px',
+                        background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                        color: 'inherit',
+                        border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
+                      }}
+                    >
+                      <option value="All">All Schools</option>
+                      {waitlistSchools.map((s) => (
+                        <option key={s._id} value={s.name}>{s.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -3995,104 +3938,6 @@ Liberty Uniform`
                           {loadingPricing ? 'Saving...' : 'Save Pricing Rates'}
                         </button>
                       </form>
-                    </div>
-
-                    {/* Master School Registry Card */}
-                    <div className="settings-box">
-                      <p className="settings-box-title">🏫 Master School List</p>
-                      <p className="settings-box-desc">Add, edit, or remove schools. Renaming a school automatically updates all related orders and waitlists.</p>
-
-                      <form onSubmit={handleAddSchool} style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-                        <input
-                          type="text"
-                          placeholder="Enter school name..."
-                          value={newSchoolInput}
-                          onChange={(e) => setNewSchoolInput(e.target.value)}
-                          style={{
-                            flex: 1,
-                            padding: '8px 12px',
-                            fontSize: '12px',
-                            borderRadius: '8px',
-                            minHeight: '34px',
-                            background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                            color: 'inherit',
-                            border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
-                          }}
-                          required
-                        />
-                        <button type="submit" className="primary-btn" style={{ minWidth: 'auto', padding: '0 14px', height: '34px', fontSize: '12px' }}>
-                          Add School
-                        </button>
-                      </form>
-
-                      <div className="backups-list" style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {loadingSchools ? (
-                          <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '16px 0' }}>Loading school list...</p>
-                        ) : schools.length === 0 ? (
-                          <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '16px 0' }}>No schools registered yet.</p>
-                        ) : (
-                          schools.map((school) => (
-                            <div key={school._id} className="backup-item" style={{ padding: '8px 10px', borderRadius: '10px' }}>
-                              {editingSchoolId === school._id ? (
-                                <form onSubmit={(e) => handleUpdateSchool(school._id, e)} style={{ display: 'flex', gap: '6px', width: '100%' }}>
-                                  <input
-                                    type="text"
-                                    value={editingSchoolName}
-                                    onChange={(e) => setEditingSchoolName(e.target.value)}
-                                    style={{
-                                      flex: 1,
-                                      padding: '4px 8px',
-                                      fontSize: '12px',
-                                      borderRadius: '6px',
-                                      minHeight: '28px',
-                                      background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
-                                      color: 'inherit',
-                                      border: '1px solid #2563EB'
-                                    }}
-                                    required
-                                    autoFocus
-                                  />
-                                  <button type="submit" className="primary-btn" style={{ minWidth: 'auto', padding: '0 8px', height: '28px', fontSize: '11px' }}>
-                                    Save
-                                  </button>
-                                  <button type="button" className="secondary-btn" onClick={() => setEditingSchoolId(null)} style={{ minWidth: 'auto', padding: '0 8px', height: '28px', fontSize: '11px' }}>
-                                    Cancel
-                                  </button>
-                                </form>
-                              ) : (
-                                <>
-                                  <div className="backup-details" style={{ flex: 1 }}>
-                                    <span className="backup-name" style={{ fontSize: '13px', fontWeight: '600' }}>{school.name}</span>
-                                  </div>
-                                  <div style={{ display: 'flex', gap: '4px' }}>
-                                    <button
-                                      type="button"
-                                      title="Rename School"
-                                      onClick={() => {
-                                        setEditingSchoolId(school._id)
-                                        setEditingSchoolName(school.name)
-                                      }}
-                                      className="secondary-btn"
-                                      style={{ padding: '4px 6px', fontSize: '11px', minWidth: 'auto', height: '26px' }}
-                                    >
-                                      ✏️
-                                    </button>
-                                    <button
-                                      type="button"
-                                      title="Delete School"
-                                      onClick={() => handleDeleteSchool(school._id, school.name)}
-                                      className="danger-btn"
-                                      style={{ padding: '4px 6px', fontSize: '11px', minWidth: 'auto', height: '26px' }}
-                                    >
-                                      🗑️
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          ))
-                        )}
-                      </div>
                     </div>
 
                     {/* Backup & restore management */}
@@ -4495,48 +4340,161 @@ Liberty Uniform`
               </div>
 
               <div className="manage-input-group">
-                <label style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span>School Name</span>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickAddSchool((newName) => {
-                        setWaitlistFormData(prev => ({ ...prev, school: newName }))
-                      })}
-                      style={{
-                        border: 'none',
-                        background: 'none',
-                        padding: '0',
-                        color: '#2563EB',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      ➕ Add New
-                    </button>
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '600' }}>School Name</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowSchoolManager(!showSchoolManager)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#2563EB',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    {showSchoolManager ? '✕ Hide Directory' : '⚙️ Manage Directory'}
+                  </button>
+                </div>
+                
+                {!showSchoolManager ? (
                   <select
                     value={waitlistFormData.school}
                     onChange={(e) => setWaitlistFormData({ ...waitlistFormData, school: e.target.value })}
                     style={{
                       width: '100%',
-                      padding: '8px 12px',
+                      padding: '10px',
                       fontSize: '13px',
                       borderRadius: '8px',
                       border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1',
                       background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                      color: 'inherit',
-                      boxSizing: 'border-box',
-                      minHeight: '38px'
+                      color: 'inherit'
                     }}
                   >
-                    <option value="">-- Select School --</option>
-                    {schools.map((s) => (
+                    <option value="">General / No School</option>
+                    {waitlistSchools.map((s) => (
                       <option key={s._id} value={s.name}>{s.name}</option>
                     ))}
                   </select>
-                </label>
+                ) : (
+                  /* Inline School Manager Pane */
+                  <div style={{
+                    background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
+                    border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid #E2E8F0',
+                    borderRadius: '8px',
+                    padding: '12px'
+                  }}>
+                    {/* Add School Row */}
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                      <input
+                        type="text"
+                        placeholder="Type new school name..."
+                        value={newSchoolNameInput}
+                        onChange={(e) => setNewSchoolNameInput(e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: '6px 10px',
+                          fontSize: '12px',
+                          borderRadius: '6px',
+                          border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1',
+                          background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                          color: 'inherit'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveWaitlistSchool}
+                        className="primary-btn"
+                        style={{
+                          padding: '0 12px',
+                          fontSize: '11px',
+                          height: '28px',
+                          minWidth: 'auto',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {/* Schools List */}
+                    <div style={{ maxHeight: '130px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {waitlistSchools.length === 0 ? (
+                        <p style={{ fontSize: '11px', color: '#64748B', textAlign: 'center', margin: '8px 0' }}>No registered schools yet.</p>
+                      ) : (
+                        waitlistSchools.map((s) => (
+                          <div key={s._id} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 0',
+                            borderBottom: '1px solid var(--border-color, #E5E7EB)'
+                          }}>
+                            {editingSchoolId === s._id ? (
+                              <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+                                <input
+                                  type="text"
+                                  value={editingSchoolNameInput}
+                                  onChange={(e) => setEditingSchoolNameInput(e.target.value)}
+                                  style={{
+                                    flex: 1,
+                                    padding: '4px 6px',
+                                    fontSize: '12px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #2563EB',
+                                    background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                                    color: 'inherit'
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRenameWaitlistSchool(s._id, editingSchoolNameInput)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                                  title="Save Rename"
+                                >
+                                  💾
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingSchoolId(null); setEditingSchoolNameInput(''); }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                                  title="Cancel"
+                                >
+                                  ❌
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <span style={{ fontSize: '12px', fontWeight: '500' }}>{s.name}</span>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setEditingSchoolId(s._id); setEditingSchoolNameInput(s.name); }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                                    title="Rename School"
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteWaitlistSchool(s._id, s.name)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                                    title="Delete School"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="manage-input-group">

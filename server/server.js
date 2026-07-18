@@ -150,13 +150,10 @@ const waitlistSchema = new mongoose.Schema(
 );
 const Waitlist = mongoose.model("Waitlist", waitlistSchema);
 
-const schoolSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true, unique: true, trim: true }
-  },
-  { timestamps: true }
-);
-const School = mongoose.model("School", schoolSchema);
+const waitlistSchoolSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true, trim: true }
+});
+const WaitlistSchool = mongoose.model("WaitlistSchool", waitlistSchoolSchema);
 
 // TTL index: automatically remove orders 25 days after they were marked Delivered
 orderSchema.index({ deliveredAt: 1 }, { expireAfterSeconds: 2160000 });
@@ -420,7 +417,7 @@ const performBackup = async () => {
     const admins = await Admin.find({});
     const auditLogs = await AuditLog.find({});
     const waitlist = await Waitlist.find({});
-    const schools = await School.find({});
+    const waitlistSchools = await WaitlistSchool.find({});
 
     const backupData = {
       version: "1.2",
@@ -429,7 +426,7 @@ const performBackup = async () => {
       admins,
       auditLogs,
       waitlist,
-      schools
+      waitlistSchools
     };
 
     const jsonStr = JSON.stringify(backupData, null, 2);
@@ -461,7 +458,7 @@ const performBackup = async () => {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (botToken && chatId) {
-      const caption = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}\n- Waitlist: ${waitlist.length}\n- Schools: ${schools.length}`;
+      const caption = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}\n- Waitlist: ${waitlist.length}\n- Waitlist Schools: ${waitlistSchools.length}`;
       
       const formData = new FormData();
       formData.append("chat_id", chatId);
@@ -506,7 +503,7 @@ const restoreBackup = async (compressedBuffer) => {
     await Admin.deleteMany({});
     await AuditLog.deleteMany({});
     await Waitlist.deleteMany({});
-    await School.deleteMany({});
+    await WaitlistSchool.deleteMany({});
 
     if (backupData.orders.length > 0) {
       await Order.insertMany(backupData.orders);
@@ -520,8 +517,8 @@ const restoreBackup = async (compressedBuffer) => {
     if (backupData.waitlist && backupData.waitlist.length > 0) {
       await Waitlist.insertMany(backupData.waitlist);
     }
-    if (backupData.schools && backupData.schools.length > 0) {
-      await School.insertMany(backupData.schools);
+    if (backupData.waitlistSchools && backupData.waitlistSchools.length > 0) {
+      await WaitlistSchool.insertMany(backupData.waitlistSchools);
     }
 
     console.log("Database backup restored successfully.");
@@ -530,7 +527,7 @@ const restoreBackup = async (compressedBuffer) => {
       adminsCount: backupData.admins.length,
       auditLogsCount: (backupData.auditLogs || []).length,
       waitlistCount: (backupData.waitlist || []).length,
-      schoolsCount: (backupData.schools || []).length
+      waitlistSchoolsCount: (backupData.waitlistSchools || []).length
     };
   } catch (error) {
     console.error("Restore failed:", error.message);
@@ -796,11 +793,15 @@ app.delete("/api/orders/:id", async (req, res) => {
 // Waitlist Endpoints
 app.get("/api/waitlist", authenticateJWT, async (req, res) => {
   try {
-    const { search, status } = req.query;
+    const { search, status, school } = req.query;
     const query = {};
 
     if (status && status !== "All") {
       query.status = status;
+    }
+
+    if (school && school !== "All") {
+      query.school = school;
     }
 
     if (search) {
@@ -887,80 +888,70 @@ app.delete("/api/waitlist/:id", authenticateJWT, async (req, res) => {
   }
 });
 
-// Master School Registry Endpoints
-app.get("/api/schools", authenticateJWT, async (req, res) => {
+// Waitlist Schools Directory Endpoints
+app.get("/api/waitlist/schools", authenticateJWT, async (req, res) => {
   try {
-    const schoolsList = await School.find({}).sort({ name: 1 });
-    res.json(schoolsList);
+    const schools = await WaitlistSchool.find({}).sort({ name: 1 });
+    res.json(schools);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch master school list", error: error.message });
+    res.status(500).json({ message: "Failed to fetch waitlist schools", error: error.message });
   }
 });
 
-app.post("/api/schools", authenticateJWT, async (req, res) => {
+app.post("/api/waitlist/schools", authenticateJWT, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: "School name is required" });
     }
-    const cleanName = name.trim();
 
-    const existing = await School.findOne({ name: { $regex: `^${cleanName}$`, $options: "i" } });
+    const trimmedName = name.trim();
+    const existing = await WaitlistSchool.findOne({ name: trimmedName });
     if (existing) {
-      return res.status(400).json({ message: "A school with this name already exists" });
+      return res.status(400).json({ message: "School name already exists" });
     }
 
-    const newSchool = await School.create({ name: cleanName });
-    await logAudit(newSchool._id, "System", "School Add", `Added school '${cleanName}' to Master Registry`);
+    const newSchool = await WaitlistSchool.create({ name: trimmedName });
     res.status(201).json(newSchool);
   } catch (error) {
     res.status(500).json({ message: "Failed to create school entry", error: error.message });
   }
 });
 
-app.patch("/api/schools/:id", authenticateJWT, async (req, res) => {
+app.patch("/api/waitlist/schools/:id", authenticateJWT, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: "School name is required" });
     }
-    const targetName = name.trim();
 
-    const school = await School.findById(req.params.id);
+    const trimmedName = name.trim();
+    const school = await WaitlistSchool.findById(req.params.id);
     if (!school) {
       return res.status(404).json({ message: "School not found" });
     }
 
     const oldName = school.name;
-    if (oldName.toLowerCase() !== targetName.toLowerCase()) {
-      const existing = await School.findOne({ name: { $regex: `^${targetName}$`, $options: "i" }, _id: { $ne: req.params.id } });
-      if (existing) {
-        return res.status(400).json({ message: "A school with this name already exists" });
-      }
-    }
-
-    school.name = targetName;
+    school.name = trimmedName;
     await school.save();
 
-    // Cascades: update school names in all active orders and waitlist items
-    await Order.updateMany({ school: oldName }, { school: targetName });
-    await Waitlist.updateMany({ school: oldName }, { school: targetName });
+    await Waitlist.updateMany({ school: oldName }, { school: trimmedName });
 
-    await logAudit(school._id, "System", "School Rename", `Renamed school '${oldName}' to '${targetName}' and cascaded changes to all orders/waitlists`);
     res.json(school);
   } catch (error) {
-    res.status(500).json({ message: "Failed to update school entry", error: error.message });
+    res.status(500).json({ message: "Failed to rename school", error: error.message });
   }
 });
 
-app.delete("/api/schools/:id", authenticateJWT, async (req, res) => {
+app.delete("/api/waitlist/schools/:id", authenticateJWT, async (req, res) => {
   try {
-    const school = await School.findByIdAndDelete(req.params.id);
+    const school = await WaitlistSchool.findByIdAndDelete(req.params.id);
     if (!school) {
       return res.status(404).json({ message: "School not found" });
     }
 
-    await logAudit(school._id, "System", "School Delete", `Removed school '${school.name}' from Master Registry`);
+    await Waitlist.updateMany({ school: school.name }, { school: "" });
+
     res.json({ message: "School deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete school entry", error: error.message });
@@ -1165,27 +1156,6 @@ async function startServer() {
         value: { pant: 150, pina: 75, shirtHs: 90, shirtFs: 110 }
       });
       console.log("Seeded default pricing rates into MongoDB");
-    }
-
-    // Seed/Migrate schools list from existing Orders and Waitlists
-    const schoolsCount = await School.countDocuments();
-    if (schoolsCount === 0) {
-      console.log("Master School list is empty. Migrating unique school names from orders and waitlists...");
-      const orderSchools = await Order.distinct("school");
-      const waitlistSchools = await Waitlist.distinct("school");
-      
-      const allUniqueSchools = Array.from(new Set([
-        ...orderSchools,
-        ...waitlistSchools
-      ].map(s => s ? s.trim() : "").filter(Boolean)));
-
-      if (allUniqueSchools.length > 0) {
-        const schoolsToInsert = allUniqueSchools.map(name => ({ name }));
-        await School.insertMany(schoolsToInsert);
-        console.log(`Successfully migrated and seeded ${allUniqueSchools.length} unique schools into Master Registry.`);
-      } else {
-        console.log("No existing schools found to migrate.");
-      }
     }
 
     app.listen(PORT, () => {
