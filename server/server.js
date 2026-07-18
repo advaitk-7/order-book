@@ -667,18 +667,25 @@ app.post("/api/orders", async (req, res) => {
 app.get("/api/orders", async (req, res) => {
   try {
     const search = (req.query.search || "").trim();
-    const query = search
-      ? {
-          $or: [
-            { orderNumber: { $regex: search, $options: "i" } },
-            { customerName: { $regex: search, $options: "i" } },
-            { school: { $regex: search, $options: "i" } },
-          ],
-        }
-      : {};
+    const orders = await Order.find({}).sort({ createdAt: -1 });
 
-    const orders = await Order.find(query).sort({ createdAt: -1 });
-    res.json(orders);
+    let filtered = orders;
+    if (search) {
+      filtered = orders.filter(order => {
+        const fields = [
+          order.orderNumber,
+          order.customerName,
+          order.contactNumber,
+          order.school,
+          order.tailorName,
+          order.notes,
+          ...(order.items || []).map(i => `${i.itemType} ${i.itemSize} ${i.itemSubtype} ${i.labelNumber || ''}`)
+        ];
+        return checkFuzzyMatch(search, fields);
+      });
+    }
+
+    res.json(filtered);
   } catch (error) {
     console.error("Error fetching orders:", error.message);
     res.status(500).json({ message: "Failed to fetch orders", error: error.message });
@@ -885,15 +892,6 @@ app.get("/api/waitlist", authenticateJWT, async (req, res) => {
       query.schools = school;
     }
 
-    if (search) {
-      query.$or = [
-        { customerName: { $regex: search, $options: "i" } },
-        { contactNumber: { $regex: search, $options: "i" } },
-        { schools: { $regex: search, $options: "i" } },
-        { "items.name": { $regex: search, $options: "i" } }
-      ];
-    }
-
     const requests = await Waitlist.find(query).sort({ createdAt: -1 });
 
     const normalized = requests.map(r => {
@@ -919,7 +917,20 @@ app.get("/api/waitlist", authenticateJWT, async (req, res) => {
       return obj;
     });
 
-    res.json(normalized);
+    let filtered = normalized;
+    if (search) {
+      filtered = normalized.filter(req => {
+        const fields = [
+          req.customerName,
+          req.contactNumber,
+          ...(req.schools || []),
+          ...(req.items || []).map(i => i.name)
+        ];
+        return checkFuzzyMatch(search, fields);
+      });
+    }
+
+    res.json(filtered);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch waitlist", error: error.message });
   }
@@ -1120,15 +1131,6 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
       }
     }
 
-    if (search) {
-      query.$or = [
-        { message: { $regex: search, $options: "i" } },
-        { username: { $regex: search, $options: "i" } },
-        { action: { $regex: search, $options: "i" } },
-        { details: { $regex: search, $options: "i" } }
-      ];
-    }
-
     if (date) {
       const startOfDayIST = new Date(`${date}T00:00:00`);
       const startOffset = startOfDayIST.getTime() - (5.5 * 60 * 60 * 1000);
@@ -1140,8 +1142,23 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
       };
     }
 
-    const logs = await AuditLog.find(query).sort({ createdAt: -1 }).limit(100);
-    res.json(logs);
+    const logs = await AuditLog.find(query).sort({ createdAt: -1 });
+
+    let filtered = logs;
+    if (search) {
+      filtered = logs.filter(log => {
+        const fields = [
+          log.message,
+          log.username,
+          log.action,
+          log.details,
+          log.orderNumber
+        ];
+        return checkFuzzyMatch(search, fields);
+      });
+    }
+
+    res.json(filtered.slice(0, 100));
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch audit logs", error: error.message });
   }
