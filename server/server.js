@@ -21,6 +21,79 @@ const JWT_SECRET = process.env.JWT_SECRET || "liberty_uniform_secret_key_12345";
 let ADMIN_USERNAME = process.env.ADMIN_USERNAME || "sarju";
 let currentAdminPassword = process.env.ADMIN_PASSWORD || "1";
 
+// Levenshtein Distance Helper
+function getLevenshteinDistance(a, b) {
+  const matrix = [];
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          Math.min(
+            matrix[i][j - 1] + 1, // insertion
+            matrix[i - 1][j] + 1  // deletion
+          )
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+// Check if a single target word matches a query token fuzzily
+function isFuzzyWordMatch(queryToken, targetWord) {
+  const q = queryToken.toLowerCase();
+  const t = targetWord.toLowerCase();
+  
+  if (t.includes(q) || q.includes(t)) {
+    return true;
+  }
+  
+  const maxDistance = q.length <= 4 ? 1 : 2;
+  const dist = getLevenshteinDistance(q, t);
+  if (dist <= maxDistance) {
+    return true;
+  }
+  
+  return false;
+}
+
+// High-quality Multi-Term Fuzzy Matcher for a document
+function checkFuzzyMatch(searchQuery, searchableTextArray) {
+  if (!searchQuery || searchQuery.trim() === "") return true;
+  
+  const targetWords = searchableTextArray
+    .filter(Boolean)
+    .join(" ")
+    .replace(/[^\w\s]/g, "")
+    .split(/\s+/)
+    .filter(Boolean);
+    
+  const queryTokens = searchQuery
+    .trim()
+    .replace(/[^\w\s]/g, "")
+    .split(/\s+/)
+    .filter(Boolean);
+    
+  if (queryTokens.length === 0) return true;
+  
+  return queryTokens.every(token => {
+    return targetWords.some(word => isFuzzyWordMatch(token, word));
+  });
+}
+
 const Session = mongoose.model("Session", new mongoose.Schema({
   token: { type: String, required: true, index: true },
   username: { type: String, required: true },
