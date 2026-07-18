@@ -41,6 +41,15 @@ const createEmptyForm = (orderNumber = '') => ({
   notes: '',
 })
 
+const createEmptyWaitlistForm = () => ({
+  customerName: '',
+  contactNumber: '',
+  school: '',
+  itemDetails: '',
+  notes: ''
+})
+
+
 const formatDateToDMY = (dateStr) => {
   if (!dateStr) return '-'
   const parts = dateStr.split('-')
@@ -371,6 +380,13 @@ function App() {
   const [logSearch, setLogSearch] = useState('')
   const [logTypeFilter, setLogTypeFilter] = useState('All')
   const [logDateFilter, setLogDateFilter] = useState('')
+  const [waitlist, setWaitlist] = useState([])
+  const [loadingWaitlist, setLoadingWaitlist] = useState(false)
+  const [waitlistSearch, setWaitlistSearch] = useState('')
+  const [waitlistStatusFilter, setWaitlistStatusFilter] = useState('All')
+  const [showWaitlistModal, setShowWaitlistModal] = useState(false)
+  const [selectedWaitlistRequest, setSelectedWaitlistRequest] = useState(null)
+  const [waitlistFormData, setWaitlistFormData] = useState(createEmptyWaitlistForm())
   const [activePage, setActivePage] = useState('Dashboard')
   const [visibleCount, setVisibleCount] = useState(20)
   const loadStep = 20
@@ -751,6 +767,162 @@ function App() {
       setLoadingAuditLogs(false)
     }
   }
+
+  const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter) => {
+    if (!token) return
+    setLoadingWaitlist(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/waitlist?search=${encodeURIComponent(search)}&status=${status}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.status === 401 || response.status === 403) {
+        handleLogout()
+        return
+      }
+      if (response.ok) {
+        const data = await response.json()
+        setWaitlist(data)
+      }
+    } catch (error) {
+      console.error('Failed to load waitlist', error)
+    } finally {
+      setLoadingWaitlist(false)
+    }
+  }
+
+  const handleSaveWaitlistRequest = async (e) => {
+    e.preventDefault()
+    if (!token) return
+    const isEditing = Boolean(selectedWaitlistRequest)
+    const url = isEditing ? `${API_BASE}/api/waitlist/${selectedWaitlistRequest._id}` : `${API_BASE}/api/waitlist`
+    const method = isEditing ? 'PATCH' : 'POST'
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(waitlistFormData)
+      })
+
+      if (response.status === 401 || response.status === 403) {
+        handleLogout()
+        return
+      }
+
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(`Waitlist request for '${data.customerName}' saved successfully.`)
+        handleCloseWaitlistModal()
+        fetchWaitlist()
+      } else {
+        alert(data.message || 'Failed to save waitlist entry')
+      }
+    } catch (error) {
+      console.error('Waitlist submit error:', error)
+    }
+  }
+
+  const handleToggleWaitlistStatus = async (request) => {
+    if (!token) return
+    const nextStatus = request.status === 'Pending' ? 'Notified' : 'Pending'
+    try {
+      const response = await fetch(`${API_BASE}/api/waitlist/${request._id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: nextStatus })
+      })
+
+      if (response.status === 401 || response.status === 403) {
+        handleLogout()
+        return
+      }
+
+      if (response.ok) {
+        fetchWaitlist()
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to toggle status')
+      }
+    } catch (error) {
+      console.error('Waitlist toggle status error:', error)
+    }
+  }
+
+  const handleDeleteWaitlistRequest = async (id, customerName) => {
+    if (!token) return
+    if (!window.confirm(`Are you sure you want to remove the waitlist request for ${customerName}?`)) return
+    try {
+      const response = await fetch(`${API_BASE}/api/waitlist/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.status === 401 || response.status === 403) {
+        handleLogout()
+        return
+      }
+
+      if (response.ok) {
+        setMessage(`Waitlist entry removed.`)
+        fetchWaitlist()
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to delete waitlist entry')
+      }
+    } catch (error) {
+      console.error('Waitlist delete error:', error)
+    }
+  }
+
+  const handleOpenAddWaitlistModal = () => {
+    setSelectedWaitlistRequest(null)
+    setWaitlistFormData(createEmptyWaitlistForm())
+    setShowWaitlistModal(true)
+  }
+
+  const handleOpenEditWaitlistModal = (request) => {
+    setSelectedWaitlistRequest(request)
+    setWaitlistFormData({
+      customerName: request.customerName || '',
+      contactNumber: request.contactNumber || '',
+      school: request.school || '',
+      itemDetails: request.itemDetails || '',
+      notes: request.notes || ''
+    })
+    setShowWaitlistModal(true)
+  }
+
+  const handleCloseWaitlistModal = () => {
+    setShowWaitlistModal(false)
+    setSelectedWaitlistRequest(null)
+    setWaitlistFormData(createEmptyWaitlistForm())
+  }
+
+  const handleSendWhatsAppNotification = (request) => {
+    const cleanPhone = request.contactNumber.replace(/\D/g, '')
+    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone
+    
+    const messageText = `Hi ${request.customerName}, this is Liberty Uniforms. Your requested item: "${request.itemDetails}" is now back in stock! Please visit our shop to collect it.`
+    const encodedText = encodeURIComponent(messageText)
+    
+    const link = whatsappMode === 'app'
+      ? `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`
+      : `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`
+      
+    window.open(link, '_blank')
+  }
+
+  useEffect(() => {
+    if (activePage === 'Stock Waitlist' && token) {
+      fetchWaitlist(waitlistSearch, waitlistStatusFilter)
+    }
+  }, [waitlistSearch, waitlistStatusFilter, activePage, token])
 
   useEffect(() => {
     if (activePage === 'Settings' && token) {
@@ -1229,6 +1401,7 @@ function App() {
     'New Order': 'Create a new uniform order with full details',
     Orders: 'Search, filter and manage existing orders',
     'Production Queue': 'Garment-level measurements, deadlines and notes for tailors',
+    'Stock Waitlist': 'Manage out-of-stock items and customer notification list',
     Reports: 'Business performance and delivery trends',
     Settings: 'System preferences and administrative settings',
   }
@@ -2015,12 +2188,13 @@ Liberty Uniform`
         </div>
 
         <nav className="sidebar-nav">
-          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Settings'].map((page) => {
+          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Settings'].map((page) => {
             const emojis = {
               'Dashboard': '📊',
               'New Order': '➕',
               'Orders': '📋',
               'Production Queue': '🧵',
+              'Stock Waitlist': '🔔',
               'Settings': '⚙️'
             };
             return (
@@ -3331,6 +3505,190 @@ Liberty Uniform`
             </section>
           )}
 
+          {activePage === 'Stock Waitlist' && (
+            <section className="page-panel placeholder-panel">
+              <div className="card card-panel placeholder-card" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                <div className="card-header space-between" style={{ borderBottom: 'none', paddingBottom: '0' }}>
+                  <div>
+                    <p className="card-title">Stock Waitlist Registry</p>
+                    <p className="card-subtitle">Notify customers when out-of-stock sizes or accessories arrive.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={handleOpenAddWaitlistModal}
+                    style={{
+                      height: '38px',
+                      padding: '0 16px',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <span>➕</span> Add Request
+                  </button>
+                </div>
+
+                {/* Search & Filters */}
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  margin: '20px 24px 16px',
+                  flexWrap: 'wrap',
+                  alignItems: 'center'
+                }}>
+                  <div className="table-search" style={{ flex: 1, minWidth: '200px' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Search name, phone number, school or item..."
+                      value={waitlistSearch}
+                      onChange={(e) => setWaitlistSearch(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>Status:</span>
+                    <select
+                      value={waitlistStatusFilter}
+                      onChange={(e) => setWaitlistStatusFilter(e.target.value)}
+                      style={{
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        borderRadius: '8px',
+                        minHeight: '34px',
+                        background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                        color: 'inherit',
+                        border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
+                      }}
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Notified">Notified</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
+                  {loadingWaitlist ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading waitlist...</div>
+                  ) : waitlist.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>No waitlist entries found.</div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Customer</th>
+                          <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>School</th>
+                          <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Requested Item</th>
+                          <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Notes</th>
+                          <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Status</th>
+                          <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)', textAlign: 'center' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {waitlist.map((request) => (
+                          <tr key={request._id} style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)' }}>
+                            <td style={{ padding: '12px 16px' }}>
+                              <div style={{ fontWeight: '600' }}>{request.customerName}</div>
+                              <div style={{ fontSize: '12px', color: '#64748B' }}>{request.contactNumber}</div>
+                            </td>
+                            <td style={{ padding: '12px 16px', color: request.school ? 'inherit' : '#94A3B8' }}>
+                              {request.school || 'General'}
+                            </td>
+                            <td style={{ padding: '12px 16px', fontWeight: '500' }}>
+                              {request.itemDetails}
+                            </td>
+                            <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748B' }}>
+                              {request.notes || '-'}
+                            </td>
+                            <td style={{ padding: '12px 16px' }}>
+                              <span className={`status-badge ${request.status === 'Pending' ? 'pending' : 'ready'}`}>
+                                {request.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  title="Send WhatsApp Notification"
+                                  onClick={() => handleSendWhatsAppNotification(request)}
+                                  className="secondary-btn"
+                                  style={{
+                                    padding: '6px 10px',
+                                    fontSize: '12px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    border: '1px solid #10B981',
+                                    color: '#10B981'
+                                  }}
+                                >
+                                  💬 WhatsApp
+                                </button>
+                                <button
+                                  type="button"
+                                  title={request.status === 'Pending' ? "Mark as Notified" : "Mark as Pending"}
+                                  onClick={() => handleToggleWaitlistStatus(request)}
+                                  className="secondary-btn"
+                                  style={{
+                                    padding: '6px 8px',
+                                    fontSize: '12px',
+                                    height: '32px',
+                                    minWidth: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                >
+                                  {request.status === 'Pending' ? '✅' : '⏳'}
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Edit Entry"
+                                  onClick={() => handleOpenEditWaitlistModal(request)}
+                                  className="secondary-btn"
+                                  style={{
+                                    padding: '6px 8px',
+                                    fontSize: '12px',
+                                    height: '32px',
+                                    minWidth: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Remove Entry"
+                                  onClick={() => handleDeleteWaitlistRequest(request._id, request.customerName)}
+                                  className="danger-btn"
+                                  style={{
+                                    padding: '6px 8px',
+                                    fontSize: '12px',
+                                    height: '32px',
+                                    minWidth: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
           {activePage === 'Settings' && (
             <section className="page-panel placeholder-panel">
               <div className="card card-panel placeholder-card" style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -3813,6 +4171,117 @@ Liberty Uniform`
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {showWaitlistModal && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '500px' }}>
+            <button type="button" className="manage-modal-close" onClick={handleCloseWaitlistModal}>
+              ✕
+            </button>
+            <p className="manage-modal-title">
+              {selectedWaitlistRequest ? '✏️ Edit Waitlist Request' : '➕ Add Waitlist Request'}
+            </p>
+            <p className="manage-modal-subtitle">
+              Enter customer and product details for waitlist notification.
+            </p>
+
+            <form onSubmit={handleSaveWaitlistRequest}>
+              <div className="manage-input-group">
+                <label>
+                  Customer Name *
+                  <input
+                    type="text"
+                    value={waitlistFormData.customerName}
+                    onChange={(e) => setWaitlistFormData({ ...waitlistFormData, customerName: e.target.value })}
+                    placeholder="Enter customer name"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  Contact Number *
+                  <input
+                    type="text"
+                    value={waitlistFormData.contactNumber}
+                    onChange={(e) => setWaitlistFormData({ ...waitlistFormData, contactNumber: e.target.value })}
+                    placeholder="Enter phone number"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  School Name
+                  <input
+                    type="text"
+                    value={waitlistFormData.school}
+                    onChange={(e) => setWaitlistFormData({ ...waitlistFormData, school: e.target.value })}
+                    placeholder="Enter school name (optional)"
+                    list="waitlist-schools-list"
+                  />
+                  <datalist id="waitlist-schools-list">
+                    {Array.from(new Set([
+                      ...orders.map(o => o.school),
+                      ...waitlist.map(w => w.school)
+                    ].filter(Boolean))).map(schoolName => (
+                      <option key={schoolName} value={schoolName} />
+                    ))}
+                  </datalist>
+                </label>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  Desired Product Details *
+                  <input
+                    type="text"
+                    value={waitlistFormData.itemDetails}
+                    onChange={(e) => setWaitlistFormData({ ...waitlistFormData, itemDetails: e.target.value })}
+                    placeholder="e.g. Navy Blue Blazer Size 34, Tie & Belt Set"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  Notes
+                  <textarea
+                    value={waitlistFormData.notes}
+                    onChange={(e) => setWaitlistFormData({ ...waitlistFormData, notes: e.target.value })}
+                    placeholder="Add any extra details or instructions..."
+                    style={{
+                      width: '100%',
+                      minHeight: '70px',
+                      padding: '10px',
+                      fontSize: '13px',
+                      borderRadius: '8px',
+                      border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1',
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div className="manage-btn-group" style={{ marginTop: '20px' }}>
+                <button type="button" className="secondary-btn" onClick={handleCloseWaitlistModal}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn">
+                  {selectedWaitlistRequest ? 'Save Changes' : 'Add Request'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

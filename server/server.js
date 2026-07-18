@@ -137,6 +137,19 @@ const systemSettingsSchema = new mongoose.Schema({
 });
 const SystemSettings = mongoose.model("SystemSettings", systemSettingsSchema);
 
+const waitlistSchema = new mongoose.Schema(
+  {
+    customerName: { type: String, required: true, trim: true },
+    contactNumber: { type: String, required: true, trim: true },
+    school: { type: String, trim: true, default: "" },
+    itemDetails: { type: String, required: true, trim: true },
+    status: { type: String, enum: ["Pending", "Notified"], default: "Pending" },
+    notes: { type: String, default: "" }
+  },
+  { timestamps: true }
+);
+const Waitlist = mongoose.model("Waitlist", waitlistSchema);
+
 // TTL index: automatically remove orders 25 days after they were marked Delivered
 orderSchema.index({ deliveredAt: 1 }, { expireAfterSeconds: 2160000 });
 
@@ -398,13 +411,15 @@ const performBackup = async () => {
     const orders = await Order.find({});
     const admins = await Admin.find({});
     const auditLogs = await AuditLog.find({});
+    const waitlist = await Waitlist.find({});
 
     const backupData = {
-      version: "1.0",
+      version: "1.1",
       timestamp: new Date().toISOString(),
       orders,
       admins,
-      auditLogs
+      auditLogs,
+      waitlist
     };
 
     const jsonStr = JSON.stringify(backupData, null, 2);
@@ -431,12 +446,12 @@ const performBackup = async () => {
     const filepath = path.join(BACKUP_DIR, filename);
 
     fs.writeFileSync(filepath, compressed);
-    console.log(`Auto database backup created successfully: ${filename}`);
+    console.log(`Auto database database backup created successfully: ${filename}`);
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (botToken && chatId) {
-      const caption = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}`;
+      const caption = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}\n- Waitlist: ${waitlist.length}`;
       
       const formData = new FormData();
       formData.append("chat_id", chatId);
@@ -480,6 +495,7 @@ const restoreBackup = async (compressedBuffer) => {
     await Order.deleteMany({});
     await Admin.deleteMany({});
     await AuditLog.deleteMany({});
+    await Waitlist.deleteMany({});
 
     if (backupData.orders.length > 0) {
       await Order.insertMany(backupData.orders);
@@ -490,12 +506,16 @@ const restoreBackup = async (compressedBuffer) => {
     if (backupData.auditLogs && backupData.auditLogs.length > 0) {
       await AuditLog.insertMany(backupData.auditLogs);
     }
+    if (backupData.waitlist && backupData.waitlist.length > 0) {
+      await Waitlist.insertMany(backupData.waitlist);
+    }
 
     console.log("Database backup restored successfully.");
     return {
       ordersCount: backupData.orders.length,
       adminsCount: backupData.admins.length,
-      auditLogsCount: (backupData.auditLogs || []).length
+      auditLogsCount: (backupData.auditLogs || []).length,
+      waitlistCount: (backupData.waitlist || []).length
     };
   } catch (error) {
     console.error("Restore failed:", error.message);
@@ -755,6 +775,100 @@ app.delete("/api/orders/:id", async (req, res) => {
   } catch (error) {
     console.error("Error deleting order:", error.message);
     res.status(500).json({ message: "Failed to delete order", error: error.message });
+  }
+});
+
+// Waitlist Endpoints
+app.get("/api/waitlist", authenticateJWT, async (req, res) => {
+  try {
+    const { search, status } = req.query;
+    const query = {};
+
+    if (status && status !== "All") {
+      query.status = status;
+    }
+
+    if (search) {
+      query.$or = [
+        { customerName: { $regex: search, $options: "i" } },
+        { contactNumber: { $regex: search, $options: "i" } },
+        { school: { $regex: search, $options: "i" } },
+        { itemDetails: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const requests = await Waitlist.find(query).sort({ createdAt: -1 });
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch waitlist", error: error.message });
+  }
+});
+
+app.post("/api/waitlist", authenticateJWT, async (req, res) => {
+  try {
+    const { customerName, contactNumber, school, itemDetails, notes } = req.body;
+    if (!customerName || !contactNumber || !itemDetails) {
+      return res.status(400).json({ message: "Customer Name, Contact Number, and Item Details are required." });
+    }
+
+    const newRequest = await Waitlist.create({
+      customerName,
+      contactNumber,
+      school,
+      itemDetails,
+      notes,
+      status: "Pending"
+    });
+
+    await logAudit(newRequest._id, "System", "Waitlist Add", `Added waitlist request for customer '${customerName}' - ${itemDetails}`);
+    res.status(201).json(newRequest);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create waitlist entry", error: error.message });
+  }
+});
+
+app.patch("/api/waitlist/:id", authenticateJWT, async (req, res) => {
+  try {
+    const { status, customerName, contactNumber, school, itemDetails, notes } = req.body;
+    const request = await Waitlist.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ message: "Waitlist entry not found" });
+    }
+
+    const oldStatus = request.status;
+
+    if (status !== undefined) request.status = status;
+    if (customerName !== undefined) request.customerName = customerName;
+    if (contactNumber !== undefined) request.contactNumber = contactNumber;
+    if (school !== undefined) request.school = school;
+    if (itemDetails !== undefined) request.itemDetails = itemDetails;
+    if (notes !== undefined) request.notes = notes;
+
+    await request.save();
+
+    if (status && status !== oldStatus) {
+      await logAudit(request._id, "System", "Waitlist Status", `Waitlist status for customer '${request.customerName}' changed from '${oldStatus}' to '${status}'`);
+    } else {
+      await logAudit(request._id, "System", "Waitlist Update", `Updated waitlist entry for customer '${request.customerName}'`);
+    }
+
+    res.json(request);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update waitlist entry", error: error.message });
+  }
+});
+
+app.delete("/api/waitlist/:id", authenticateJWT, async (req, res) => {
+  try {
+    const request = await Waitlist.findByIdAndDelete(req.params.id);
+    if (!request) {
+      return res.status(404).json({ message: "Waitlist entry not found" });
+    }
+
+    await logAudit(request._id, "System", "Waitlist Delete", `Removed waitlist entry for customer '${request.customerName}'`);
+    res.json({ message: "Waitlist entry deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete waitlist entry", error: error.message });
   }
 });
 
