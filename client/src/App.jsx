@@ -2529,7 +2529,7 @@ Liberty Uniform`
                           </select>
                         </label>
                         <label>
-                          Status
+                          Production Status
                           <select name="status" value={formData.status} onChange={handleChange}>
                             <option value="Pending">Pending</option>
                             <option value="Ready">Ready</option>
@@ -3780,7 +3780,7 @@ Liberty Uniform`
                           <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>School</th>
                           <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Requested Item</th>
                           <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Notes</th>
-                          <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Status</th>
+                          <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Notification Status</th>
                           <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)', textAlign: 'center' }}>Actions</th>
                         </tr>
                       </thead>
