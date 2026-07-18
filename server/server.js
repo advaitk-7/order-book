@@ -221,10 +221,13 @@ const waitlistSchema = new mongoose.Schema(
         status: { type: String, enum: ["Pending", "Notified"], default: "Pending" }
       }
     ],
-    notes: { type: String, default: "" }
+    notes: { type: String, default: "" },
+    notifiedAt: { type: Date }
   },
   { timestamps: true }
 );
+waitlistSchema.index({ notifiedAt: 1 }, { expireAfterSeconds: 604800 });
+
 const Waitlist = mongoose.model("Waitlist", waitlistSchema);
 
 const waitlistSchoolSchema = new mongoose.Schema({
@@ -964,12 +967,16 @@ app.post("/api/waitlist", authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: "Waitlist Items cannot be empty." });
     }
 
+    const allNotified = cleanedItems.length > 0 && cleanedItems.every(i => i.status === 'Notified');
+    const notifiedAt = allNotified ? new Date() : undefined;
+
     const newRequest = await Waitlist.create({
       customerName,
       contactNumber: cleanPhone,
       schools: Array.isArray(schools) ? schools : [],
       items: cleanedItems,
-      notes
+      notes,
+      notifiedAt
     });
 
     await logAudit(newRequest._id, "System", "Waitlist Add", `Added waitlist request for customer '${customerName}' - ${cleanedItems.map(i => i.name).join(", ")}`);
@@ -1019,6 +1026,15 @@ app.patch("/api/waitlist/:id", authenticateJWT, async (req, res) => {
       if (cleanedItems.length > 0) {
         request.items = cleanedItems;
       }
+    }
+
+    const allNotified = request.items && request.items.length > 0 && request.items.every(i => i.status === 'Notified');
+    if (allNotified) {
+      if (!request.notifiedAt) {
+        request.notifiedAt = new Date();
+      }
+    } else {
+      request.notifiedAt = null;
     }
 
     await request.save();

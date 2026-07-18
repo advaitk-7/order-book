@@ -399,6 +399,7 @@ function App() {
   const [selectedIds, setSelectedIds] = useState([])
   const [now, setNow] = useState(Date.now())
   const [timerAlertOrder, setTimerAlertOrder] = useState(null)
+  const [timerAlertWaitlist, setTimerAlertWaitlist] = useState(null)
   const [highlightedOrderId, setHighlightedOrderId] = useState(null)
   const [originalFormData, setOriginalFormData] = useState(null)
 
@@ -448,6 +449,14 @@ function App() {
     }, 5000)
     return () => clearTimeout(timeout)
   }, [timerAlertOrder])
+
+  useEffect(() => {
+    if (!timerAlertWaitlist) return undefined
+    const timeout = setTimeout(() => {
+      setTimerAlertWaitlist(null)
+    }, 5000)
+    return () => clearTimeout(timeout)
+  }, [timerAlertWaitlist])
 
   useEffect(() => {
     if (!message) return undefined
@@ -774,9 +783,9 @@ function App() {
     }
   }
 
-  const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter, school = waitlistSchoolFilter) => {
+  const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter, school = waitlistSchoolFilter, silent = false) => {
     if (!token) return
-    setLoadingWaitlist(true)
+    if (!silent) setLoadingWaitlist(true)
     try {
       const response = await fetch(`${API_BASE}/api/waitlist?search=${encodeURIComponent(search)}&status=${status}&school=${school}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -853,7 +862,7 @@ function App() {
         setEditingSchoolId(null)
         setEditingSchoolNameInput('')
         fetchWaitlistSchools()
-        fetchWaitlist()
+        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to rename school')
@@ -874,7 +883,7 @@ function App() {
 
       if (response.ok) {
         fetchWaitlistSchools()
-        fetchWaitlist()
+        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
         setWaitlistFormData(prev => ({
           ...prev,
           schools: (prev.schools || []).filter(s => s !== name)
@@ -938,7 +947,7 @@ function App() {
       if (response.ok) {
         setMessage(`Waitlist request for '${data.customerName}' saved successfully.`)
         handleCloseWaitlistModal()
-        fetchWaitlist()
+        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         alert(data.message || 'Failed to save waitlist entry')
       }
@@ -966,7 +975,7 @@ function App() {
       }
 
       if (response.ok) {
-        fetchWaitlist()
+        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to toggle status')
@@ -992,7 +1001,7 @@ function App() {
 
       if (response.ok) {
         setMessage(`Waitlist entry removed.`)
-        fetchWaitlist()
+        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to delete waitlist entry')
@@ -1047,7 +1056,7 @@ function App() {
         body: JSON.stringify({ items: updatedItems })
       })
       if (response.ok) {
-        fetchWaitlist()
+        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to update item status')
@@ -1536,6 +1545,32 @@ function App() {
     const timestamp = deliveredAt || updatedAt || createdAt
     if (!timestamp) return 'unknown'
     const timeLeftMs = new Date(timestamp).getTime() + 25 * 24 * 60 * 60 * 1000 - now
+    if (timeLeftMs <= 0) {
+      return 'Due for deletion'
+    }
+
+    const oneSecond = 1000
+    const oneMinute = 60 * 1000
+    const oneHour = 60 * 60 * 1000
+    const oneDay = 24 * 60 * 60 * 1000
+
+    if (timeLeftMs < oneHour) {
+      const minutes = Math.floor(timeLeftMs / oneMinute)
+      const seconds = Math.floor((timeLeftMs % oneMinute) / oneSecond)
+      return `${minutes} minute${minutes === 1 ? '' : 's'} ${seconds} second${seconds === 1 ? '' : 's'}`
+    }
+    if (timeLeftMs < oneDay) {
+      const hours = Math.floor(timeLeftMs / oneHour)
+      const minutes = Math.floor((timeLeftMs % oneHour) / oneMinute)
+      const seconds = Math.floor((timeLeftMs % oneMinute) / oneSecond)
+      return `${hours} hour${hours === 1 ? '' : 's'} ${minutes} minute${minutes === 1 ? '' : 's'} ${seconds} second${seconds === 1 ? '' : 's'}`
+    }
+    const days = Math.ceil(timeLeftMs / oneDay)
+  }
+
+  const computeWaitlistTimeLeftDescription = (notifiedAt) => {
+    if (!notifiedAt) return 'unknown'
+    const timeLeftMs = new Date(notifiedAt).getTime() + 7 * 24 * 60 * 60 * 1000 - now
     if (timeLeftMs <= 0) {
       return 'Due for deletion'
     }
@@ -2105,10 +2140,16 @@ Liberty Uniform`
         }
         setTimerAlertOrder(null)
       }
+      if (timerAlertWaitlist) {
+        if (e.target.closest('.status-badge') || e.target.closest('.timer-popup')) {
+          return
+        }
+        setTimerAlertWaitlist(null)
+      }
     }
     document.addEventListener('click', handleOutsideClick)
     return () => document.removeEventListener('click', handleOutsideClick)
-  }, [timerAlertOrder])
+  }, [timerAlertOrder, timerAlertWaitlist])
 
   if (!token) {
     return (
@@ -3901,13 +3942,65 @@ Liberty Uniform`
                             <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748B' }}>
                               {request.notes || '-'}
                             </td>
-                            <td style={{ padding: '12px 16px' }}>
+                            <td style={{ padding: '12px 16px', position: 'relative' }}>
                               {(() => {
                                 const allNotified = request.items && request.items.length > 0 && request.items.every(i => i.status === 'Notified');
                                 return (
-                                  <span className={`status-badge ${allNotified ? 'ready' : 'pending'}`}>
-                                    {allNotified ? 'Notified' : 'Pending'}
-                                  </span>
+                                  <>
+                                    <span
+                                      className={`status-badge ${allNotified ? 'ready clickable' : 'pending'}`}
+                                      onClick={(e) => {
+                                        if (allNotified) {
+                                          e.stopPropagation();
+                                          setTimerAlertWaitlist(timerAlertWaitlist?._id === request._id ? null : request);
+                                        }
+                                      }}
+                                    >
+                                      {allNotified ? 'Notified' : 'Pending'}
+                                    </span>
+
+                                    {timerAlertWaitlist && timerAlertWaitlist._id === request._id && request.notifiedAt && (
+                                      <div
+                                        className="timer-popup"
+                                        style={{
+                                          position: 'absolute',
+                                          bottom: '100%',
+                                          left: '50%',
+                                          transform: 'translateX(-50%) translateY(-8px)',
+                                          background: '#1E293B',
+                                          color: 'white',
+                                          padding: '10px 14px',
+                                          borderRadius: '12px',
+                                          boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
+                                          zIndex: 100,
+                                          fontSize: '13px',
+                                          fontWeight: '500',
+                                          whiteSpace: 'nowrap',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          pointerEvents: 'none'
+                                        }}
+                                      >
+                                        <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
+                                        <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
+                                          {computeWaitlistTimeLeftDescription(request.notifiedAt)}
+                                        </span>
+                                        <div style={{
+                                          position: 'absolute',
+                                          top: '100%',
+                                          left: '50%',
+                                          transform: 'translateX(-50%)',
+                                          width: 0,
+                                          height: 0,
+                                          borderLeft: '6px solid transparent',
+                                          borderRight: '6px solid transparent',
+                                          borderTop: '6px solid #1E293B'
+                                        }} />
+                                      </div>
+                                    )}
+                                  </>
                                 );
                               })()}
                             </td>
