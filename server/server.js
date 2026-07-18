@@ -141,7 +141,7 @@ const waitlistSchema = new mongoose.Schema(
   {
     customerName: { type: String, required: true, trim: true },
     contactNumber: { type: String, required: true, trim: true },
-    school: { type: String, trim: true, default: "" },
+    schools: [{ type: String, trim: true }],
     items: [
       {
         name: { type: String, required: true, trim: true },
@@ -809,14 +809,14 @@ app.get("/api/waitlist", authenticateJWT, async (req, res) => {
     }
 
     if (school && school !== "All") {
-      query.school = school;
+      query.schools = school;
     }
 
     if (search) {
       query.$or = [
         { customerName: { $regex: search, $options: "i" } },
         { contactNumber: { $regex: search, $options: "i" } },
-        { school: { $regex: search, $options: "i" } },
+        { schools: { $regex: search, $options: "i" } },
         { "items.name": { $regex: search, $options: "i" } }
       ];
     }
@@ -825,6 +825,9 @@ app.get("/api/waitlist", authenticateJWT, async (req, res) => {
 
     const normalized = requests.map(r => {
       const obj = r.toObject();
+      if (!obj.schools) {
+        obj.schools = obj.school ? [obj.school] : [];
+      }
       if (obj.items && obj.items.length > 0) {
         obj.items = obj.items.map(item => {
           if (typeof item === 'string') {
@@ -851,9 +854,14 @@ app.get("/api/waitlist", authenticateJWT, async (req, res) => {
 
 app.post("/api/waitlist", authenticateJWT, async (req, res) => {
   try {
-    const { customerName, contactNumber, school, items, notes } = req.body;
+    const { customerName, contactNumber, schools, items, notes } = req.body;
     if (!customerName || !contactNumber || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "Customer Name, Contact Number, and at least one Waitlist Item are required." });
+    }
+
+    const cleanPhone = contactNumber.replace(/\D/g, "");
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ message: "Contact number must be exactly 10 digits." });
     }
 
     const cleanedItems = items
@@ -874,8 +882,8 @@ app.post("/api/waitlist", authenticateJWT, async (req, res) => {
 
     const newRequest = await Waitlist.create({
       customerName,
-      contactNumber,
-      school,
+      contactNumber: cleanPhone,
+      schools: Array.isArray(schools) ? schools : [],
       items: cleanedItems,
       notes
     });
@@ -889,16 +897,28 @@ app.post("/api/waitlist", authenticateJWT, async (req, res) => {
 
 app.patch("/api/waitlist/:id", authenticateJWT, async (req, res) => {
   try {
-    const { status, customerName, contactNumber, school, items, notes } = req.body;
+    const { customerName, contactNumber, schools, items, notes } = req.body;
     const request = await Waitlist.findById(req.params.id);
     if (!request) {
       return res.status(404).json({ message: "Waitlist entry not found" });
     }
 
     if (customerName !== undefined) request.customerName = customerName;
-    if (contactNumber !== undefined) request.contactNumber = contactNumber;
-    if (school !== undefined) request.school = school;
+    
+    if (contactNumber !== undefined) {
+      const cleanPhone = contactNumber.replace(/\D/g, "");
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({ message: "Contact number must be exactly 10 digits." });
+      }
+      request.contactNumber = cleanPhone;
+    }
+    
+    if (schools !== undefined && Array.isArray(schools)) {
+      request.schools = schools;
+    }
+    
     if (notes !== undefined) request.notes = notes;
+    
     if (items !== undefined && Array.isArray(items)) {
       const cleanedItems = items
         .map(item => {
