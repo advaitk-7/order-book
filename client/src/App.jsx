@@ -1070,24 +1070,6 @@ function App() {
       : `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`
       
     window.open(link, '_blank')
-
-    if (item.status === 'Pending') {
-      const updatedItems = [...request.items]
-      updatedItems[itemIndex].status = 'Notified'
-      try {
-        await fetch(`${API_BASE}/api/waitlist/${request._id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ items: updatedItems })
-        })
-        fetchWaitlist()
-      } catch (error) {
-        console.error('Failed to auto-toggle status after WhatsApp notify', error)
-      }
-    }
   }
 
   const handleSendAllWhatsAppNotification = async (request) => {
@@ -1109,21 +1091,6 @@ function App() {
       : `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`
       
     window.open(link, '_blank')
-
-    const updatedItems = (request.items || []).map(i => ({ ...i, status: 'Notified' }))
-    try {
-      await fetch(`${API_BASE}/api/waitlist/${request._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ items: updatedItems })
-      })
-      fetchWaitlist()
-    } catch (error) {
-      console.error('Failed to auto-toggle all status after WhatsApp notify', error)
-    }
   }
 
   useEffect(() => {
