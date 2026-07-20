@@ -1306,6 +1306,52 @@ app.post("/api/settings/pricing", authenticateJWT, async (req, res) => {
   }
 });
 
+// WhatsApp Templates Settings Endpoints
+const DEFAULT_WHATSAPP_TEMPLATES = {
+  waitlistTemplate: "Hi {customerName}, this is Liberty Uniforms. Your requested item(s): {items} is now back in stock! Please visit our shop to collect it.",
+  orderReadyTemplate: "Hello {customerName},\n\nYour school uniform order (Order No. {orderNumber}) is now ready for collection.\n\n{collectionMsg}\n\nThank you,\nLiberty Uniform"
+};
+
+app.get("/api/settings/templates", authenticateJWT, async (req, res) => {
+  try {
+    let settings = await SystemSettings.findOne({ key: "whatsapp_templates" });
+    if (!settings) {
+      settings = await SystemSettings.create({
+        key: "whatsapp_templates",
+        value: DEFAULT_WHATSAPP_TEMPLATES
+      });
+    }
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch WhatsApp templates", error: error.message });
+  }
+});
+
+app.post("/api/settings/templates", authenticateJWT, async (req, res) => {
+  try {
+    const { value } = req.body;
+    if (!value || typeof value !== 'object') {
+      return res.status(400).json({ message: "Invalid template payload." });
+    }
+
+    const templates = {
+      waitlistTemplate: String(value.waitlistTemplate || DEFAULT_WHATSAPP_TEMPLATES.waitlistTemplate),
+      orderReadyTemplate: String(value.orderReadyTemplate || DEFAULT_WHATSAPP_TEMPLATES.orderReadyTemplate)
+    };
+
+    let settings = await SystemSettings.findOneAndUpdate(
+      { key: "whatsapp_templates" },
+      { value: templates },
+      { new: true, upsert: true }
+    );
+
+    await logAudit(null, "System", "Settings Update", "WhatsApp notification templates updated");
+    res.json({ message: "WhatsApp notification templates updated successfully", settings });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update WhatsApp templates", error: error.message });
+  }
+});
+
 // Serve static assets from the client build in production
 if (process.env.NODE_ENV === "production") {
   const distPath = path.join(__dirname, "../client/dist");

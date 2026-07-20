@@ -49,6 +49,11 @@ const createEmptyWaitlistForm = () => ({
   notes: ''
 })
 
+const DEFAULT_WHATSAPP_TEMPLATES = {
+  waitlistTemplate: "Hi {customerName}, this is Liberty Uniforms. Your requested item(s): {items} is now back in stock! Please visit our shop to collect it.",
+  orderReadyTemplate: "Hello {customerName},\n\nYour school uniform order (Order No. {orderNumber}) is now ready for collection.\n\n{collectionMsg}\n\nThank you,\nLiberty Uniform"
+}
+
 
 const formatDateToDMY = (dateStr) => {
   if (!dateStr) return '-'
@@ -375,6 +380,10 @@ function App() {
   const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingOrders, setLoadingOrders] = useState(false)
+  const [whatsappTemplates, setWhatsappTemplates] = useState(DEFAULT_WHATSAPP_TEMPLATES)
+  const [waitlistTemplateInput, setWaitlistTemplateInput] = useState(DEFAULT_WHATSAPP_TEMPLATES.waitlistTemplate)
+  const [orderReadyTemplateInput, setOrderReadyTemplateInput] = useState(DEFAULT_WHATSAPP_TEMPLATES.orderReadyTemplate)
+  const [loadingTemplates, setLoadingTemplates] = useState(false)
   const [sessions, setSessions] = useState([])
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [logSearch, setLogSearch] = useState('')
@@ -1111,7 +1120,12 @@ function App() {
     const cleanPhone = request.contactNumber.replace(/\D/g, '')
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone
     
-    const messageText = `Hi ${request.customerName}, this is Liberty Uniforms. Your requested item: "${item.name}" is now back in stock! Please visit our shop to collect it.`
+    const rawTemplate = (whatsappTemplates && whatsappTemplates.waitlistTemplate) || DEFAULT_WHATSAPP_TEMPLATES.waitlistTemplate
+    const messageText = rawTemplate
+      .replace(/\{customerName\}/g, request.customerName || 'Customer')
+      .replace(/\{items\}/g, `"${item.name}"`)
+      .replace(/\{school\}/g, (request.schools && request.schools.length) ? request.schools.join(', ') : 'General')
+
     const encodedText = encodeURIComponent(messageText)
     
     const link = whatsappMode === 'app'
@@ -1129,9 +1143,11 @@ function App() {
     if (remainingItems.length === 0) return
     
     const itemNames = remainingItems.map(i => `"${i.name}"`).join(', ')
-    const messageText = remainingItems.length === 1
-      ? `Hi ${request.customerName}, this is Liberty Uniforms. Your requested item: ${itemNames} is now back in stock! Please visit our shop to collect it.`
-      : `Hi ${request.customerName}, this is Liberty Uniforms. Your requested items: ${itemNames} are now back in stock! Please visit our shop to collect them.`
+    const rawTemplate = (whatsappTemplates && whatsappTemplates.waitlistTemplate) || DEFAULT_WHATSAPP_TEMPLATES.waitlistTemplate
+    const messageText = rawTemplate
+      .replace(/\{customerName\}/g, request.customerName || 'Customer')
+      .replace(/\{items\}/g, itemNames)
+      .replace(/\{school\}/g, (request.schools && request.schools.length) ? request.schools.join(', ') : 'General')
       
     const encodedText = encodeURIComponent(messageText)
     
@@ -1155,9 +1171,16 @@ function App() {
   }, [activePage, token])
 
   useEffect(() => {
+    if (token) {
+      fetchWhatsAppTemplates()
+    }
+  }, [token])
+
+  useEffect(() => {
     if (activePage === 'Settings' && token) {
       fetchBackups()
       fetchPricingRates()
+      fetchWhatsAppTemplates()
     }
   }, [activePage, token])
 
@@ -1252,6 +1275,59 @@ function App() {
       }
     }
     reader.readAsDataURL(file)
+  }
+
+  const fetchWhatsAppTemplates = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/settings/templates`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data && data.value) {
+          setWhatsappTemplates(data.value)
+          setWaitlistTemplateInput(data.value.waitlistTemplate || DEFAULT_WHATSAPP_TEMPLATES.waitlistTemplate)
+          setOrderReadyTemplateInput(data.value.orderReadyTemplate || DEFAULT_WHATSAPP_TEMPLATES.orderReadyTemplate)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch WhatsApp templates', error)
+    }
+  }
+
+  const handleUpdateWhatsAppTemplates = async (e) => {
+    e.preventDefault()
+    setLoadingTemplates(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/settings/templates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          value: {
+            waitlistTemplate: waitlistTemplateInput,
+            orderReadyTemplate: orderReadyTemplateInput
+          }
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setMessage(data.message || 'WhatsApp notification templates updated successfully!')
+        if (data.settings && data.settings.value) {
+          setWhatsappTemplates(data.settings.value)
+        }
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to update WhatsApp templates')
+      }
+    } catch (error) {
+      console.error('Failed to update WhatsApp templates:', error)
+    } finally {
+      setLoadingTemplates(false)
+    }
   }
 
   const resetForm = () => {
@@ -1977,6 +2053,7 @@ function App() {
     const orderNo = order.orderNumber || ''
     const amount = order.amount || 0
     const paymentStatus = order.paymentStatus || 'Unpaid'
+    const school = order.school || ''
 
     // Payment notice adjustment
     let collectionMsg = ''
@@ -1986,16 +2063,14 @@ function App() {
       collectionMsg = `Please visit Liberty Uniform at your convenience to collect your order. (Remaining balance to pay: ₹${amount})`
     }
 
-    const message = `Hello ${customerName},
-
-Your school uniform order (Order No. ${orderNo}) is now ready for collection.
-
-${collectionMsg}
-
-If you have any questions, feel free to contact us.
-
-Thank you,
-Liberty Uniform`
+    const rawTemplate = (whatsappTemplates && whatsappTemplates.orderReadyTemplate) || DEFAULT_WHATSAPP_TEMPLATES.orderReadyTemplate
+    const message = rawTemplate
+      .replace(/\{customerName\}/g, customerName)
+      .replace(/\{orderNumber\}/g, orderNo)
+      .replace(/\{school\}/g, school)
+      .replace(/\{amount\}/g, amount)
+      .replace(/\{paymentStatus\}/g, paymentStatus)
+      .replace(/\{collectionMsg\}/g, collectionMsg)
 
     const encodedText = encodeURIComponent(message)
     const url = whatsappMode === 'app'
@@ -4247,6 +4322,101 @@ Liberty Uniform`
                           )}
                         >
                           {loadingPricing ? 'Saving...' : 'Save Pricing Rates'}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* WhatsApp Notification Message Templates */}
+                    <div className="settings-box">
+                      <p className="settings-box-title">💬 WhatsApp Notification Message Templates</p>
+                      <p className="settings-box-desc">Customize automated WhatsApp message templates for Stock Waitlist restocks and Order Ready alerts. Use variables in curly braces like <code>{"{customerName}"}</code>.</p>
+
+                      <form onSubmit={handleUpdateWhatsAppTemplates} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div>
+                          <label style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>
+                            Stock Waitlist Restock Template
+                          </label>
+                          <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '6px' }}>
+                            Available variables: <code>{"{customerName}"}</code>, <code>{"{items}"}</code>, <code>{"{school}"}</code>
+                          </span>
+                          <textarea
+                            rows="3"
+                            value={waitlistTemplateInput}
+                            onChange={(e) => setWaitlistTemplateInput(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #CBD5E1',
+                              background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                              color: 'inherit',
+                              fontSize: '13px',
+                              fontFamily: 'inherit',
+                              resize: 'vertical'
+                            }}
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>
+                            Order Ready Notification Template
+                          </label>
+                          <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '6px' }}>
+                            Available variables: <code>{"{customerName}"}</code>, <code>{"{orderNumber}"}</code>, <code>{"{school}"}</code>, <code>{"{amount}"}</code>, <code>{"{paymentStatus}"}</code>, <code>{"{collectionMsg}"}</code>
+                          </span>
+                          <textarea
+                            rows="5"
+                            value={orderReadyTemplateInput}
+                            onChange={(e) => setOrderReadyTemplateInput(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #CBD5E1',
+                              background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                              color: 'inherit',
+                              fontSize: '13px',
+                              fontFamily: 'inherit',
+                              resize: 'vertical'
+                            }}
+                            required
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="primary-btn"
+                          style={{
+                            marginTop: '4px',
+                            width: '100%',
+                            opacity: (loadingTemplates || (
+                              waitlistTemplateInput === whatsappTemplates.waitlistTemplate &&
+                              orderReadyTemplateInput === whatsappTemplates.orderReadyTemplate
+                            )) ? 0.55 : 1,
+                            cursor: (loadingTemplates || (
+                              waitlistTemplateInput === whatsappTemplates.waitlistTemplate &&
+                              orderReadyTemplateInput === whatsappTemplates.orderReadyTemplate
+                            )) ? 'not-allowed' : 'pointer',
+                            backgroundColor: (loadingTemplates || (
+                              waitlistTemplateInput === whatsappTemplates.waitlistTemplate &&
+                              orderReadyTemplateInput === whatsappTemplates.orderReadyTemplate
+                            )) ? (theme === 'dark' ? '#334155' : '#E2E8F0') : '',
+                            color: (loadingTemplates || (
+                              waitlistTemplateInput === whatsappTemplates.waitlistTemplate &&
+                              orderReadyTemplateInput === whatsappTemplates.orderReadyTemplate
+                            )) ? (theme === 'dark' ? '#64748B' : '#94A3B8') : '',
+                            border: (loadingTemplates || (
+                              waitlistTemplateInput === whatsappTemplates.waitlistTemplate &&
+                              orderReadyTemplateInput === whatsappTemplates.orderReadyTemplate
+                            )) ? 'none' : ''
+                          }}
+                          disabled={loadingTemplates || (
+                            waitlistTemplateInput === whatsappTemplates.waitlistTemplate &&
+                            orderReadyTemplateInput === whatsappTemplates.orderReadyTemplate
+                          )}
+                        >
+                          {loadingTemplates ? 'Saving Templates...' : 'Save WhatsApp Templates'}
                         </button>
                       </form>
                     </div>
