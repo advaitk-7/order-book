@@ -254,10 +254,8 @@ app.post("/api/auth/login", async (req, res) => {
   const cleanUsername = String(username).trim();
   const cleanPassword = String(password).trim();
 
-  // Query database for admin matching username case-insensitively
-  let adminRecord = await Admin.findOne({
-    username: { $regex: new RegExp(`^${cleanUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, "i") }
-  });
+  // Query database for admin matching EXACT username (case-sensitive)
+  let adminRecord = await Admin.findOne({ username: cleanUsername });
 
   let isValid = false;
   let matchedUsername = ADMIN_USERNAME;
@@ -267,14 +265,13 @@ app.post("/api/auth/login", async (req, res) => {
     if (adminRecord.password.startsWith("$2a$") || adminRecord.password.startsWith("$2b$") || adminRecord.password.startsWith("$2y$")) {
       isValid = bcrypt.compareSync(cleanPassword, adminRecord.password);
     } else {
-      // Direct comparison if plain text
       isValid = (cleanPassword === adminRecord.password);
       if (isValid) {
         adminRecord.password = bcrypt.hashSync(cleanPassword, 10);
         await adminRecord.save();
       }
     }
-  } else if (cleanUsername.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
+  } else if (cleanUsername === ADMIN_USERNAME) {
     isValid = bcrypt.compareSync(cleanPassword, currentAdminPassword) || (cleanPassword === currentAdminPassword);
   }
 
