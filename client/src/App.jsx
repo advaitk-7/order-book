@@ -4360,7 +4360,7 @@ function App() {
 
                         <div>
                           <label style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>
-                            Order Ready Notification Template
+                            Ready Order Notification Template
                           </label>
                           <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '6px' }}>
                             Available variables: <code>{"{customerName}"}</code>, <code>{"{orderNumber}"}</code>, <code>{"{school}"}</code>, <code>{"{amount}"}</code>, <code>{"{paymentStatus}"}</code>, <code>{"{collectionMsg}"}</code>
