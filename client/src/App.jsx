@@ -4042,15 +4042,19 @@ Liberty Uniform`
                                   type="button"
                                   title="Remove Entry"
                                   onClick={() => handleDeleteWaitlistRequest(request._id, request.customerName)}
-                                  className="danger-btn"
                                   style={{
+                                    background: theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
+                                    border: theme === 'dark' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid #FCA5A5',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
                                     padding: '6px 8px',
                                     fontSize: '12px',
                                     height: '32px',
                                     minWidth: '32px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center'
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s ease'
                                   }}
                                 >
                                   🗑️
