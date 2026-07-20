@@ -2172,18 +2172,19 @@ function App() {
     window.open(url, '_blank')
   }
 
-
   const exportToCSV = () => {
     const headers = [
-      'Order Number',
+      'Order No.',
       'Product',
+      'Category',
       'Customer Name',
       'School',
       'Gender',
       'Quantity',
       'Measurements',
       'Notes',
-      'Delivery Date'
+      'Delivery Date',
+      'Production Status'
     ]
 
     const csvRows = [headers.join(',')]
@@ -2223,17 +2224,21 @@ function App() {
 
       const sleeveTag = getSleeveTag(row.product, row.measurements);
       const productVal = sleeveTag ? `${row.product} (${sleeveTag})` : row.product;
+      const catObj = PRODUCTION_CATEGORIES.find(c => c.id === (row.productionCategory || guessProductionCategory(row)));
+      const catName = catObj ? catObj.name : (row.productionCategory || '');
 
       const csvRow = [
         formatField(row.orderNumber),
         formatField(productVal),
+        formatField(catName),
         formatField(row.customerName),
         formatField(row.school),
         formatField(row.gender),
         formatField(row.quantity),
         formatField(measurementsStr),
         formatField(row.notes || '-'),
-        formatField(formatDateToDMY(row.deliveryDate))
+        formatField(formatDateToDMY(row.deliveryDate)),
+        formatField(row.status)
       ]
 
       csvRows.push(csvRow.join(','))
@@ -2242,13 +2247,12 @@ function App() {
     if (tailorStatusFilter === 'Pending') {
       csvRows.push('')
       csvRows.push('')
-      csvRows.push('')
-      csvRows.push('Production Cost Summary,,,,,,,,')
-      csvRows.push('Component,Unit Rate,Quantity,Subtotal,,,,,')
+      csvRows.push('PRODUCTION COST SUMMARY,,,,,,,,,,')
+      csvRows.push('Category Component,Unit Rate (₹),Quantity (Pcs),Subtotal (₹),,,,,,,')
       productionCostDetails.activeCategories.forEach(cat => {
-        csvRows.push(`"${cat.name}",₹${cat.rate},${cat.qty},"₹${cat.cost.toLocaleString()}",,,,,`)
+        csvRows.push(`"${cat.name}",₹${cat.rate},${cat.qty},"₹${cat.cost.toLocaleString()}",,,,,,,`)
       })
-      csvRows.push(`Total Production Cost,,${productionCostDetails.totalQty},"₹${productionCostDetails.totalCost.toLocaleString()}",,,,,`)
+      csvRows.push(`"Total Production Cost",,${productionCostDetails.totalQty},"₹${productionCostDetails.totalCost.toLocaleString()}",,,,,,,`)
     }
 
     const csvContent = '\uFEFF' + csvRows.join('\n')

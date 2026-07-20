@@ -1515,13 +1515,16 @@ tr.clickable-row.highlighted-row td {
 /* Print styles */
 @media print {
   @page {
-    size: auto;
-    margin: 0;
+    size: landscape;
+    margin: 8mm;
   }
 
   body {
-    margin: 1.6cm 1.4cm !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: transparent !important;
+    max-width: 100vw !important;
+    overflow: visible !important;
   }
 
   /* 1. Hide interactive shell elements */
@@ -1555,31 +1558,51 @@ tr.clickable-row.highlighted-row td {
     padding: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
+    overflow: visible !important;
   }
 
   /* 3. Enable printing our print header */
   .print-only-header {
     display: block !important;
-    margin-bottom: 20px !important;
+    margin-bottom: 16px !important;
   }
 
   /* 4. Format table specifically for neat print spacing */
   .table-wrap {
     max-height: none !important;
     overflow: visible !important;
+    width: 100% !important;
   }
 
   table {
     width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 11px !important;
+    font-size: 10px !important;
+    table-layout: auto !important;
   }
 
   th, td {
-    padding: 8px 6px !important;
-    border: 1px solid #CBD5E1 !important;
+    padding: 6px 5px !important;
+    border: 1px solid #94A3B8 !important;
     color: #000 !important;
     background: transparent !important;
+    font-size: 10px !important;
+    word-break: break-word !important;
+  }
+
+  /* Format dropdown selects in print */
+  select {
+    border: none !important;
+    background: transparent !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    font-size: 10px !important;
+    padding: 0 !important;
+    color: #000 !important;
+    font-weight: 600 !important;
+    width: auto !important;
+    max-width: 100% !important;
   }
 
   /* 5. Hide the Status column (last column) in the main table layout only */
@@ -1590,13 +1613,15 @@ tr.clickable-row.highlighted-row td {
 
   /* Reset print styling for the summary table footer */
   .print-only-footer-summary {
-    margin-top: 30px !important;
+    margin-top: 24px !important;
     border: 1px solid #CBD5E1 !important;
-    border-radius: 12px !important;
-    padding: 18px !important;
+    border-radius: 8px !important;
+    padding: 14px !important;
     background: #F8FAFC !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .print-only-footer-summary h3 {
