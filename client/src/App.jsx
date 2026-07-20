@@ -12,6 +12,7 @@ const measurementFields = {
 const createItem = () => ({
   itemType: 'shirt',
   quantity: 1,
+  productionCategory: '',
   measurements: {
     length: '',
     chest: '',
@@ -52,6 +53,81 @@ const createEmptyWaitlistForm = () => ({
 const DEFAULT_WHATSAPP_TEMPLATES = {
   waitlistTemplate: "Hi {customerName}, this is Liberty Uniforms. Your requested item(s): {items} is now back in stock! Please visit our shop to collect it.",
   orderReadyTemplate: "Hello {customerName},\n\nYour school uniform order (Order No. {orderNumber}) is now ready for collection.\n\n{collectionMsg}\n\nThank you,\nLiberty Uniform"
+}
+
+const PRODUCTION_CATEGORIES = [
+  { id: 'hs_shirt_20_30', name: 'H.S shirt 20 to 30', defaultRate: 100 },
+  { id: 'hs_shirt_32_44', name: 'H.S shirt 32 to 44', defaultRate: 120 },
+  { id: 'hs_order_shirt_20_30', name: 'H.S order shirt 20 to 30', defaultRate: 130 },
+  { id: 'hs_order_shirt_32_44', name: 'H.S order shirt 32 to 44', defaultRate: 150 },
+  { id: 'fs_shirt_20_30', name: 'F.S shirt 20 to 30', defaultRate: 120 },
+  { id: 'fs_shirt_32_44', name: 'F.S shirt 32 to 44', defaultRate: 140 },
+  { id: 'fs_order_shirt_20_30', name: 'F.S order shirt 20 to 30', defaultRate: 150 },
+  { id: 'fs_order_shirt_32_44', name: 'F.S order shirt 32 to 44', defaultRate: 180 },
+  { id: 'ni_top_reg', name: 'Ni top reg.', defaultRate: 100 },
+  { id: 'ni_top_order', name: 'Ni top order', defaultRate: 130 },
+  { id: 'ni_top_cbse', name: 'NI top CBSE', defaultRate: 160 },
+  { id: 'ni_top_cb_sc_order', name: 'Ni top CB SC ORDER', defaultRate: 190 },
+  { id: 'chefcoat', name: 'Chefcoat', defaultRate: 160 },
+  { id: 'coaty_at', name: 'Coaty At', defaultRate: 120 },
+  { id: 'coaty_at_order', name: 'COATY At order', defaultRate: 150 },
+  { id: 'coaty_kv_dk', name: 'COATY KV,DK', defaultRate: 100 },
+  { id: 'coaty_kv_dk_order', name: 'Coaty Kv ,Dk order', defaultRate: 130 },
+  { id: 'kurta_regular', name: 'Kurta regular', defaultRate: 100 },
+  { id: 'kurta_order', name: 'Kurta order', defaultRate: 130 },
+  { id: 'kitchen_apron', name: 'Kitchen apron', defaultRate: 60 },
+  { id: 'cooking_cap', name: 'Cooking cap', defaultRate: 40 },
+  { id: 'mody_apron', name: 'Mody apron', defaultRate: 130 },
+  { id: 'pinafore', name: 'Pinafore', defaultRate: 100 },
+  { id: 'pinafore_order', name: 'Pinafore order', defaultRate: 130 },
+  { id: 'skirt_div_regular', name: 'Skirt / div regular', defaultRate: 90 },
+  { id: 'skirt_div_order', name: 'Skirt div order regular', defaultRate: 120 },
+  { id: 'at_skirt', name: 'AT Skirt', defaultRate: 120 },
+  { id: 'at_skirt_order', name: 'AT skirt order', defaultRate: 150 },
+  { id: 'nirmala_sns_frock', name: 'Nirmala, SNS Frock', defaultRate: 150 },
+  { id: 'nirmala_sns_frock_order', name: 'Nirmala, SNS Frock order', defaultRate: 180 },
+  { id: 'trousers_elastic_20_30', name: 'Trousers Elastic 20 To 30', defaultRate: 100 },
+  { id: 'trousers_elastic_20_30_order', name: 'Trousers elastic 20 to 30 order', defaultRate: 130 },
+  { id: 'trousers_elastic_32_40', name: 'Trousers elastic 32 to 40', defaultRate: 125 },
+  { id: 'trousers_elastic_32_40_order', name: 'Trousers elastic 32 to 40 order', defaultRate: 155 },
+  { id: 'trousers_belt', name: 'Trousers Belt', defaultRate: 150 },
+  { id: 'trousers_belt_order', name: 'Trousers belt order', defaultRate: 180 },
+  { id: 'cargo_trousers', name: 'Cargo trousers', defaultRate: 120 },
+  { id: 'cargo_trousers_order', name: 'Cargo trousers order', defaultRate: 150 }
+]
+
+const DEFAULT_PRICING_RATES = PRODUCTION_CATEGORIES.reduce((acc, cat) => {
+  acc[cat.id] = cat.defaultRate
+  return acc
+}, {})
+
+const guessProductionCategory = (item) => {
+  if (!item) return ''
+  const prodType = (item.itemType || item.product || '').toLowerCase().trim()
+  const m = item.measurements || {}
+  const sleeveVal = parseFloat(m.sleeve)
+  const isFS = !isNaN(sleeveVal) && sleeveVal >= 14
+  
+  const numVal = parseFloat(m.chest) || parseFloat(m.waist) || parseFloat(m.length) || parseFloat(m.size) || 0
+
+  if (prodType.includes('shirt')) {
+    if (isFS) {
+      return (numVal >= 32) ? 'fs_shirt_32_44' : 'fs_shirt_20_30'
+    } else {
+      return (numVal >= 32) ? 'hs_shirt_32_44' : 'hs_shirt_20_30'
+    }
+  }
+
+  if (prodType.includes('pant') || prodType.includes('trouser')) {
+    if (numVal >= 32) return 'trousers_elastic_32_40'
+    return 'trousers_elastic_20_30'
+  }
+
+  if (prodType.includes('pina')) {
+    return 'pinafore'
+  }
+
+  return ''
 }
 
 
@@ -126,11 +202,8 @@ function App() {
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false)
 
   // Pricing Settings States
-  const [pricingRates, setPricingRates] = useState({ pant: 150, pina: 75, shirtHs: 90, shirtFs: 110 })
-  const [pantPriceInput, setPantPriceInput] = useState('150')
-  const [pinaPriceInput, setPinaPriceInput] = useState('75')
-  const [shirtHsPriceInput, setShirtHsPriceInput] = useState('90')
-  const [shirtFsPriceInput, setShirtFsPriceInput] = useState('110')
+  const [pricingRates, setPricingRates] = useState(DEFAULT_PRICING_RATES)
+  const [pricingInputs, setPricingInputs] = useState(DEFAULT_PRICING_RATES)
   const [loadingPricing, setLoadingPricing] = useState(false)
 
   const handleReturnToLogin = () => {
@@ -701,11 +774,11 @@ function App() {
       })
       if (response.ok) {
         const data = await response.json()
-        setPricingRates(data.value)
-        setPantPriceInput(String(data.value.pant))
-        setPinaPriceInput(String(data.value.pina))
-        setShirtHsPriceInput(String(data.value.shirtHs))
-        setShirtFsPriceInput(String(data.value.shirtFs))
+        if (data && data.value) {
+          const merged = { ...DEFAULT_PRICING_RATES, ...data.value }
+          setPricingRates(merged)
+          setPricingInputs(merged)
+        }
       }
     } catch (error) {
       console.error('Failed to load pricing rates', error)
@@ -717,13 +790,7 @@ function App() {
   const handleUpdatePricing = async (e) => {
     e.preventDefault()
     if (!token) return
-    const rates = {
-      pant: Number(pantPriceInput || 0),
-      pina: Number(pinaPriceInput || 0),
-      shirtHs: Number(shirtHsPriceInput || 0),
-      shirtFs: Number(shirtFsPriceInput || 0)
-    }
-
+    setLoadingPricing(true)
     try {
       const response = await fetch(`${API_BASE}/api/settings/pricing`, {
         method: 'POST',
@@ -731,19 +798,28 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ value: rates })
+        body: JSON.stringify({ value: pricingInputs })
       })
-      const data = await response.json()
       if (response.ok) {
-        alert('Pricing rates updated successfully!')
-        setPricingRates(rates)
+        const data = await response.json()
+        setMessage(data.message || 'Garment cost pricing rates updated successfully!')
+        if (data.settings && data.settings.value) {
+          const merged = { ...DEFAULT_PRICING_RATES, ...data.settings.value }
+          setPricingRates(merged)
+          setPricingInputs(merged)
+        } else {
+          setPricingRates(pricingInputs)
+        }
         fetchAuditLogs()
       } else {
-        alert(data.message || 'Failed to update pricing')
+        const data = await response.json()
+        alert(data.message || 'Failed to update pricing rates')
       }
     } catch (error) {
-      console.error('Failed to update pricing', error)
-      alert('Network error while updating pricing.')
+      console.error('Failed to update pricing rates', error)
+      alert('Network error while updating pricing rates.')
+    } finally {
+      setLoadingPricing(false)
     }
   }
 
@@ -1927,10 +2003,12 @@ function App() {
             gender: order.gender || 'Male',
             product: item.itemType ? item.itemType.charAt(0).toUpperCase() + item.itemType.slice(1) : 'Unknown',
             quantity: item.quantity || 0,
+            productionCategory: item.productionCategory || '',
             measurements: item.measurements || {},
             notes: order.notes || '',
             deliveryDate: order.deliveryDate || '',
             status: order.status || 'Pending',
+            itemIndex: index,
             uniqueRowId: `${order._id}_${item._id || index}`,
             order: order
           })
@@ -1981,53 +2059,68 @@ function App() {
   }, [flatTailorGarments, tailorSortKey, tailorSortOrder])
 
   const productionCostDetails = useMemo(() => {
-    let pantQty = 0;
-    let pinaQty = 0;
-    let shirtHSQty = 0;
-    let shirtFSQty = 0;
+    let totalCost = 0;
+    let totalQty = 0;
+    const categoryCounts = {};
 
     sortedTailorGarments.forEach((row) => {
-      const prod = row.product?.toLowerCase().trim();
       const qty = Number(row.quantity) || 0;
-      if (prod === 'pant') {
-        pantQty += qty;
-      } else if (prod === 'pina') {
-        pinaQty += qty;
-      } else if (prod === 'shirt') {
-        const sleeveTag = getSleeveTag(row.product, row.measurements);
-        if (sleeveTag === 'FS') {
-          shirtFSQty += qty;
-        } else {
-          shirtHSQty += qty;
-        }
+      const catId = row.productionCategory || guessProductionCategory(row);
+      const catInfo = PRODUCTION_CATEGORIES.find(c => c.id === catId);
+      const catName = catInfo ? catInfo.name : (catId || 'Uncategorized');
+      const rate = (pricingRates && pricingRates[catId] !== undefined)
+        ? Number(pricingRates[catId])
+        : (catInfo ? catInfo.defaultRate : 0);
+
+      const itemCost = qty * rate;
+      totalCost += itemCost;
+      totalQty += qty;
+
+      if (!categoryCounts[catId]) {
+        categoryCounts[catId] = {
+          id: catId,
+          name: catName,
+          rate,
+          qty: 0,
+          cost: 0
+        };
       }
+      categoryCounts[catId].qty += qty;
+      categoryCounts[catId].cost += itemCost;
     });
 
-    const pantCost = pantQty * pricingRates.pant;
-    const pinaCost = pinaQty * pricingRates.pina;
-    const shirtHSCost = shirtHSQty * pricingRates.shirtHs;
-    const shirtFSCost = shirtFSQty * pricingRates.shirtFs;
-    const totalCost = pantCost + pinaCost + shirtHSCost + shirtFSCost;
+    const activeCategories = Object.values(categoryCounts).filter(c => c.qty > 0);
 
     return {
-      pantQty,
-      pinaQty,
-      shirtHSQty,
-      shirtFSQty,
-      pantCost,
-      pinaCost,
-      shirtHSCost,
-      shirtFSCost,
       totalCost,
+      totalQty,
+      categoryCounts,
+      activeCategories
     };
   }, [sortedTailorGarments, pricingRates]);
 
-  const handleTailorSort = (key) => {
-    if (tailorSortKey === key) {
-      setTailorSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setTailorSortKey(key)
-      setTailorSortOrder('asc')
+  const handleInlineCategoryChange = async (row, newCategory) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/orders/${row.orderId}/item-category`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          itemIndex: row.itemIndex,
+          category: newCategory
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setOrders(prev => prev.map(o => o._id === row.orderId ? data.order : o))
+      } else {
+        alert('Failed to update garment category')
+      }
+    } catch (error) {
+      console.error('Failed to update category', error)
     }
   }
 
@@ -2152,20 +2245,10 @@ function App() {
       csvRows.push('')
       csvRows.push('Production Cost Summary,,,,,,,,')
       csvRows.push('Component,Unit Rate,Quantity,Subtotal,,,,,')
-      if (productionCostDetails.pantQty > 0) {
-        csvRows.push(`Pants,₹${pricingRates.pant},${productionCostDetails.pantQty},"₹${productionCostDetails.pantCost.toLocaleString()}",,,,,`)
-      }
-      if (productionCostDetails.pinaQty > 0) {
-        csvRows.push(`Pina,₹${pricingRates.pina},${productionCostDetails.pinaQty},"₹${productionCostDetails.pinaCost.toLocaleString()}",,,,,`)
-      }
-      if (productionCostDetails.shirtHSQty > 0) {
-        csvRows.push(`Shirt HS,₹${pricingRates.shirtHs},${productionCostDetails.shirtHSQty},"₹${productionCostDetails.shirtHSCost.toLocaleString()}",,,,,`)
-      }
-      if (productionCostDetails.shirtFSQty > 0) {
-        csvRows.push(`Shirt FS,₹${pricingRates.shirtFs},${productionCostDetails.shirtFSQty},"₹${productionCostDetails.shirtFSCost.toLocaleString()}",,,,,`)
-      }
-      const totalQty = productionCostDetails.pantQty + productionCostDetails.pinaQty + productionCostDetails.shirtHSQty + productionCostDetails.shirtFSQty;
-      csvRows.push(`Total Production Cost,,${totalQty},"₹${productionCostDetails.totalCost.toLocaleString()}",,,,,`)
+      productionCostDetails.activeCategories.forEach(cat => {
+        csvRows.push(`"${cat.name}",₹${cat.rate},${cat.qty},"₹${cat.cost.toLocaleString()}",,,,,`)
+      })
+      csvRows.push(`Total Production Cost,,${productionCostDetails.totalQty},"₹${productionCostDetails.totalCost.toLocaleString()}",,,,,`)
     }
 
     const csvContent = '\uFEFF' + csvRows.join('\n')
@@ -2772,6 +2855,22 @@ function App() {
                                 Quantity
                                 <input type="number" name="quantity" value={item.quantity} onChange={(event) => handleItemChange(index, event)} min="1" required />
                               </label>
+
+                              <label style={{ gridColumn: 'span 2' }}>
+                                Production Category
+                                <select 
+                                  name="productionCategory" 
+                                  value={item.productionCategory || guessProductionCategory(item)} 
+                                  onChange={(event) => handleItemChange(index, event)}
+                                >
+                                  <option value="">-- Auto-Detect Category --</option>
+                                  {PRODUCTION_CATEGORIES.map(cat => (
+                                    <option key={cat.id} value={cat.id}>
+                                      {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
                             </div>
 
                             <div className="measurement-grid">
@@ -3368,8 +3467,10 @@ function App() {
                   padding: '20px',
                   borderRadius: '20px',
                   border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E5E7EB',
-                  background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)'
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                  display: 'grid',
+                  gridTemplateColumns: '260px 1fr',
+                  gap: '20px'
                 }}>
                   {/* Total Cost Block */}
                   <div style={{
@@ -3389,95 +3490,43 @@ function App() {
                       ₹{productionCostDetails.totalCost.toLocaleString()}
                     </p>
                     <span style={{ marginTop: '6px', fontSize: '12px', color: '#C7D2FE', fontWeight: '600' }}>
-                      {productionCostDetails.pantQty + productionCostDetails.pinaQty + productionCostDetails.shirtHSQty + productionCostDetails.shirtFSQty} pending garments
+                      {productionCostDetails.totalQty} pending garments ({productionCostDetails.activeCategories.length} categories active)
                     </span>
                   </div>
 
-                  {/* Individual Cost Breakdown Grid */}
+                  {/* Dynamic Category Cost Breakdown Grid */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-                    gap: '12px'
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+                    gap: '10px',
+                    maxHeight: '140px',
+                    overflowY: 'auto',
+                    paddingRight: '4px'
                   }}>
-                    {/* Pants */}
-                    <div className={productionCostDetails.pantQty === 0 ? 'print-hide-zero' : ''} style={{
-                      background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
-                      border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid #E5E7EB',
-                      padding: '14px',
-                      borderRadius: '14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pants</span>
-                        <span style={{ display: 'block', fontSize: '12px', color: theme === 'dark' ? '#94A3B8' : '#475569', marginTop: '2px', fontWeight: '500' }}>₹{pricingRates.pant} / unit</span>
+                    {productionCostDetails.activeCategories.map(cat => (
+                      <div key={cat.id} style={{
+                        background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
+                        border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #E5E7EB',
+                        padding: '10px 12px',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}>
+                        <div>
+                          <span style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cat.name}>
+                            {cat.name}
+                          </span>
+                          <span style={{ display: 'block', fontSize: '11px', color: theme === 'dark' ? '#94A3B8' : '#475569', marginTop: '1px', fontWeight: '500' }}>
+                            ₹{cat.rate} / unit
+                          </span>
+                        </div>
+                        <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <span style={{ fontSize: '18px', fontWeight: '800', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{cat.qty} pcs</span>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#38BDF8' : '#2563EB' }}>₹{cat.cost.toLocaleString()}</span>
+                        </div>
                       </div>
-                      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <span style={{ fontSize: '22px', fontWeight: '800', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{productionCostDetails.pantQty}</span>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#38BDF8' : '#2563EB' }}>₹{productionCostDetails.pantCost.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {/* Pina */}
-                    <div className={productionCostDetails.pinaQty === 0 ? 'print-hide-zero' : ''} style={{
-                      background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
-                      border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid #E5E7EB',
-                      padding: '14px',
-                      borderRadius: '14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pina</span>
-                        <span style={{ display: 'block', fontSize: '12px', color: theme === 'dark' ? '#94A3B8' : '#475569', marginTop: '2px', fontWeight: '500' }}>₹{pricingRates.pina} / unit</span>
-                      </div>
-                      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <span style={{ fontSize: '22px', fontWeight: '800', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{productionCostDetails.pinaQty}</span>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#38BDF8' : '#2563EB' }}>₹{productionCostDetails.pinaCost.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {/* Shirt HS */}
-                    <div className={productionCostDetails.shirtHSQty === 0 ? 'print-hide-zero' : ''} style={{
-                      background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
-                      border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid #E5E7EB',
-                      padding: '14px',
-                      borderRadius: '14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shirt HS</span>
-                        <span style={{ display: 'block', fontSize: '12px', color: theme === 'dark' ? '#94A3B8' : '#475569', marginTop: '2px', fontWeight: '500' }}>₹{pricingRates.shirtHs} / unit</span>
-                      </div>
-                      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <span style={{ fontSize: '22px', fontWeight: '800', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{productionCostDetails.shirtHSQty}</span>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#38BDF8' : '#2563EB' }}>₹{productionCostDetails.shirtHSCost.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {/* Shirt FS */}
-                    <div className={productionCostDetails.shirtFSQty === 0 ? 'print-hide-zero' : ''} style={{
-                      background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
-                      border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid #E5E7EB',
-                      padding: '14px',
-                      borderRadius: '14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}>
-                      <div>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shirt FS</span>
-                        <span style={{ display: 'block', fontSize: '12px', color: theme === 'dark' ? '#94A3B8' : '#475569', marginTop: '2px', fontWeight: '500' }}>₹{pricingRates.shirtFs} / unit</span>
-                      </div>
-                      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <span style={{ fontSize: '22px', fontWeight: '800', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{productionCostDetails.shirtFSQty}</span>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#38BDF8' : '#2563EB' }}>₹{productionCostDetails.shirtFSCost.toLocaleString()}</span>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -3524,6 +3573,7 @@ function App() {
                             <th className="sortable-header" onClick={() => handleTailorSort('product')} style={{ cursor: 'pointer' }}>
                               Product {tailorSortKey === 'product' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
+                            <th style={{ minWidth: '170px' }}>Category</th>
                             <th className="sortable-header" onClick={() => handleTailorSort('customerName')} style={{ cursor: 'pointer' }}>
                               Customer {tailorSortKey === 'customerName' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
@@ -3563,6 +3613,30 @@ function App() {
                                     </span>
                                   )}
                                 </span>
+                              </td>
+                              <td onClick={(e) => e.stopPropagation()}>
+                                <select
+                                  value={row.productionCategory || guessProductionCategory(row)}
+                                  onChange={(e) => handleInlineCategoryChange(row, e.target.value)}
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #CBD5E1',
+                                    background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                                    color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
+                                    cursor: 'pointer',
+                                    width: '100%',
+                                    maxWidth: '170px'
+                                  }}
+                                >
+                                  {PRODUCTION_CATEGORIES.map(cat => (
+                                    <option key={cat.id} value={cat.id}>
+                                      {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
+                                    </option>
+                                  ))}
+                                </select>
                               </td>
                               <td style={{ fontWeight: '500' }}>{row.customerName}</td>
                               <td>{row.school}</td>
@@ -3607,47 +3681,18 @@ function App() {
                             </tr>
                           </thead>
                           <tbody>
-                            {productionCostDetails.pantQty > 0 && (
-                              <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-                                <td style={{ padding: '6px 0' }}>Pants</td>
-                                <td style={{ padding: '6px 0' }}>₹{pricingRates.pant}</td>
-                                <td style={{ padding: '6px 0' }}>{productionCostDetails.pantQty}</td>
-                                <td style={{ padding: '6px 0', textAlign: 'right' }}>₹{productionCostDetails.pantCost.toLocaleString()}</td>
+                            {productionCostDetails.activeCategories.map(cat => (
+                              <tr key={cat.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                                <td style={{ padding: '6px 0' }}>{cat.name}</td>
+                                <td style={{ padding: '6px 0' }}>₹{cat.rate}</td>
+                                <td style={{ padding: '6px 0' }}>{cat.qty}</td>
+                                <td style={{ padding: '6px 0', textAlign: 'right' }}>₹{cat.cost.toLocaleString()}</td>
                               </tr>
-                            )}
-                            {productionCostDetails.pinaQty > 0 && (
-                              <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-                                <td style={{ padding: '6px 0' }}>Pina</td>
-                                <td style={{ padding: '6px 0' }}>₹{pricingRates.pina}</td>
-                                <td style={{ padding: '6px 0' }}>{productionCostDetails.pinaQty}</td>
-                                <td style={{ padding: '6px 0', textAlign: 'right' }}>₹{productionCostDetails.pinaCost.toLocaleString()}</td>
-                              </tr>
-                            )}
-                            {productionCostDetails.shirtHSQty > 0 && (
-                              <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-                                <td style={{ padding: '6px 0' }}>Shirt HS</td>
-                                <td style={{ padding: '6px 0' }}>₹{pricingRates.shirtHs}</td>
-                                <td style={{ padding: '6px 0' }}>{productionCostDetails.shirtHSQty}</td>
-                                <td style={{ padding: '6px 0', textAlign: 'right' }}>₹{productionCostDetails.shirtHSCost.toLocaleString()}</td>
-                              </tr>
-                            )}
-                            {productionCostDetails.shirtFSQty > 0 && (
-                              <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-                                <td style={{ padding: '6px 0' }}>Shirt FS</td>
-                                <td style={{ padding: '6px 0' }}>₹{pricingRates.shirtFs}</td>
-                                <td style={{ padding: '6px 0' }}>{productionCostDetails.shirtFSQty}</td>
-                                <td style={{ padding: '6px 0', textAlign: 'right' }}>₹{productionCostDetails.shirtFSCost.toLocaleString()}</td>
-                              </tr>
-                            )}
+                            ))}
                             <tr className="total-row" style={{ fontWeight: 'bold', fontSize: '13px' }}>
                               <td style={{ padding: '10px 0' }}>Total Production Cost</td>
                               <td style={{ padding: '10px 0' }}></td>
-                              <td style={{ padding: '10px 0' }}>
-                                {productionCostDetails.pantQty +
-                                  productionCostDetails.pinaQty +
-                                  productionCostDetails.shirtHSQty +
-                                  productionCostDetails.shirtFSQty} pieces
-                              </td>
+                              <td style={{ padding: '10px 0' }}>{productionCostDetails.totalQty} pieces</td>
                               <td style={{ padding: '10px 0', textAlign: 'right' }}>₹{productionCostDetails.totalCost.toLocaleString()}</td>
                             </tr>
                           </tbody>
@@ -4226,55 +4271,39 @@ function App() {
                     </div>
 
                     {/* Production Pricing Rates */}
-                    <div className="settings-box">
-                      <p className="settings-box-title">💵 Garment Cost Pricing Rates</p>
-                      <p className="settings-box-desc">Configure the unit prices used inside the Production Queue Cost Calculator.</p>
+                    <div className="settings-box" style={{ gridColumn: 'span 2' }}>
+                      <p className="settings-box-title">💵 Garment Cost Pricing Rates (38 Categories)</p>
+                      <p className="settings-box-desc">Configure unit rates (₹) for all 38 production categories used inside the Production Queue Cost Calculator.</p>
 
-                      <form onSubmit={handleUpdatePricing} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                          <div>
-                            <label style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>Pants (₹)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={pantPriceInput}
-                              onChange={(e) => setPantPriceInput(e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>Pina (₹)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={pinaPriceInput}
-                              onChange={(e) => setPinaPriceInput(e.target.value)}
-                              required
-                            />
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                          <div>
-                            <label style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>Shirt HS (₹)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={shirtHsPriceInput}
-                              onChange={(e) => setShirtHsPriceInput(e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>Shirt FS (₹)</label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={shirtFsPriceInput}
-                              onChange={(e) => setShirtFsPriceInput(e.target.value)}
-                              required
-                            />
-                          </div>
+                      <form onSubmit={handleUpdatePricing} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                          gap: '12px',
+                          maxHeight: '340px',
+                          overflowY: 'auto',
+                          paddingRight: '6px'
+                        }}>
+                          {PRODUCTION_CATEGORIES.map((cat) => (
+                            <div key={cat.id} style={{
+                              background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
+                              padding: '10px 12px',
+                              borderRadius: '10px',
+                              border: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #E2E8F0'
+                            }}>
+                              <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cat.name}>
+                                {cat.name} (₹)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={pricingInputs[cat.id] !== undefined ? pricingInputs[cat.id] : cat.defaultRate}
+                                onChange={(e) => setPricingInputs(prev => ({ ...prev, [cat.id]: Number(e.target.value || 0) }))}
+                                style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', fontSize: '13px' }}
+                                required
+                              />
+                            </div>
+                          ))}
                         </div>
 
                         <button
@@ -4283,45 +4312,12 @@ function App() {
                           style={{
                             marginTop: '8px',
                             width: '100%',
-                            opacity: (loadingPricing || (
-                              Number(pantPriceInput) === pricingRates.pant &&
-                              Number(pinaPriceInput) === pricingRates.pina &&
-                              Number(shirtHsPriceInput) === pricingRates.shirtHs &&
-                              Number(shirtFsPriceInput) === pricingRates.shirtFs
-                            )) ? 0.55 : 1,
-                            cursor: (loadingPricing || (
-                              Number(pantPriceInput) === pricingRates.pant &&
-                              Number(pinaPriceInput) === pricingRates.pina &&
-                              Number(shirtHsPriceInput) === pricingRates.shirtHs &&
-                              Number(shirtFsPriceInput) === pricingRates.shirtFs
-                            )) ? 'not-allowed' : 'pointer',
-                            backgroundColor: (loadingPricing || (
-                              Number(pantPriceInput) === pricingRates.pant &&
-                              Number(pinaPriceInput) === pricingRates.pina &&
-                              Number(shirtHsPriceInput) === pricingRates.shirtHs &&
-                              Number(shirtFsPriceInput) === pricingRates.shirtFs
-                            )) ? (theme === 'dark' ? '#334155' : '#E2E8F0') : '',
-                            color: (loadingPricing || (
-                              Number(pantPriceInput) === pricingRates.pant &&
-                              Number(pinaPriceInput) === pricingRates.pina &&
-                              Number(shirtHsPriceInput) === pricingRates.shirtHs &&
-                              Number(shirtFsPriceInput) === pricingRates.shirtFs
-                            )) ? (theme === 'dark' ? '#64748B' : '#94A3B8') : '',
-                            border: (loadingPricing || (
-                              Number(pantPriceInput) === pricingRates.pant &&
-                              Number(pinaPriceInput) === pricingRates.pina &&
-                              Number(shirtHsPriceInput) === pricingRates.shirtHs &&
-                              Number(shirtFsPriceInput) === pricingRates.shirtFs
-                            )) ? 'none' : ''
+                            opacity: loadingPricing ? 0.55 : 1,
+                            cursor: loadingPricing ? 'not-allowed' : 'pointer'
                           }}
-                          disabled={loadingPricing || (
-                            Number(pantPriceInput) === pricingRates.pant &&
-                            Number(pinaPriceInput) === pricingRates.pina &&
-                            Number(shirtHsPriceInput) === pricingRates.shirtHs &&
-                            Number(shirtFsPriceInput) === pricingRates.shirtFs
-                          )}
+                          disabled={loadingPricing}
                         >
-                          {loadingPricing ? 'Saving...' : 'Save Pricing Rates'}
+                          {loadingPricing ? 'Saving All Pricing Rates...' : 'Save All 38 Pricing Rates'}
                         </button>
                       </form>
                     </div>

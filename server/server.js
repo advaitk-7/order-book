@@ -21,6 +21,47 @@ const JWT_SECRET = process.env.JWT_SECRET || "liberty_uniform_secret_key_12345";
 let ADMIN_USERNAME = process.env.ADMIN_USERNAME || "sarju";
 let currentAdminPassword = process.env.ADMIN_PASSWORD || "1";
 
+const DEFAULT_PRICING_RATES = {
+  hs_shirt_20_30: 100,
+  hs_shirt_32_44: 120,
+  hs_order_shirt_20_30: 130,
+  hs_order_shirt_32_44: 150,
+  fs_shirt_20_30: 120,
+  fs_shirt_32_44: 140,
+  fs_order_shirt_20_30: 150,
+  fs_order_shirt_32_44: 180,
+  ni_top_reg: 100,
+  ni_top_order: 130,
+  ni_top_cbse: 160,
+  ni_top_cb_sc_order: 190,
+  chefcoat: 160,
+  coaty_at: 120,
+  coaty_at_order: 150,
+  coaty_kv_dk: 100,
+  coaty_kv_dk_order: 130,
+  kurta_regular: 100,
+  kurta_order: 130,
+  kitchen_apron: 60,
+  cooking_cap: 40,
+  mody_apron: 130,
+  pinafore: 100,
+  pinafore_order: 130,
+  skirt_div_regular: 90,
+  skirt_div_order: 120,
+  at_skirt: 120,
+  at_skirt_order: 150,
+  nirmala_sns_frock: 150,
+  nirmala_sns_frock_order: 180,
+  trousers_elastic_20_30: 100,
+  trousers_elastic_20_30_order: 130,
+  trousers_elastic_32_40: 125,
+  trousers_elastic_32_40_order: 155,
+  trousers_belt: 150,
+  trousers_belt_order: 180,
+  cargo_trousers: 120,
+  cargo_trousers_order: 150
+};
+
 // Levenshtein Distance Helper
 function getLevenshteinDistance(a, b) {
   const matrix = [];
@@ -168,6 +209,7 @@ const orderSchema = new mongoose.Schema(
       {
         itemType: { type: String, enum: ["shirt", "pant", "pina"], required: true },
         quantity: { type: Number, required: true },
+        productionCategory: { type: String, default: "" },
         measurements: {
           length: String,
           chest: String,
@@ -880,6 +922,28 @@ app.patch("/api/orders/:id", async (req, res) => {
   }
 });
 
+app.patch('/api/orders/:id/item-category', authenticateJWT, async (req, res) => {
+  try {
+    const { itemIndex, category } = req.body;
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const idx = Number(itemIndex);
+    if (order.items && order.items[idx]) {
+      order.items[idx].productionCategory = String(category || '');
+      await order.save();
+      return res.json({ message: 'Category updated successfully', order });
+    } else {
+      return res.status(400).json({ message: 'Invalid item index' });
+    }
+  } catch (error) {
+    console.error('Error updating item category:', error.message);
+    return res.status(500).json({ message: 'Failed to update item category', error: error.message });
+  }
+});
+
 // Bulk delete endpoint - accepts { ids: [id1, id2, ...] }
 app.post('/api/orders/bulk-delete', async (req, res) => {
   try {
@@ -1441,14 +1505,19 @@ async function startServer() {
       console.log("Loaded admin credentials from MongoDB");
     }
 
-    // Seed default pricing rates if not present
+    // Seed default pricing rates if not present or missing keys
     let settingsRecord = await SystemSettings.findOne({ key: "pricing_rates" });
     if (!settingsRecord) {
       await SystemSettings.create({
         key: "pricing_rates",
-        value: { pant: 150, pina: 75, shirtHs: 90, shirtFs: 110 }
+        value: DEFAULT_PRICING_RATES
       });
-      console.log("Seeded default pricing rates into MongoDB");
+      console.log("Seeded default 38 pricing rates into MongoDB");
+    } else {
+      let updatedValue = { ...DEFAULT_PRICING_RATES, ...(settingsRecord.value || {}) };
+      settingsRecord.value = updatedValue;
+      await settingsRecord.save();
+      console.log("Updated 38 pricing rates structure in MongoDB");
     }
 
     app.listen(PORT, () => {
