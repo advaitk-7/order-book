@@ -363,7 +363,7 @@ app.post("/api/auth/verify-otp", (req, res) => {
   return res.status(400).json({ message: "Invalid verification code. Please check your phone." });
 });
 
-app.post("/api/auth/reset-password", (req, res) => {
+app.post("/api/auth/reset-password", async (req, res) => {
   const { resetToken, newPassword } = req.body;
   if (!resetToken || !newPassword) {
     return res.status(400).json({ message: "Missing token or password." });
@@ -372,9 +372,11 @@ app.post("/api/auth/reset-password", (req, res) => {
   try {
     const decoded = jwt.verify(resetToken, JWT_SECRET);
     if (decoded.resetAllowed) {
-      const hashedPassword = bcrypt.hashSync(newPassword, 10);
+      const cleanPassword = String(newPassword).trim();
+      const hashedPassword = bcrypt.hashSync(cleanPassword, 10);
       currentAdminPassword = hashedPassword;
-      Admin.updateOne({}, { password: hashedPassword }).catch(err => console.error("DB update error:", err));
+      await Admin.findOneAndUpdate({}, { password: hashedPassword }, { upsert: true });
+      await logAudit(null, "System", "Password Reset", "Admin password reset successfully via Telegram OTP");
       return res.json({ message: "Password updated successfully" });
     }
     return res.status(403).json({ message: "Reset permission denied." });
@@ -393,7 +395,8 @@ app.post("/api/auth/verify-current-password", authenticateJWT, (req, res) => {
     return res.status(400).json({ message: "Password is required." });
   }
 
-  if (bcrypt.compareSync(password, currentAdminPassword)) {
+  const cleanPassword = String(password).trim();
+  if (bcrypt.compareSync(cleanPassword, currentAdminPassword)) {
     const accountEditToken = jwt.sign({ accountEditAllowed: true }, JWT_SECRET, { expiresIn: "5m" });
     return res.json({ accountEditToken });
   }
@@ -401,7 +404,7 @@ app.post("/api/auth/verify-current-password", authenticateJWT, (req, res) => {
   return res.status(400).json({ message: "Incorrect password." });
 });
 
-app.post("/api/auth/update-credentials", authenticateJWT, (req, res) => {
+app.post("/api/auth/update-credentials", authenticateJWT, async (req, res) => {
   const { accountEditToken, newUsername, newPassword } = req.body;
   if (!accountEditToken || !newUsername || !newPassword) {
     return res.status(400).json({ message: "Missing required fields." });
@@ -410,10 +413,13 @@ app.post("/api/auth/update-credentials", authenticateJWT, (req, res) => {
   try {
     const decoded = jwt.verify(accountEditToken, JWT_SECRET);
     if (decoded.accountEditAllowed) {
-      const hashedPassword = bcrypt.hashSync(newPassword, 10);
-      ADMIN_USERNAME = newUsername;
+      const cleanUsername = String(newUsername).trim();
+      const cleanPassword = String(newPassword).trim();
+      const hashedPassword = bcrypt.hashSync(cleanPassword, 10);
+      ADMIN_USERNAME = cleanUsername;
       currentAdminPassword = hashedPassword;
-      Admin.updateOne({}, { username: newUsername, password: hashedPassword }).catch(err => console.error("DB update error:", err));
+      await Admin.findOneAndUpdate({}, { username: cleanUsername, password: hashedPassword }, { upsert: true });
+      await logAudit(null, "System", "Credentials Update", `Admin username updated to '${cleanUsername}'`);
       return res.json({ message: "Credentials updated successfully" });
     }
     return res.status(403).json({ message: "Permission denied." });
