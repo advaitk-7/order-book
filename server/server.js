@@ -1067,6 +1067,20 @@ app.delete("/api/waitlist/:id", authenticateJWT, async (req, res) => {
   }
 });
 
+app.post("/api/waitlist/bulk-delete", authenticateJWT, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No waitlist items selected for deletion." });
+    }
+    const result = await Waitlist.deleteMany({ _id: { $in: ids } });
+    await logAudit("System", "System", "Waitlist Bulk Delete", `Bulk deleted ${result.deletedCount} waitlist request(s)`);
+    res.json({ message: `Successfully deleted ${result.deletedCount} waitlist request(s).` });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to bulk delete waitlist items", error: error.message });
+  }
+});
+
 // Waitlist Schools Directory Endpoints
 app.get("/api/waitlist/schools", authenticateJWT, async (req, res) => {
   try {

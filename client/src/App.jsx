@@ -397,6 +397,7 @@ function App() {
   const [visibleCount, setVisibleCount] = useState(20)
   const loadStep = 20
   const [selectedIds, setSelectedIds] = useState([])
+  const [selectedWaitlistIds, setSelectedWaitlistIds] = useState([])
   const [now, setNow] = useState(Date.now())
   const [timerAlertOrder, setTimerAlertOrder] = useState(null)
   const [timerAlertWaitlist, setTimerAlertWaitlist] = useState(null)
@@ -1008,6 +1009,45 @@ function App() {
       }
     } catch (error) {
       console.error('Waitlist delete error:', error)
+    }
+  }
+
+  const toggleSelectWaitlist = (id) => {
+    setSelectedWaitlistIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const unselectAllWaitlist = () => {
+    setSelectedWaitlistIds([])
+  }
+
+  const handleBulkDeleteWaitlist = async () => {
+    if (!selectedWaitlistIds.length) return
+    if (!window.confirm(`Are you sure you want to delete ${selectedWaitlistIds.length} waitlist request(s)? This action cannot be undone.`)) {
+      return
+    }
+    try {
+      const response = await fetch(`${API_BASE}/api/waitlist/bulk-delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ids: selectedWaitlistIds })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setMessage(data.message || `Deleted ${selectedWaitlistIds.length} waitlist entry(s).`)
+        setSelectedWaitlistIds([])
+        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Failed to bulk delete waitlist entries.')
+      }
+    } catch (error) {
+      console.error('Failed to bulk delete waitlist entries', error)
     }
   }
 
@@ -3817,6 +3857,14 @@ Liberty Uniform`
                       ))}
                     </select>
                   </div>
+                  <button type="button" className="danger-btn" onClick={handleBulkDeleteWaitlist} disabled={selectedWaitlistIds.length === 0}>
+                    Delete Selected{selectedWaitlistIds.length ? ` (${selectedWaitlistIds.length})` : ''}
+                  </button>
+                  {selectedWaitlistIds.length > 0 && (
+                    <button type="button" className="ghost-btn" onClick={unselectAllWaitlist}>
+                      Unselect All
+                    </button>
+                  )}
                 </div>
 
                 <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
@@ -3828,6 +3876,19 @@ Liberty Uniform`
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                       <thead>
                         <tr>
+                          <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>
+                            <input
+                              type="checkbox"
+                              checked={waitlist.length > 0 && waitlist.every((w) => selectedWaitlistIds.includes(w._id))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedWaitlistIds(waitlist.map((w) => w._id))
+                                } else {
+                                  setSelectedWaitlistIds([])
+                                }
+                              }}
+                            />
+                          </th>
                           <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Customer</th>
                           <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>School</th>
                           <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>Requested Item</th>
@@ -3846,6 +3907,14 @@ Liberty Uniform`
                               zIndex: (timerAlertWaitlist && timerAlertWaitlist._id === request._id) ? 10 : 'auto'
                             }}
                           >
+                            <td style={{ padding: '12px 16px' }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedWaitlistIds.includes(request._id)}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={() => toggleSelectWaitlist(request._id)}
+                              />
+                            </td>
                             <td style={{ padding: '12px 16px' }}>
                               <div style={{ fontWeight: '600' }}>{request.customerName}</div>
                               <div style={{ fontSize: '12px', color: '#64748B' }}>{request.contactNumber}</div>
@@ -4019,42 +4088,26 @@ Liberty Uniform`
                                 );
                               })()}
                             </td>
-                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <td className="actions-cell">
+                              <div className="actions-wrapper">
                                 <button
                                   type="button"
-                                  title="Edit Entry"
-                                  onClick={() => handleOpenEditWaitlistModal(request)}
-                                  className="secondary-btn"
-                                  style={{
-                                    padding: '6px 8px',
-                                    fontSize: '12px',
-                                    height: '32px',
-                                    minWidth: '32px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
+                                  className="icon-btn"
+                                  title="Edit entry"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditWaitlistModal(request);
                                   }}
                                 >
                                   ✏️
                                 </button>
                                 <button
                                   type="button"
-                                  title="Remove Entry"
-                                  onClick={() => handleDeleteWaitlistRequest(request._id, request.customerName)}
-                                  style={{
-                                    background: theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
-                                    border: theme === 'dark' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid #FCA5A5',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    padding: '6px 8px',
-                                    fontSize: '12px',
-                                    height: '32px',
-                                    minWidth: '32px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s ease'
+                                  className="icon-btn danger"
+                                  title="Delete entry"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteWaitlistRequest(request._id, request.customerName);
                                   }}
                                 >
                                   🗑️
