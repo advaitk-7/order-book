@@ -247,19 +247,49 @@ if (process.env.NODE_ENV !== "production") {
 // Auth Routes
 app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
-  if (username === ADMIN_USERNAME && bcrypt.compareSync(password, currentAdminPassword)) {
-    const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "24h" });
+  if (!username || !password) {
+    return res.status(400).json({ message: "Username and password are required." });
+  }
+
+  const cleanUsername = String(username).trim();
+  const cleanPassword = String(password).trim();
+
+  // Query database for admin matching username case-insensitively
+  let adminRecord = await Admin.findOne({
+    username: { $regex: new RegExp(`^${cleanUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, "i") }
+  });
+
+  let isValid = false;
+  let matchedUsername = ADMIN_USERNAME;
+
+  if (adminRecord) {
+    matchedUsername = adminRecord.username;
+    if (adminRecord.password.startsWith("$2a$") || adminRecord.password.startsWith("$2b$") || adminRecord.password.startsWith("$2y$")) {
+      isValid = bcrypt.compareSync(cleanPassword, adminRecord.password);
+    } else {
+      // Direct comparison if plain text
+      isValid = (cleanPassword === adminRecord.password);
+      if (isValid) {
+        adminRecord.password = bcrypt.hashSync(cleanPassword, 10);
+        await adminRecord.save();
+      }
+    }
+  } else if (cleanUsername.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
+    isValid = bcrypt.compareSync(cleanPassword, currentAdminPassword) || (cleanPassword === currentAdminPassword);
+  }
+
+  if (isValid) {
+    const token = jwt.sign({ username: matchedUsername }, JWT_SECRET, { expiresIn: "24h" });
 
     const rawUa = req.headers['user-agent'] || 'Unknown User-Agent';
     const userAgent = parseUserAgent(rawUa);
-
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown IP';
     const ipAddress = rawIp.split(',')[0].trim();
 
     try {
       await Session.create({
         token,
-        username,
+        username: matchedUsername,
         userAgent,
         ipAddress
       });
@@ -270,6 +300,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     return res.json({ token });
   }
+
   return res.status(401).json({ message: "Invalid username or password" });
 });
 

@@ -150,7 +150,7 @@ function App() {
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+        body: JSON.stringify({ username: loginUsername.trim(), password: loginPassword.trim() }),
       });
       const data = await response.json();
       if (response.ok) {
