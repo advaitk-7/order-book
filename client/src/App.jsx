@@ -3573,27 +3573,27 @@ function App() {
                         <thead>
                           <tr>
 
-                            <th className="sortable-header" onClick={() => handleTailorSort('orderNumber')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <th className="sortable-header" onClick={() => handleTailorSort('orderNumber')} style={{ cursor: 'pointer' }}>
                               Order No. {tailorSortKey === 'orderNumber' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
-                            <th className="sortable-header" onClick={() => handleTailorSort('product')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <th className="sortable-header" onClick={() => handleTailorSort('product')} style={{ cursor: 'pointer' }}>
                               Product {tailorSortKey === 'product' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
-                            <th style={{ minWidth: '125px' }}>Category</th>
-                            <th className="sortable-header" onClick={() => handleTailorSort('customerName')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <th style={{ minWidth: '145px' }}>Category</th>
+                            <th className="sortable-header" onClick={() => handleTailorSort('customerName')} style={{ cursor: 'pointer' }}>
                               Customer {tailorSortKey === 'customerName' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
-                            <th className="sortable-header" onClick={() => handleTailorSort('school')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <th className="sortable-header" onClick={() => handleTailorSort('school')} style={{ cursor: 'pointer' }}>
                               School {tailorSortKey === 'school' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
-                            <th style={{ whiteSpace: 'nowrap' }}>Gender</th>
-                            <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Qty</th>
-                            <th style={{ minWidth: '130px' }}>Measurements</th>
-                            <th style={{ minWidth: '110px' }}>Notes</th>
-                            <th className="sortable-header" onClick={() => handleTailorSort('deliveryDate')} style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <th>Gender</th>
+                            <th>Qty</th>
+                            <th style={{ minWidth: '180px' }}>Measurements</th>
+                            <th style={{ minWidth: '140px' }}>Notes</th>
+                            <th className="sortable-header" onClick={() => handleTailorSort('deliveryDate')} style={{ cursor: 'pointer' }}>
                               Delivery Date {tailorSortKey === 'deliveryDate' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
-                            <th style={{ whiteSpace: 'nowrap' }}>Production Status</th>
+                            <th>Production Status</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3609,12 +3609,12 @@ function App() {
                               style={{ cursor: 'pointer' }}
                             >
 
-                              <td style={{ fontWeight: '600', whiteSpace: 'nowrap' }}>#{row.orderNumber}</td>
-                              <td style={{ whiteSpace: 'nowrap' }}>
+                              <td style={{ fontWeight: '600' }}>#{row.orderNumber}</td>
+                              <td>
                                 <span className={`product-tag ${row.product.toLowerCase()}`}>
                                   {row.product}
                                   {getSleeveTag(row.product, row.measurements) && (
-                                    <span className="sleeve-badge-tag" style={{ marginLeft: '4px', fontSize: '9px', padding: '1px 3px', background: 'rgba(0,0,0,0.08)', color: 'inherit', borderRadius: '4px', fontWeight: 'bold' }}>
+                                    <span className="sleeve-badge-tag" style={{ marginLeft: '6px', fontSize: '9px', padding: '1px 4px', background: 'rgba(0,0,0,0.08)', color: 'inherit', borderRadius: '4px', fontWeight: 'bold' }}>
                                       ({getSleeveTag(row.product, row.measurements)})
                                     </span>
                                   )}
@@ -3627,14 +3627,14 @@ function App() {
                                   style={{
                                     fontSize: '11px',
                                     fontWeight: '600',
-                                    padding: '3px 6px',
+                                    padding: '4px 8px',
                                     borderRadius: '6px',
                                     border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #CBD5E1',
                                     background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
                                     color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
                                     cursor: 'pointer',
                                     width: '100%',
-                                    maxWidth: '125px'
+                                    maxWidth: '145px'
                                   }}
                                 >
                                   {PRODUCTION_CATEGORIES.map(cat => (
@@ -3644,15 +3644,15 @@ function App() {
                                   ))}
                                 </select>
                               </td>
-                              <td style={{ fontWeight: '500', whiteSpace: 'nowrap' }}>{row.customerName}</td>
-                              <td style={{ whiteSpace: 'nowrap', fontSize: '12px' }}>{row.school}</td>
-                              <td style={{ whiteSpace: 'nowrap' }}>{row.gender}</td>
-                              <td style={{ fontWeight: '700', textAlign: 'center' }}>{row.quantity}</td>
+                              <td style={{ fontWeight: '500' }}>{row.customerName}</td>
+                              <td>{row.school}</td>
+                              <td>{row.gender}</td>
+                              <td style={{ fontWeight: '700' }}>{row.quantity}</td>
                               <td>{renderTailorMeasurements(row.product, row.measurements)}</td>
-                              <td className="notes-cell" style={{ color: row.notes ? (theme === 'dark' ? '#cbd5e1' : '#334155') : '#94A3B8' }}>
+                              <td className="notes-cell" style={{ color: row.notes ? (theme === 'dark' ? '#cbd5e1' : '#334155') : '#94A3B8', fontSize: '13px' }}>
                                 {row.notes || '-'}
                               </td>
-                              <td style={{ color: '#E11D48', fontWeight: '600', whiteSpace: 'nowrap' }}>{formatDateToDMY(row.deliveryDate)}</td>
+                              <td style={{ color: '#E11D48', fontWeight: '600' }}>{formatDateToDMY(row.deliveryDate)}</td>
                               <td>
                                 <span className={`status-badge ${row.status.toLowerCase()}`}>
                                   {row.status}
