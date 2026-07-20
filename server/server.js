@@ -513,23 +513,29 @@ const performBackup = async () => {
     const compressed = zlib.gzipSync(jsonStr);
 
     const now = new Date();
-    // Shift UTC time to India Standard Time (UTC +5:30)
-    const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-    
-    const day = String(istTime.getUTCDate()).padStart(2, '0');
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const month = monthNames[istTime.getUTCMonth()];
-    const year = istTime.getUTCFullYear();
-    
-    let rawHours = istTime.getUTCHours();
-    const ampm = rawHours >= 12 ? 'PM' : 'AM';
-    let hours12 = rawHours % 12;
-    hours12 = hours12 ? hours12 : 12;
-    const hours = String(hours12).padStart(2, '0');
-    const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(istTime.getUTCSeconds()).padStart(2, '0');
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
 
-    const filename = `liberty_backup_${day}-${month}-${year}_at_${hours}-${minutes}-${seconds}-${ampm}.json.gz`;
+    const parts = formatter.formatToParts(now);
+    const getPart = (type) => parts.find(p => p.type === type)?.value || '';
+
+    const year = getPart('year');
+    const month = getPart('month');
+    const day = getPart('day');
+    const hours = String(getPart('hour')).padStart(2, '0');
+    const minutes = String(getPart('minute')).padStart(2, '0');
+    const seconds = String(getPart('second')).padStart(2, '0');
+    const ampm = (getPart('dayPeriod') || '').toUpperCase();
+
+    const filename = `liberty_backup_${year}-${month}-${day}_${hours}-${minutes}-${seconds}-${ampm}.json.gz`;
     const filepath = path.join(BACKUP_DIR, filename);
 
     fs.writeFileSync(filepath, compressed);
