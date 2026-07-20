@@ -7,11 +7,14 @@
   color: #0F172A;
 }
 
-body {
+html, body, #root {
   margin: 0;
+  padding: 0;
   background: #F8FAFC;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 * {
@@ -855,12 +858,19 @@ button:hover {
 }
 
 .table-wrap {
-  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .table-panel .table-wrap {
   max-height: 520px;
-  overflow: auto;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 table {
@@ -1124,9 +1134,13 @@ tbody tr:hover {
 
 .production-cost-panel {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) 3.5fr;
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
   gap: 20px;
   align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 @media (max-width: 1160px) {

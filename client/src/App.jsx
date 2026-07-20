@@ -3367,8 +3367,8 @@ function App() {
           {activePage === 'Production Queue' && (
             <section className="page-panel page-tailor-panel">
               {/* Filter bar container */}
-              <div className="orders-toolbar tailor-toolbar">
-                <div className="orders-search-bar">
+              <div className="orders-toolbar tailor-toolbar" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', flexWrap: 'wrap', gap: '12px' }}>
+                <div className="orders-search-bar" style={{ flex: '1 1 220px', minWidth: '180px' }}>
                   <span className="topbar-search-icon">🔍</span>
                   <input
                     type="search"
@@ -3378,10 +3378,10 @@ function App() {
                   />
                 </div>
 
-                <div className="orders-toolbar-actions tailor-toolbar-actions" style={{ flexWrap: 'wrap', gap: '10px' }}>
-                  <label className="orders-filter-select">
+                <div className="orders-toolbar-actions tailor-toolbar-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', flex: '1 1 auto', justifyContent: 'flex-end' }}>
+                  <label className="orders-filter-select" style={{ minWidth: '120px' }}>
                     <span>Production Status</span>
-                    <select value={tailorStatusFilter} onChange={(e) => setTailorStatusFilter(e.target.value)}>
+                    <select value={tailorStatusFilter} onChange={(e) => setTailorStatusFilter(e.target.value)} style={{ padding: '8px 10px', fontSize: '13px' }}>
                       <option value="All">All Statuses</option>
                       <option value="Pending">Pending</option>
                       <option value="Ready">Ready</option>
@@ -3389,9 +3389,9 @@ function App() {
                     </select>
                   </label>
 
-                  <label className="orders-filter-select">
+                  <label className="orders-filter-select" style={{ minWidth: '110px' }}>
                     <span>Product</span>
-                    <select value={tailorProductFilter} onChange={(e) => setTailorProductFilter(e.target.value)}>
+                    <select value={tailorProductFilter} onChange={(e) => setTailorProductFilter(e.target.value)} style={{ padding: '8px 10px', fontSize: '13px' }}>
                       <option value="All">All Products</option>
                       <option value="Shirt">Shirt</option>
                       <option value="Pant">Pant</option>
@@ -3399,9 +3399,9 @@ function App() {
                     </select>
                   </label>
 
-                  <label className="orders-filter-select">
+                  <label className="orders-filter-select" style={{ minWidth: '120px' }}>
                     <span>School</span>
-                    <select value={tailorSchoolFilter} onChange={(e) => setTailorSchoolFilter(e.target.value)}>
+                    <select value={tailorSchoolFilter} onChange={(e) => setTailorSchoolFilter(e.target.value)} style={{ padding: '8px 10px', fontSize: '13px' }}>
                       <option value="All">All Schools</option>
                       {tailorAvailableSchools.map((s) => (
                         <option key={s} value={s}>{s}</option>
@@ -3409,9 +3409,9 @@ function App() {
                     </select>
                   </label>
 
-                  <label className="orders-filter-select">
+                  <label className="orders-filter-select" style={{ minWidth: '110px' }}>
                     <span>Delivery</span>
-                    <select value={tailorDeliveryFilter} onChange={(e) => setTailorDeliveryFilter(e.target.value)}>
+                    <select value={tailorDeliveryFilter} onChange={(e) => setTailorDeliveryFilter(e.target.value)} style={{ padding: '8px 10px', fontSize: '13px' }}>
                       <option value="All">All Dates</option>
                       <option value="Today">Today</option>
                       <option value="Tomorrow">Tomorrow</option>
@@ -3437,26 +3437,26 @@ function App() {
                       />
                     </div>
                   )}
-                </div>
 
-                {/* Export and Print Actions */}
-                <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }} className="tailor-export-actions">
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={() => window.print()}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
-                  >
-                    🖨️ Print / Save PDF
-                  </button>
-                  <button
-                    type="button"
-                    className="primary-btn"
-                    onClick={exportToCSV}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
-                  >
-                    📊 Export Excel (CSV)
-                  </button>
+                  {/* Export and Print Actions */}
+                  <div style={{ display: 'flex', gap: '8px' }} className="tailor-export-actions">
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => window.print()}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '12px', fontSize: '13px', whiteSpace: 'nowrap' }}
+                    >
+                      🖨️ Print / Save PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      onClick={exportToCSV}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '12px', fontSize: '13px', whiteSpace: 'nowrap' }}
+                    >
+                      📊 Export Excel (CSV)
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -3469,8 +3469,12 @@ function App() {
                   border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E5E7EB',
                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
                   display: 'grid',
-                  gridTemplateColumns: '260px 1fr',
-                  gap: '20px'
+                  gridTemplateColumns: 'minmax(200px, 240px) minmax(0, 1fr)',
+                  gap: '20px',
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden'
                 }}>
                   {/* Total Cost Block */}
                   <div style={{
@@ -3621,14 +3625,16 @@ function App() {
                                   style={{
                                     fontSize: '11px',
                                     fontWeight: '600',
-                                    padding: '4px 8px',
+                                    padding: '4px 6px',
                                     borderRadius: '6px',
                                     border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #CBD5E1',
                                     background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
                                     color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
                                     cursor: 'pointer',
                                     width: '100%',
-                                    maxWidth: '170px'
+                                    maxWidth: '135px',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
                                   }}
                                 >
                                   {PRODUCTION_CATEGORIES.map(cat => (
