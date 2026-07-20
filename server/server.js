@@ -516,7 +516,7 @@ const performBackup = async () => {
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Kolkata',
       year: 'numeric',
-      month: '2-digit',
+      month: 'short',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
@@ -535,7 +535,7 @@ const performBackup = async () => {
     const seconds = String(getPart('second')).padStart(2, '0');
     const ampm = (getPart('dayPeriod') || '').toUpperCase();
 
-    const filename = `liberty_backup_${year}-${month}-${day}_${hours}-${minutes}-${seconds}-${ampm}.json.gz`;
+    const filename = `liberty_backup_${day}-${month}-${year}_${hours}-${minutes}-${seconds}-${ampm}.json.gz`;
     const filepath = path.join(BACKUP_DIR, filename);
 
     fs.writeFileSync(filepath, compressed);
