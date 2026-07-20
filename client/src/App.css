@@ -28,20 +28,29 @@ textarea {
 html, body {
   margin: 0;
   padding: 0;
+  width: 100%;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
+}
+
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden !important;
 }
 
 .app-shell {
   min-height: 100vh;
   display: flex;
   background: #F5F7FA;
+  width: 100%;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
 }
 
 .sidebar {
   width: 230px;
+  flex-shrink: 0;
   background: white;
   border-right: 1px solid #E5E7EB;
   padding: 28px 20px;
@@ -142,7 +151,7 @@ html, body {
   flex-direction: column;
   min-width: 0;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
 }
 
 .topbar {
@@ -151,6 +160,9 @@ html, body {
   align-items: center;
   gap: 20px;
   padding: 24px 32px 0;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .page-title {
@@ -184,7 +196,9 @@ html, body {
   border: 1px solid #E5E7EB;
   border-radius: 14px;
   padding: 10px 14px;
-  min-width: 320px;
+  min-width: 200px;
+  max-width: 360px;
+  width: 100%;
 }
 
 .topbar-search-icon {
@@ -247,24 +261,37 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden !important;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1.3fr 0.85fr 0.85fr;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dashboard-overview-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dashboard-card {
