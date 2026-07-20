@@ -1162,7 +1162,10 @@ app.patch("/api/waitlist/schools/:id", authenticateJWT, async (req, res) => {
     school.name = trimmedName;
     await school.save();
 
-    await Waitlist.updateMany({ school: oldName }, { school: trimmedName });
+    await Waitlist.updateMany(
+      { schools: oldName },
+      { $set: { "schools.$": trimmedName } }
+    );
 
     res.json(school);
   } catch (error) {
@@ -1177,7 +1180,10 @@ app.delete("/api/waitlist/schools/:id", authenticateJWT, async (req, res) => {
       return res.status(404).json({ message: "School not found" });
     }
 
-    await Waitlist.updateMany({ school: school.name }, { school: "" });
+    await Waitlist.updateMany(
+      { schools: school.name },
+      { $pull: { schools: school.name } }
+    );
 
     res.json({ message: "School deleted successfully" });
   } catch (error) {
