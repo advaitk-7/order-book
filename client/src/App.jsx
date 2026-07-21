@@ -2183,8 +2183,7 @@ function App() {
       'Quantity',
       'Measurements',
       'Notes',
-      'Delivery Date',
-      'Production Status'
+      'Delivery Date'
     ]
 
     const csvRows = [headers.join(',')]
@@ -2237,8 +2236,7 @@ function App() {
         formatField(row.quantity),
         formatField(measurementsStr),
         formatField(row.notes || '-'),
-        formatField(formatDateToDMY(row.deliveryDate)),
-        formatField(row.status)
+        formatField(formatDateToDMY(row.deliveryDate))
       ]
 
       csvRows.push(csvRow.join(','))
