@@ -1515,8 +1515,8 @@ tr.clickable-row.highlighted-row td {
 /* Print styles */
 @media print {
   @page {
-    size: landscape;
-    margin: 8mm;
+    size: portrait;
+    margin: 8mm 6mm;
   }
 
   body {
@@ -1564,7 +1564,7 @@ tr.clickable-row.highlighted-row td {
   /* 3. Enable printing our print header */
   .print-only-header {
     display: block !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 12px !important;
   }
 
   /* 4. Format table specifically for neat print spacing */
@@ -1577,17 +1577,21 @@ tr.clickable-row.highlighted-row td {
   table {
     width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 10px !important;
-    table-layout: auto !important;
+    font-size: 8.5px !important;
+    table-layout: fixed !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
   }
 
   th, td {
-    padding: 6px 5px !important;
+    padding: 4px 3px !important;
     border: 1px solid #94A3B8 !important;
     color: #000 !important;
     background: transparent !important;
-    font-size: 10px !important;
+    font-size: 8.5px !important;
     word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    box-sizing: border-box !important;
   }
 
   /* Format dropdown selects in print */
@@ -1597,28 +1601,58 @@ tr.clickable-row.highlighted-row td {
     -webkit-appearance: none !important;
     -moz-appearance: none !important;
     appearance: none !important;
-    font-size: 10px !important;
+    font-size: 8.5px !important;
     padding: 0 !important;
     color: #000 !important;
     font-weight: 600 !important;
     width: auto !important;
     max-width: 100% !important;
+    white-space: normal !important;
+    word-break: break-word !important;
   }
 
-  /* 5. Hide Customer Name (4th column) and Production Status (last column) in PDF print */
+  /* 5. Precise 100% Column Allocation for PDF Print */
+  .page-tailor-panel .table-wrap table th:nth-child(1),
+  .page-tailor-panel .table-wrap table td:nth-child(1) { width: 7% !important; }
+
+  .page-tailor-panel .table-wrap table th:nth-child(2),
+  .page-tailor-panel .table-wrap table td:nth-child(2) { width: 9% !important; }
+
+  .page-tailor-panel .table-wrap table th:nth-child(3),
+  .page-tailor-panel .table-wrap table td:nth-child(3) { width: 17% !important; }
+
+  /* Hide Customer Name (4th column) */
   .page-tailor-panel .table-wrap table th:nth-child(4),
-  .page-tailor-panel .table-wrap table td:nth-child(4),
-  .page-tailor-panel .table-wrap table th:last-child,
-  .page-tailor-panel .table-wrap table td:last-child {
-    display: none !important;
-  }
+  .page-tailor-panel .table-wrap table td:nth-child(4) { display: none !important; }
+
+  .page-tailor-panel .table-wrap table th:nth-child(5),
+  .page-tailor-panel .table-wrap table td:nth-child(5) { width: 14% !important; }
+
+  .page-tailor-panel .table-wrap table th:nth-child(6),
+  .page-tailor-panel .table-wrap table td:nth-child(6) { width: 7% !important; }
+
+  .page-tailor-panel .table-wrap table th:nth-child(7),
+  .page-tailor-panel .table-wrap table td:nth-child(7) { width: 5% !important; }
+
+  .page-tailor-panel .table-wrap table th:nth-child(8),
+  .page-tailor-panel .table-wrap table td:nth-child(8) { width: 23% !important; }
+
+  .page-tailor-panel .table-wrap table th:nth-child(9),
+  .page-tailor-panel .table-wrap table td:nth-child(9) { width: 10% !important; }
+
+  .page-tailor-panel .table-wrap table th:nth-child(10),
+  .page-tailor-panel .table-wrap table td:nth-child(10) { width: 8% !important; }
+
+  /* Hide Production Status (11th/last column) */
+  .page-tailor-panel .table-wrap table th:nth-child(11),
+  .page-tailor-panel .table-wrap table td:nth-child(11) { display: none !important; }
 
   /* Reset print styling for the summary table footer */
   .print-only-footer-summary {
-    margin-top: 24px !important;
+    margin-top: 20px !important;
     border: 1px solid #CBD5E1 !important;
     border-radius: 8px !important;
-    padding: 14px !important;
+    padding: 12px !important;
     background: #F8FAFC !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
