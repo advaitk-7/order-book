@@ -1523,7 +1523,7 @@ tr.clickable-row.highlighted-row td {
 /* Print styles */
 @media print {
   @page {
-    size: auto;
+    size: landscape;
     margin: 4mm 5mm;
   }
 
@@ -1581,7 +1581,7 @@ tr.clickable-row.highlighted-row td {
   /* 3. Enable printing our print header */
   .print-only-header {
     display: block !important;
-    margin-bottom: 12px !important;
+    margin-bottom: 10px !important;
   }
 
   /* 4. Format table specifically for neat print spacing */
@@ -1595,17 +1595,17 @@ tr.clickable-row.highlighted-row td {
     width: 100% !important;
     max-width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 8px !important;
+    font-size: 7.5px !important;
     table-layout: fixed !important;
   }
 
   th, td {
-    padding: 3px 3px !important;
+    padding: 2px 2px !important;
     border: 1px solid #94A3B8 !important;
     color: #000 !important;
     background: transparent !important;
-    font-size: 8px !important;
-    line-height: 1.2 !important;
+    font-size: 7.5px !important;
+    line-height: 1.15 !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     word-break: break-word !important;
