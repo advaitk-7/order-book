@@ -3613,10 +3613,10 @@ function App() {
 
                               <td style={{ fontWeight: '600' }}>#{row.orderNumber}</td>
                               <td>
-                                <span className={`product-tag ${row.product.toLowerCase()}`}>
+                                <span className={`product-tag ${row.product.toLowerCase()}`} style={{ whiteSpace: 'nowrap' }}>
                                   {row.product}
                                   {getSleeveTag(row.product, row.measurements) && (
-                                    <span className="sleeve-badge-tag" style={{ marginLeft: '6px', fontSize: '9px', padding: '1px 4px', background: 'rgba(0,0,0,0.08)', color: 'inherit', borderRadius: '4px', fontWeight: 'bold' }}>
+                                    <span className="sleeve-badge-tag" style={{ marginLeft: '4px', fontSize: '9px', padding: '1px 4px', background: 'rgba(0,0,0,0.08)', color: 'inherit', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                                       ({getSleeveTag(row.product, row.measurements)})
                                     </span>
                                   )}
@@ -3648,7 +3648,10 @@ function App() {
                               </td>
                               <td style={{ fontWeight: '500' }}>{row.customerName}</td>
                               <td>{row.school}</td>
-                              <td>{row.gender}</td>
+                              <td>
+                                <span className="screen-only-gender">{row.gender}</span>
+                                <span className="print-only-gender">{row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))}</span>
+                              </td>
                               <td style={{ fontWeight: '700' }}>{row.quantity}</td>
                               <td>{renderTailorMeasurements(row.product, row.measurements)}</td>
                               <td className="notes-cell" style={{ color: row.notes ? (theme === 'dark' ? '#cbd5e1' : '#334155') : '#94A3B8', fontSize: '13px' }}>
