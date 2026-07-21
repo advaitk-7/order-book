@@ -141,6 +141,36 @@ const formatDateToDMY = (dateStr) => {
   return dateStr
 }
 
+const formatDateToShortDMY = (dateStr) => {
+  if (!dateStr) return '-'
+  const parts = dateStr.split('-')
+  if (parts.length === 3) {
+    const [year, month, day] = parts
+    return `${day}/${month}/${year.slice(2)}`
+  }
+  return dateStr
+}
+
+const getShortCategoryName = (catIdOrName) => {
+  if (!catIdOrName) return ''
+  const cat = PRODUCTION_CATEGORIES.find(c => c.id === catIdOrName || c.name === catIdOrName)
+  const n = cat ? cat.name : String(catIdOrName)
+  return n
+    .replace(/\s*\(₹\d+\)/g, '')
+    .replace(/H\.S\./g, 'HS')
+    .replace(/F\.S\./g, 'FS')
+    .replace(/\s*\(20 to 30\)/g, ' 20-30')
+    .replace(/\s*\(32 to 44\)/g, ' 32-44')
+    .replace(/\s*\(32 to 40\)/g, ' 32-40')
+    .replace(/Shirt/g, 'Shirt')
+    .replace(/Order Shirt/g, 'Order')
+    .replace(/Skirt \/ Divider/g, 'Skirt/Div')
+    .replace(/Trousers Elastic/g, 'Tr. Elastic')
+    .replace(/Trousers Belt/g, 'Tr. Belt')
+    .replace(/Cargo Trousers/g, 'Cargo Tr.')
+    .replace(/Nirmala \/ SNS Frock/g, 'Nirmala Frock')
+}
+
 const getSleeveTag = (itemType, measurements) => {
   if (!itemType || itemType.toLowerCase() !== 'shirt') return ''
   const sleeveVal = parseFloat(measurements?.sleeve)
@@ -3613,7 +3643,7 @@ function App() {
 
                               <td style={{ fontWeight: '600' }}>#{row.orderNumber}</td>
                               <td>
-                                <span className={`product-tag ${row.product.toLowerCase()}`} style={{ whiteSpace: 'nowrap' }}>
+                                <span className={`product-tag ${row.product.toLowerCase()} screen-and-landscape-product`} style={{ whiteSpace: 'nowrap' }}>
                                   {row.product}
                                   {getSleeveTag(row.product, row.measurements) && (
                                     <span className="sleeve-badge-tag" style={{ marginLeft: '4px', fontSize: '9px', padding: '1px 4px', background: 'rgba(0,0,0,0.08)', color: 'inherit', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
@@ -3621,30 +3651,43 @@ function App() {
                                     </span>
                                   )}
                                 </span>
+                                <div className="portrait-print-product">
+                                  <strong>{row.product}</strong>
+                                  {getSleeveTag(row.product, row.measurements) && (
+                                    <div style={{ fontSize: '7.5px', fontWeight: 'bold' }}>
+                                      ({getSleeveTag(row.product, row.measurements)})
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                               <td onClick={(e) => e.stopPropagation()}>
-                                <select
-                                  value={row.productionCategory || guessProductionCategory(row)}
-                                  onChange={(e) => handleInlineCategoryChange(row, e.target.value)}
-                                  style={{
-                                    fontSize: '11px',
-                                    fontWeight: '600',
-                                    padding: '4px 8px',
-                                    borderRadius: '6px',
-                                    border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #CBD5E1',
-                                    background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                                    color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
-                                    cursor: 'pointer',
-                                    width: '100%',
-                                    maxWidth: '145px'
-                                  }}
-                                >
-                                  {PRODUCTION_CATEGORIES.map(cat => (
-                                    <option key={cat.id} value={cat.id}>
-                                      {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
-                                    </option>
-                                  ))}
-                                </select>
+                                <div className="screen-and-landscape-category">
+                                  <select
+                                    value={row.productionCategory || guessProductionCategory(row)}
+                                    onChange={(e) => handleInlineCategoryChange(row, e.target.value)}
+                                    style={{
+                                      fontSize: '11px',
+                                      fontWeight: '600',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #CBD5E1',
+                                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                                      color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
+                                      cursor: 'pointer',
+                                      width: '100%',
+                                      maxWidth: '145px'
+                                    }}
+                                  >
+                                    {PRODUCTION_CATEGORIES.map(cat => (
+                                      <option key={cat.id} value={cat.id}>
+                                        {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <span className="portrait-print-category">
+                                  {getShortCategoryName(row.productionCategory || guessProductionCategory(row))}
+                                </span>
                               </td>
                               <td style={{ fontWeight: '500' }}>{row.customerName}</td>
                               <td>{row.school}</td>
@@ -3657,7 +3700,10 @@ function App() {
                               <td className="notes-cell" style={{ color: row.notes ? (theme === 'dark' ? '#cbd5e1' : '#334155') : '#94A3B8', fontSize: '13px' }}>
                                 {row.notes || '-'}
                               </td>
-                              <td style={{ color: '#E11D48', fontWeight: '600' }}>{formatDateToDMY(row.deliveryDate)}</td>
+                              <td style={{ color: '#E11D48', fontWeight: '600' }}>
+                                <span className="screen-and-landscape-date">{formatDateToDMY(row.deliveryDate)}</span>
+                                <span className="portrait-print-date">{formatDateToShortDMY(row.deliveryDate)}</span>
+                              </td>
                               <td>
                                 <span className={`status-badge ${row.status.toLowerCase()}`}>
                                   {row.status}

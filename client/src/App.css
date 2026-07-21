@@ -1512,27 +1512,38 @@ tr.clickable-row.highlighted-row td {
   word-break: break-word !important;
 }
 
-.print-only-gender {
+.print-only-gender,
+.portrait-print-product,
+.portrait-print-category,
+.portrait-print-date {
   display: none;
 }
 
-.screen-only-gender {
-  display: inline;
+.screen-only-gender,
+.screen-and-landscape-product,
+.screen-and-landscape-category,
+.screen-and-landscape-date {
+  display: inline-block;
 }
 
 /* Print styles */
 @media print {
   @page {
-    size: landscape;
+    size: auto;
     margin: 4mm 5mm;
   }
 
-  .print-only-gender {
-    display: inline !important;
-    font-weight: 700 !important;
+  .print-only-gender,
+  .portrait-print-product,
+  .portrait-print-category,
+  .portrait-print-date {
+    display: inline-block !important;
   }
 
-  .screen-only-gender {
+  .screen-only-gender,
+  .screen-and-landscape-product,
+  .screen-and-landscape-category,
+  .screen-and-landscape-date {
     display: none !important;
   }
 
@@ -1628,7 +1639,7 @@ tr.clickable-row.highlighted-row td {
   /* Col 1: Order # */
   .page-tailor-panel .table-wrap table th:nth-child(1),
   .page-tailor-panel .table-wrap table td:nth-child(1) {
-    width: 4% !important;
+    width: 5% !important;
     white-space: nowrap !important;
     text-align: center !important;
   }
@@ -1636,14 +1647,15 @@ tr.clickable-row.highlighted-row td {
   /* Col 2: Product */
   .page-tailor-panel .table-wrap table th:nth-child(2),
   .page-tailor-panel .table-wrap table td:nth-child(2) {
-    width: 9% !important;
+    width: 8% !important;
     white-space: nowrap !important;
   }
 
   /* Col 3: Category */
   .page-tailor-panel .table-wrap table th:nth-child(3),
   .page-tailor-panel .table-wrap table td:nth-child(3) {
-    width: 17% !important;
+    width: 16% !important;
+    font-weight: 600 !important;
   }
 
   /* Hide Customer Name (Col 4) */
@@ -1661,7 +1673,7 @@ tr.clickable-row.highlighted-row td {
   /* Col 6: Gender */
   .page-tailor-panel .table-wrap table th:nth-child(6),
   .page-tailor-panel .table-wrap table td:nth-child(6) {
-    width: 3% !important;
+    width: 4% !important;
     white-space: nowrap !important;
     text-align: center !important;
   }
@@ -1669,7 +1681,7 @@ tr.clickable-row.highlighted-row td {
   /* Col 7: Qty */
   .page-tailor-panel .table-wrap table th:nth-child(7),
   .page-tailor-panel .table-wrap table td:nth-child(7) {
-    width: 3% !important;
+    width: 4% !important;
     white-space: nowrap !important;
     text-align: center !important;
   }
@@ -1677,7 +1689,7 @@ tr.clickable-row.highlighted-row td {
   /* Col 8: Measurements */
   .page-tailor-panel .table-wrap table th:nth-child(8),
   .page-tailor-panel .table-wrap table td:nth-child(8) {
-    width: 26% !important;
+    width: 24% !important;
   }
 
   /* Col 9: Notes */
@@ -1689,7 +1701,7 @@ tr.clickable-row.highlighted-row td {
   /* Col 10: Delivery Date */
   .page-tailor-panel .table-wrap table th:nth-child(10),
   .page-tailor-panel .table-wrap table td:nth-child(10) {
-    width: 9% !important;
+    width: 10% !important;
     white-space: nowrap !important;
   }
 
