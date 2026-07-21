@@ -3576,7 +3576,7 @@ function App() {
                           <tr>
 
                             <th className="sortable-header" onClick={() => handleTailorSort('orderNumber')} style={{ cursor: 'pointer' }}>
-                              Order No. {tailorSortKey === 'orderNumber' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
+                              Order # {tailorSortKey === 'orderNumber' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
                             <th className="sortable-header" onClick={() => handleTailorSort('product')} style={{ cursor: 'pointer' }}>
                               Product {tailorSortKey === 'product' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -3593,7 +3593,7 @@ function App() {
                             <th style={{ minWidth: '180px' }}>Measurements</th>
                             <th style={{ minWidth: '140px' }}>Notes</th>
                             <th className="sortable-header" onClick={() => handleTailorSort('deliveryDate')} style={{ cursor: 'pointer' }}>
-                              Delivery Date {tailorSortKey === 'deliveryDate' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
+                              Delivery {tailorSortKey === 'deliveryDate' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
                             <th>Production Status</th>
                           </tr>

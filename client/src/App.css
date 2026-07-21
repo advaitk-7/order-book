@@ -1595,26 +1595,28 @@ tr.clickable-row.highlighted-row td {
     width: 100% !important;
     max-width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 8.5px !important;
-    table-layout: auto !important;
+    font-size: 8px !important;
+    table-layout: fixed !important;
   }
 
   th, td {
-    padding: 3px 4px !important;
+    padding: 3px 3px !important;
     border: 1px solid #94A3B8 !important;
     color: #000 !important;
     background: transparent !important;
-    font-size: 8.5px !important;
+    font-size: 8px !important;
     line-height: 1.2 !important;
-    word-break: normal !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    word-break: break-word !important;
   }
 
   /* Force badges to display cleanly inline without word splits */
   .product-tag {
     display: inline-block !important;
     white-space: nowrap !important;
-    font-size: 8.5px !important;
-    padding: 1px 4px !important;
+    font-size: 8px !important;
+    padding: 1px 3px !important;
   }
 
   .sleeve-badge-tag {
@@ -1622,36 +1624,73 @@ tr.clickable-row.highlighted-row td {
     white-space: nowrap !important;
   }
 
-  /* Specific column formatting for print */
-  .page-tailor-panel .table-wrap table th:first-child,
-  .page-tailor-panel .table-wrap table td:first-child {
+  /* Explicit percentages for the 9 printed columns (Total = 100%) */
+  /* Col 1: Order # */
+  .page-tailor-panel .table-wrap table th:nth-child(1),
+  .page-tailor-panel .table-wrap table td:nth-child(1) {
+    width: 4% !important;
     white-space: nowrap !important;
-    width: 28px !important;
+    text-align: center !important;
   }
 
+  /* Col 2: Product */
   .page-tailor-panel .table-wrap table th:nth-child(2),
   .page-tailor-panel .table-wrap table td:nth-child(2) {
+    width: 9% !important;
     white-space: nowrap !important;
   }
 
+  /* Col 3: Category */
+  .page-tailor-panel .table-wrap table th:nth-child(3),
+  .page-tailor-panel .table-wrap table td:nth-child(3) {
+    width: 17% !important;
+  }
+
+  /* Hide Customer Name (Col 4) */
+  .page-tailor-panel .table-wrap table th:nth-child(4),
+  .page-tailor-panel .table-wrap table td:nth-child(4) {
+    display: none !important;
+  }
+
+  /* Col 5: School */
+  .page-tailor-panel .table-wrap table th:nth-child(5),
+  .page-tailor-panel .table-wrap table td:nth-child(5) {
+    width: 14% !important;
+  }
+
+  /* Col 6: Gender */
   .page-tailor-panel .table-wrap table th:nth-child(6),
   .page-tailor-panel .table-wrap table td:nth-child(6) {
+    width: 3% !important;
     white-space: nowrap !important;
     text-align: center !important;
-    width: 18px !important;
   }
 
+  /* Col 7: Qty */
   .page-tailor-panel .table-wrap table th:nth-child(7),
   .page-tailor-panel .table-wrap table td:nth-child(7) {
+    width: 3% !important;
     white-space: nowrap !important;
     text-align: center !important;
-    width: 22px !important;
   }
 
+  /* Col 8: Measurements */
+  .page-tailor-panel .table-wrap table th:nth-child(8),
+  .page-tailor-panel .table-wrap table td:nth-child(8) {
+    width: 26% !important;
+  }
+
+  /* Col 9: Notes */
+  .page-tailor-panel .table-wrap table th:nth-child(9),
+  .page-tailor-panel .table-wrap table td:nth-child(9) {
+    width: 15% !important;
+  }
+
+  /* Col 10: Delivery Date */
   .page-tailor-panel .table-wrap table th:nth-child(10),
   .page-tailor-panel .table-wrap table td:nth-child(10) {
+    width: 9% !important;
     white-space: nowrap !important;
-    width: 58px !important;
   }
 
   /* Format dropdown selects in print */
@@ -1661,7 +1700,7 @@ tr.clickable-row.highlighted-row td {
     -webkit-appearance: none !important;
     -moz-appearance: none !important;
     appearance: none !important;
-    font-size: 8.5px !important;
+    font-size: 8px !important;
     padding: 0 !important;
     color: #000 !important;
     font-weight: 600 !important;
@@ -1669,9 +1708,7 @@ tr.clickable-row.highlighted-row td {
     max-width: 100% !important;
   }
 
-  /* Hide Customer Name (4th column) and Production Status (last column) in PDF print */
-  .page-tailor-panel .table-wrap table th:nth-child(4),
-  .page-tailor-panel .table-wrap table td:nth-child(4),
+  /* Hide Production Status (Col 11 / Last) */
   .page-tailor-panel .table-wrap table th:last-child,
   .page-tailor-panel .table-wrap table td:last-child {
     display: none !important;
