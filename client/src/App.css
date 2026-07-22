@@ -1650,6 +1650,104 @@ tr.clickable-row.highlighted-row td {
   .page-tailor-panel .table-wrap table td:last-child {
     display: none !important;
   }
+
+  /* Reset print styling for the summary table footer */
+  .print-only-footer-summary {
+    margin-top: 18px !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 6px !important;
+    padding: 10px 14px !important;
+    background: #F8FAFC !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .print-only-footer-summary h3 {
+    margin-top: 0 !important;
+    margin-bottom: 12px !important;
+    font-size: 14px !important;
+    color: #0F172A !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    padding-bottom: 8px !important;
+    font-weight: 700 !important;
+  }
+
+  .print-only-footer-summary table {
+    min-width: 100% !important;
+  }
+
+  .print-only-footer-summary th,
+  .print-only-footer-summary td {
+    border: none !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    padding: 8px 6px !important;
+    color: #0F172A !important;
+    background: transparent !important;
+    font-size: 11px !important;
+  }
+
+  .print-only-footer-summary th {
+    font-weight: 700 !important;
+    color: #475569 !important;
+    text-transform: uppercase;
+    font-size: 10px !important;
+    letter-spacing: 0.05em;
+  }
+
+  .print-only-footer-summary tr.total-row td {
+    font-weight: 800 !important;
+    color: #0F172A !important;
+    border-top: 2px solid #0F172A !important;
+    border-bottom: 4px double #0F172A !important;
+    padding: 12px 6px !important;
+    font-size: 13px !important;
+  }
+
+  /* Alternating Row Color for readability in printouts */
+  tbody tr:nth-child(even) td {
+    background-color: #F8FAFC !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Polished Print Header Banner */
+  .print-only-header {
+    display: block !important;
+    border-bottom: 2px solid #0F172A !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .print-only-header h1 {
+    font-size: 24px !important;
+    font-weight: 800 !important;
+    margin: 0 0 6px 0 !important;
+    color: #0F172A !important;
+  }
+
+  .print-only-header p {
+    font-size: 11px !important;
+    color: #475569 !important;
+    margin: 0 !important;
+  }
+
+  /* 6. Stylings for measurement tag badges inside table print */
+  .measurement-tag {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    font-size: 10px !important;
+  }
+
+  /* 7. Notes wrap configurations inside print layout */
+  .notes-cell {
+    min-width: 150px !important;
+    max-width: 300px !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+  }
 }
 
 /* ---------------------------------------------------- */
@@ -1762,105 +1860,6 @@ tr.clickable-row.highlighted-row td {
   .page-tailor-panel .table-wrap table td:nth-child(10) {
     width: 10% !important;
     white-space: nowrap !important;
-  }
-}
-
-  /* Reset print styling for the summary table footer */
-  .print-only-footer-summary {
-    margin-top: 18px !important;
-    border: 1px solid #CBD5E1 !important;
-    border-radius: 6px !important;
-    padding: 10px 14px !important;
-    background: #F8FAFC !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  .print-only-footer-summary h3 {
-    margin-top: 0 !important;
-    margin-bottom: 12px !important;
-    font-size: 14px !important;
-    color: #0F172A !important;
-    border-bottom: 1px solid #E2E8F0 !important;
-    padding-bottom: 8px !important;
-    font-weight: 700 !important;
-  }
-
-  .print-only-footer-summary table {
-    min-width: 100% !important;
-  }
-
-  .print-only-footer-summary th,
-  .print-only-footer-summary td {
-    border: none !important;
-    border-bottom: 1px solid #E2E8F0 !important;
-    padding: 8px 6px !important;
-    color: #0F172A !important;
-    background: transparent !important;
-    font-size: 11px !important;
-  }
-
-  .print-only-footer-summary th {
-    font-weight: 700 !important;
-    color: #475569 !important;
-    text-transform: uppercase;
-    font-size: 10px !important;
-    letter-spacing: 0.05em;
-  }
-
-  .print-only-footer-summary tr.total-row td {
-    font-weight: 800 !important;
-    color: #0F172A !important;
-    border-top: 2px solid #0F172A !important;
-    border-bottom: 4px double #0F172A !important;
-    padding: 12px 6px !important;
-    font-size: 13px !important;
-  }
-
-  /* Alternating Row Color for readability in printouts */
-  tbody tr:nth-child(even) td {
-    background-color: #F8FAFC !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Polished Print Header Banner */
-  .print-only-header {
-    display: block !important;
-    border-bottom: 2px solid #0F172A !important;
-    padding-bottom: 12px !important;
-    margin-bottom: 24px !important;
-  }
-
-  .print-only-header h1 {
-    font-size: 24px !important;
-    font-weight: 800 !important;
-    margin: 0 0 6px 0 !important;
-    color: #0F172A !important;
-  }
-
-  .print-only-header p {
-    font-size: 11px !important;
-    color: #475569 !important;
-    margin: 0 !important;
-  }
-
-  /* 6. Stylings for measurement tag badges inside table print */
-  .measurement-tag {
-    border: none !important;
-    background: transparent !important;
-    padding: 0 !important;
-    font-size: 10px !important;
-  }
-
-  /* 7. Notes wrap configurations inside print layout */
-  .notes-cell {
-    min-width: 150px !important;
-    max-width: 300px !important;
-    white-space: pre-wrap !important;
-    word-break: break-word !important;
   }
 }
 
