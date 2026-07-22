@@ -476,6 +476,7 @@ function App() {
   const [editingSchoolId, setEditingSchoolId] = useState(null)
   const [editingSchoolNameInput, setEditingSchoolNameInput] = useState('')
   const [activePage, setActivePage] = useState('Dashboard')
+  const [exportingPDF, setExportingPDF] = useState(false)
   const [visibleCount, setVisibleCount] = useState(20)
   const loadStep = 20
   const [selectedIds, setSelectedIds] = useState([])
@@ -2269,6 +2270,66 @@ function App() {
     document.body.removeChild(link)
   }
 
+  const handleSaveAsPDF = async () => {
+    try {
+      setExportingPDF(true)
+      if (!window.html2pdf) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
+          script.onload = resolve
+          script.onerror = reject
+          document.body.appendChild(script)
+        })
+      }
+
+      const sourceEl = tailorTableWrapRef.current
+      if (!sourceEl) {
+        alert('Table element not found.')
+        return
+      }
+
+      const container = document.createElement('div')
+      container.style.padding = '20px'
+      container.style.background = '#FFFFFF'
+      container.style.color = '#0F172A'
+      container.style.fontFamily = 'Plus Jakarta Sans, sans-serif'
+
+      const title = document.createElement('h2')
+      title.innerText = `Liberty Uniform - Production Queue (${tailorStatusFilter || 'All'})`
+      title.style.margin = '0 0 16px 0'
+      title.style.color = '#1D4ED8'
+      title.style.fontSize = '18px'
+      container.appendChild(title)
+
+      const clone = sourceEl.cloneNode(true)
+      clone.style.maxHeight = 'none'
+      clone.style.overflow = 'visible'
+      container.appendChild(clone)
+
+      document.body.appendChild(container)
+
+      const dateStr = new Date().toISOString().slice(0, 10)
+      const filename = `Tailor_Production_Queue_${dateStr}.pdf`
+      const opt = {
+        margin: [6, 6, 6, 6],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      }
+
+      await window.html2pdf().set(opt).from(container).save()
+      document.body.removeChild(container)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+      alert('Direct PDF generation encountered an issue. Opening browser print preview to save as PDF.')
+      window.print()
+    } finally {
+      setExportingPDF(false)
+    }
+  }
+
   const renderTailorMeasurements = (product, measurements) => {
     if (!measurements) return '-'
     const items = []
@@ -3439,7 +3500,16 @@ function App() {
                     onClick={() => window.print()}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
                   >
-                    🖨️ Print / Save PDF
+                    🖨️ Print Table
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={handleSaveAsPDF}
+                    disabled={exportingPDF}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
+                  >
+                    {exportingPDF ? '⌛ Generating PDF...' : '📄 Save as PDF'}
                   </button>
                   <button
                     type="button"
