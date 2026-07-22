@@ -3686,8 +3686,8 @@ function App() {
                                   })()}
                                 </span>
                               </td>
-                              <td style={{ fontWeight: '500' }}>{row.customerName}</td>
-                              <td>{row.school}</td>
+                              <td style={{ fontWeight: '500', whiteSpace: 'nowrap' }}>{row.customerName}</td>
+                              <td style={{ whiteSpace: 'nowrap' }}>{row.school}</td>
                               <td>
                                 <span className="screen-only-gender">{row.gender}</span>
                                 <span className="print-only-gender">{row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))}</span>

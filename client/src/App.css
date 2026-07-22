@@ -1460,17 +1460,19 @@ tr.highlighted-row td:last-child {
 .tailor-measurements-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
+  max-width: 220px;
 }
 
 .measurement-tag {
   background: #EEF2FF;
   color: #334155;
-  padding: 3px 8px;
-  border-radius: 8px;
-  font-size: 12.5px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
   border: 1px solid #C7D2FE;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
 }
 
@@ -1496,9 +1498,9 @@ tr.clickable-row.highlighted-row td {
 .notes-cell {
   word-break: break-word !important;
   white-space: pre-wrap !important;
-  line-height: 1.5 !important;
-  min-width: 200px !important;
-  max-width: 400px !important;
+  line-height: 1.25 !important;
+  min-width: 100px !important;
+  max-width: 200px !important;
 }
 
 .details-full p {
