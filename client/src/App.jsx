@@ -3448,10 +3448,7 @@ function App() {
                 </div>
 
                 {/* Export and Print Actions */}
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: 'auto' }} className="tailor-export-actions">
-                  <span className="mini-pill" style={{ height: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center' }}>
-                    Showing {sortedTailorGarments.length} Garment{sortedTailorGarments.length !== 1 ? 's' : ''}
-                  </span>
+                <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }} className="tailor-export-actions">
                   <button
                     type="button"
                     className="secondary-btn"
