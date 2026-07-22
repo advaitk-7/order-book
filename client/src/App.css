@@ -1529,22 +1529,8 @@ tr.clickable-row.highlighted-row td {
 /* Print styles */
 @media print {
   @page {
-    size: auto;
+    size: landscape;
     margin: 4mm 5mm;
-  }
-
-  .print-only-gender,
-  .portrait-print-product,
-  .portrait-print-category,
-  .portrait-print-date {
-    display: inline-block !important;
-  }
-
-  .screen-only-gender,
-  .screen-and-landscape-product,
-  .screen-and-landscape-category,
-  .screen-and-landscape-date {
-    display: none !important;
   }
 
   body {
@@ -1553,6 +1539,25 @@ tr.clickable-row.highlighted-row td {
     background: transparent !important;
     max-width: 100vw !important;
     overflow: visible !important;
+  }
+
+  /* Default Landscape Print Helpers display */
+  .portrait-print-product,
+  .portrait-print-category,
+  .portrait-print-date {
+    display: none !important;
+  }
+  .screen-and-landscape-product,
+  .screen-and-landscape-category,
+  .screen-and-landscape-date {
+    display: inline-block !important;
+  }
+  .print-only-gender {
+    display: inline !important;
+    font-weight: 700 !important;
+  }
+  .screen-only-gender {
+    display: none !important;
   }
 
   /* 1. Hide interactive shell elements */
@@ -1606,40 +1611,97 @@ tr.clickable-row.highlighted-row td {
     width: 100% !important;
     max-width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 7.5px !important;
-    table-layout: fixed !important;
+    font-size: 8px !important;
+    table-layout: auto !important; /* Landscape print is auto layout for wide display */
+  }
+
+  th, td {
+    padding: 3px 4px !important;
+    border: 1px solid #94A3B8 !important;
+    color: #000 !important;
+    background: transparent !important;
+    font-size: 8px !important;
+    line-height: 1.25 !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+
+  /* Format dropdown selects in print */
+  select {
+    border: none !important;
+    background: transparent !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    font-size: 8px !important;
+    padding: 0 !important;
+    color: #000 !important;
+    font-weight: 600 !important;
+    width: auto !important;
+    max-width: 100% !important;
+  }
+
+  /* Hide Customer Name (Col 4) and Production Status (Col 11 / Last) */
+  .page-tailor-panel .table-wrap table th:nth-child(4),
+  .page-tailor-panel .table-wrap table td:nth-child(4),
+  .page-tailor-panel .table-wrap table th:last-child,
+  .page-tailor-panel .table-wrap table td:last-child {
+    display: none !important;
+  }
+}
+
+/* ---------------------------------------------------- */
+/* SPECIFIC PORTRAIT PRINT OVERRIDES                   */
+/* Matches when browser prints vertically or narrow     */
+/* ---------------------------------------------------- */
+@media print and (orientation: portrait), print and (max-width: 240mm) {
+  @page {
+    size: portrait;
+    margin: 4mm 4mm;
+  }
+
+  /* Hide Screen & Landscape specific elements */
+  .screen-and-landscape-product,
+  .screen-and-landscape-category,
+  .screen-and-landscape-date {
+    display: none !important;
+  }
+
+  /* Show compact Portrait elements */
+  .portrait-print-product,
+  .portrait-print-category,
+  .portrait-print-date {
+    display: inline-block !important;
+  }
+
+  .portrait-print-product {
+    display: block !important;
+  }
+
+  table {
+    table-layout: fixed !important; /* Force exact column width distribution */
+    font-size: 7.2px !important;
   }
 
   th, td {
     padding: 2px 2px !important;
-    border: 1px solid #94A3B8 !important;
-    color: #000 !important;
-    background: transparent !important;
-    font-size: 7.5px !important;
+    font-size: 7.2px !important;
     line-height: 1.15 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    white-space: normal !important;
     word-break: break-word !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
   }
 
-  /* Force badges to display cleanly inline without word splits */
-  .product-tag {
-    display: inline-block !important;
-    white-space: nowrap !important;
-    font-size: 8px !important;
-    padding: 1px 3px !important;
-  }
-
-  .sleeve-badge-tag {
-    display: inline-block !important;
-    white-space: nowrap !important;
-  }
-
-  /* Explicit percentages for the 9 printed columns (Total = 100%) */
+  /* 9 Printed Columns Width Distribution (Sums up to exactly 100%) */
   /* Col 1: Order # */
   .page-tailor-panel .table-wrap table th:nth-child(1),
   .page-tailor-panel .table-wrap table td:nth-child(1) {
-    width: 5% !important;
+    width: 4% !important;
     white-space: nowrap !important;
     text-align: center !important;
   }
@@ -1647,27 +1709,22 @@ tr.clickable-row.highlighted-row td {
   /* Col 2: Product */
   .page-tailor-panel .table-wrap table th:nth-child(2),
   .page-tailor-panel .table-wrap table td:nth-child(2) {
-    width: 8% !important;
-    white-space: nowrap !important;
+    width: 7% !important;
+    white-space: normal !important;
   }
 
   /* Col 3: Category */
   .page-tailor-panel .table-wrap table th:nth-child(3),
   .page-tailor-panel .table-wrap table td:nth-child(3) {
-    width: 16% !important;
+    width: 15% !important;
     font-weight: 600 !important;
-  }
-
-  /* Hide Customer Name (Col 4) */
-  .page-tailor-panel .table-wrap table th:nth-child(4),
-  .page-tailor-panel .table-wrap table td:nth-child(4) {
-    display: none !important;
   }
 
   /* Col 5: School */
   .page-tailor-panel .table-wrap table th:nth-child(5),
   .page-tailor-panel .table-wrap table td:nth-child(5) {
     width: 14% !important;
+    white-space: normal !important;
   }
 
   /* Col 6: Gender */
@@ -1689,13 +1746,15 @@ tr.clickable-row.highlighted-row td {
   /* Col 8: Measurements */
   .page-tailor-panel .table-wrap table th:nth-child(8),
   .page-tailor-panel .table-wrap table td:nth-child(8) {
-    width: 24% !important;
+    width: 26% !important;
+    white-space: normal !important;
   }
 
   /* Col 9: Notes */
   .page-tailor-panel .table-wrap table th:nth-child(9),
   .page-tailor-panel .table-wrap table td:nth-child(9) {
-    width: 15% !important;
+    width: 16% !important;
+    white-space: normal !important;
   }
 
   /* Col 10: Delivery Date */
@@ -1704,27 +1763,7 @@ tr.clickable-row.highlighted-row td {
     width: 10% !important;
     white-space: nowrap !important;
   }
-
-  /* Format dropdown selects in print */
-  select {
-    border: none !important;
-    background: transparent !important;
-    -webkit-appearance: none !important;
-    -moz-appearance: none !important;
-    appearance: none !important;
-    font-size: 8px !important;
-    padding: 0 !important;
-    color: #000 !important;
-    font-weight: 600 !important;
-    width: auto !important;
-    max-width: 100% !important;
-  }
-
-  /* Hide Production Status (Col 11 / Last) */
-  .page-tailor-panel .table-wrap table th:last-child,
-  .page-tailor-panel .table-wrap table td:last-child {
-    display: none !important;
-  }
+}
 
   /* Reset print styling for the summary table footer */
   .print-only-footer-summary {
