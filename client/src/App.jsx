@@ -3002,17 +3002,13 @@ function App() {
                       Unselect All
                     </button>
                   )}
-
+                  {sortedOrders.length > 0 && (
+                    <button type="button" className="secondary-btn" onClick={scrollToBottom}>
+                      ▼ Go to Bottom
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {sortedOrders.length > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-                  <button type="button" className="secondary-btn" onClick={scrollToBottom}>
-                    ▼ Go to Bottom
-                  </button>
-                </div>
-              )}
 
               <div className="table-panel">
                 <div className="table-wrap" ref={tableWrapRef}>
@@ -3452,7 +3448,10 @@ function App() {
                 </div>
 
                 {/* Export and Print Actions */}
-                <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }} className="tailor-export-actions">
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: 'auto' }} className="tailor-export-actions">
+                  <span className="mini-pill" style={{ height: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center' }}>
+                    Showing {sortedTailorGarments.length} Garment{sortedTailorGarments.length !== 1 ? 's' : ''}
+                  </span>
                   <button
                     type="button"
                     className="secondary-btn"
