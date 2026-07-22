@@ -2306,7 +2306,7 @@ function App() {
         <div className="print-portrait-measurements" style={{ display: 'none' }}>
           {items.map((it, idx) => (
             <span key={it.label} style={{ display: 'inline-block', whiteSpace: 'nowrap', marginRight: '6px', fontSize: '8px' }}>
-              <strong>{it.short}:</strong>{it.val}
+              <strong>{it.short}:</strong> {it.val}
               {idx === 2 ? <br /> : null}
             </span>
           ))}

@@ -1721,6 +1721,7 @@ tr.clickable-row.highlighted-row td {
     background: transparent !important;
     padding: 0 !important;
     font-size: 10px !important;
+    margin-right: 8px !important;
   }
 
   /* 7. Notes wrap configurations inside print layout */
