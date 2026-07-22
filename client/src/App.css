@@ -1845,6 +1845,11 @@ tr.clickable-row.highlighted-row td {
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     word-break: break-word !important;
+    min-width: 0 !important;
+  }
+
+  .notes-cell {
+    min-width: 0 !important;
   }
 
   /* Fixed column width configurations (Total = 100%) */
