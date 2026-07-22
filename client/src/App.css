@@ -1515,271 +1515,135 @@ tr.clickable-row.highlighted-row td {
 .print-only-gender {
   display: none;
 }
-  .screen-only-gender {
-    display: inline;
+
+.screen-only-gender {
+  display: inline;
+}
+
+/* Twin screen/print display helper states */
+.portrait-print-product-tag,
+.print-portrait-only-category,
+.print-portrait-delivery,
+.print-portrait-measurements,
+.print-landscape-only-category {
+  display: none !important;
+}
+
+.screen-only-category-select,
+.screen-and-landscape-delivery,
+.screen-and-landscape-measurements {
+  display: inline-block;
+}
+
+/* Print styles (Landscape Default & Shared layout overrides) */
+@media print {
+  @page {
+    size: landscape;
+    margin: 4mm 5mm;
   }
 
-  /* Twin screen/print display helper states */
-  .portrait-print-product-tag,
-  .print-portrait-only-category,
-  .print-portrait-delivery,
-  .print-portrait-measurements,
-  .print-landscape-only-category {
+  .screen-only-category-select {
     display: none !important;
   }
 
-  .screen-only-category-select,
-  .screen-and-landscape-delivery,
-  .screen-and-landscape-measurements {
-    display: inline-block;
+  .print-only-gender {
+    display: inline !important;
+    font-weight: 700 !important;
   }
 
-  /* Print styles */
-  @media print {
-    .screen-only-category-select {
-      display: none !important;
-    }
-
-    @page {
-      size: landscape;
-      margin: 4mm 5mm;
-    }
-
-    .print-only-gender {
-      display: inline !important;
-      font-weight: 700 !important;
-    }
-
-    .screen-only-gender {
-      display: none !important;
-    }
-
-    body {
-      margin: 0 !important;
-      padding: 0 !important;
-      background: transparent !important;
-      max-width: 100vw !important;
-      overflow: visible !important;
-    }
-
-    /* 1. Hide interactive shell elements */
-    .sidebar,
-    .topbar,
-    .orders-toolbar,
-    .pagination-row,
-    .details-panel,
-    .tailor-export-actions,
-    .scroll-btn,
-    .timer-popup,
-    .production-cost-panel {
-      display: none !important;
-    }
-
-    .print-only-footer-summary {
-      display: block !important;
-      page-break-inside: avoid;
-    }
-
-    /* 2. Expand layouts to occupy the print page fully */
-    #root,
-    .app-shell,
-    .content-area,
-    .page-tailor-panel,
-    .table-panel {
-      display: block !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      background: transparent !important;
-      box-shadow: none !important;
-      overflow: visible !important;
-    }
-
-    /* 3. Enable printing our print header */
-    .print-only-header {
-      display: block !important;
-      margin-bottom: 10px !important;
-    }
-
-    /* 4. Format table specifically for neat print spacing */
-    .table-wrap {
-      max-height: none !important;
-      overflow: visible !important;
-      width: 100% !important;
-    }
-
-    /* Reset print styling for the summary table footer */
-    .print-only-footer-summary {
-      margin-top: 18px !important;
-      border: 1px solid #CBD5E1 !important;
-      border-radius: 6px !important;
-      padding: 10px 14px !important;
-      background: #F8FAFC !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      width: 100% !important;
-      box-sizing: border-box !important;
-    }
-
-    /* Format dropdown selects in print */
-    select {
-      border: none !important;
-      background: transparent !important;
-      -webkit-appearance: none !important;
-      -moz-appearance: none !important;
-      appearance: none !important;
-      font-size: 8.5px !important;
-      padding: 0 !important;
-      color: #000 !important;
-      font-weight: 600 !important;
-      width: auto !important;
-      max-width: 100% !important;
-    }
-
-    /* Hide Customer Name (Col 4) and Production Status (Col 11 / Last) */
-    .page-tailor-panel .table-wrap table th:nth-child(4),
-    .page-tailor-panel .table-wrap table td:nth-child(4),
-    .page-tailor-panel .table-wrap table th:last-child,
-    .page-tailor-panel .table-wrap table td:last-child {
-      display: none !important;
-    }
+  .screen-only-gender {
+    display: none !important;
   }
 
-  /* Landscape Mode Print (Keep approved clean look) */
-  @media print and (orientation: landscape) {
-    @page {
-      size: landscape;
-      margin: 8mm;
-    }
-
-    .print-landscape-only-category {
-      display: inline !important;
-    }
-
-    .screen-and-landscape-delivery {
-      display: inline !important;
-    }
-
-    .screen-and-landscape-measurements {
-      display: block !important;
-    }
-
-    table {
-      width: 100% !important;
-      border-collapse: collapse !important;
-      font-size: 10px !important;
-      table-layout: auto !important;
-    }
-
-    th, td {
-      padding: 6px 5px !important;
-      border: 1px solid #94A3B8 !important;
-      color: #000 !important;
-      background: transparent !important;
-      font-size: 10px !important;
-    }
-
-    .product-tag {
-      display: inline-block !important;
-      white-space: nowrap !important;
-    }
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    max-width: 100vw !important;
+    overflow: visible !important;
   }
 
-  /* Portrait Mode Print (Solution 3 Compact formatting overrides) */
-  @media print and (orientation: portrait) {
-    @page {
-      size: portrait;
-      margin: 4mm 3mm;
-    }
+  /* 1. Hide interactive shell elements */
+  .sidebar,
+  .topbar,
+  .orders-toolbar,
+  .pagination-row,
+  .details-panel,
+  .tailor-export-actions,
+  .scroll-btn,
+  .timer-popup,
+  .production-cost-panel {
+    display: none !important;
+  }
 
-    /* 1. Stacking product sleeve tag below product name */
-    .product-tag {
-      display: none !important;
-    }
+  .print-only-footer-summary {
+    display: block !important;
+    page-break-inside: avoid;
+  }
 
-    .portrait-print-product-tag {
-      display: block !important;
-      white-space: nowrap !important;
-    }
+  /* 2. Expand layouts to occupy the print page fully */
+  #root,
+  .app-shell,
+  .content-area,
+  .page-tailor-panel,
+  .table-panel {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
 
-    /* 2. Compact category names */
-    .print-portrait-only-category {
-      display: inline !important;
-      font-size: 8px !important;
-      font-weight: 600 !important;
-    }
+  /* 3. Enable printing our print header */
+  .print-only-header {
+    display: block !important;
+    margin-bottom: 10px !important;
+  }
 
-    .print-landscape-only-category {
-      display: none !important;
-    }
+  /* 4. Format table specifically for neat print spacing */
+  .table-wrap {
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
 
-    /* 3. School wrapping */
-    .page-tailor-panel .table-wrap table td:nth-child(5) {
-      white-space: normal !important;
-      word-break: break-word !important;
-      font-size: 8px !important;
-    }
+  /* Format dropdown selects in print */
+  select {
+    border: none !important;
+    background: transparent !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    font-size: 8.5px !important;
+    padding: 0 !important;
+    color: #000 !important;
+    font-weight: 600 !important;
+    width: auto !important;
+    max-width: 100% !important;
+  }
 
-    /* 5. Shortened delivery dates */
-    .screen-and-landscape-delivery {
-      display: none !important;
-    }
+  /* Hide Customer Name (Col 4) and Production Status (Col 11 / Last) */
+  .page-tailor-panel .table-wrap table th:nth-child(4),
+  .page-tailor-panel .table-wrap table td:nth-child(4),
+  .page-tailor-panel .table-wrap table th:last-child,
+  .page-tailor-panel .table-wrap table td:last-child {
+    display: none !important;
+  }
 
-    .print-portrait-delivery {
-      display: inline !important;
-      white-space: nowrap !important;
-    }
-
-    /* Measurements compact stacking */
-    .screen-and-landscape-measurements {
-      display: none !important;
-    }
-
-    .print-portrait-measurements {
-      display: block !important;
-    }
-
-    /* Ultra compact layout table grid rules for Portrait */
-    table {
-      width: 100% !important;
-      max-width: 100% !important;
-      border-collapse: collapse !important;
-      font-size: 7.5px !important;
-      table-layout: fixed !important;
-    }
-
-    th, td {
-      padding: 2px 2px !important;
-      border: 1px solid #94A3B8 !important;
-      color: #000 !important;
-      background: transparent !important;
-      font-size: 7.5px !important;
-      line-height: 1.15 !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      word-break: break-word !important;
-    }
-
-    /* Fixed column width configurations (Total = 100%) */
-    .page-tailor-panel .table-wrap table th:nth-child(1),
-    .page-tailor-panel .table-wrap table td:nth-child(1) { width: 5% !important; }
-    .page-tailor-panel .table-wrap table th:nth-child(2),
-    .page-tailor-panel .table-wrap table td:nth-child(2) { width: 9% !important; }
-    .page-tailor-panel .table-wrap table th:nth-child(3),
-    .page-tailor-panel .table-wrap table td:nth-child(3) { width: 16% !important; }
-    .page-tailor-panel .table-wrap table th:nth-child(5),
-    .page-tailor-panel .table-wrap table td:nth-child(5) { width: 14% !important; }
-    .page-tailor-panel .table-wrap table th:nth-child(6),
-    .page-tailor-panel .table-wrap table td:nth-child(6) { width: 3% !important; }
-    .page-tailor-panel .table-wrap table th:nth-child(7),
-    .page-tailor-panel .table-wrap table td:nth-child(7) { width: 3% !important; }
-    .page-tailor-panel .table-wrap table th:nth-child(8),
-    .page-tailor-panel .table-wrap table td:nth-child(8) { width: 26% !important; }
-    .page-tailor-panel .table-wrap table th:nth-child(9),
-    .page-tailor-panel .table-wrap table td:nth-child(9) { width: 15% !important; }
-    .page-tailor-panel .table-wrap table th:nth-child(10),
-    .page-tailor-panel .table-wrap table td:nth-child(10) { width: 9% !important; }
+  /* Reset print styling for the summary table footer */
+  .print-only-footer-summary {
+    margin-top: 18px !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 6px !important;
+    padding: 10px 14px !important;
+    background: #F8FAFC !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .print-only-footer-summary h3 {
@@ -1866,6 +1730,142 @@ tr.clickable-row.highlighted-row td {
     white-space: pre-wrap !important;
     word-break: break-word !important;
   }
+}
+
+/* Landscape Mode Print Specific Settings */
+@media print and (orientation: landscape) {
+  @page {
+    size: landscape;
+    margin: 8mm;
+  }
+
+  .print-landscape-only-category {
+    display: inline !important;
+  }
+
+  .screen-and-landscape-delivery {
+    display: inline !important;
+  }
+
+  .screen-and-landscape-measurements {
+    display: block !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 10px !important;
+    table-layout: auto !important;
+  }
+
+  th, td {
+    padding: 6px 5px !important;
+    border: 1px solid #94A3B8 !important;
+    color: #000 !important;
+    background: transparent !important;
+    font-size: 10px !important;
+  }
+
+  .product-tag {
+    display: inline-block !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Portrait Mode Print (Solution 3 Compact formatting overrides) */
+@media print and (orientation: portrait) {
+  @page {
+    size: portrait;
+    margin: 4mm 3mm;
+  }
+
+  /* 1. Stacking product sleeve tag below product name */
+  .product-tag {
+    display: none !important;
+  }
+
+  .portrait-print-product-tag {
+    display: block !important;
+    white-space: nowrap !important;
+  }
+
+  /* 2. Compact category names */
+  .print-portrait-only-category {
+    display: inline !important;
+    font-size: 8px !important;
+    font-weight: 600 !important;
+  }
+
+  .print-landscape-only-category {
+    display: none !important;
+  }
+
+  /* 3. School wrapping */
+  .page-tailor-panel .table-wrap table td:nth-child(5) {
+    white-space: normal !important;
+    word-break: break-word !important;
+    font-size: 8px !important;
+  }
+
+  /* 5. Shortened delivery dates */
+  .screen-and-landscape-delivery {
+    display: none !important;
+  }
+
+  .print-portrait-delivery {
+    display: inline !important;
+    white-space: nowrap !important;
+  }
+
+  /* Measurements compact stacking */
+  .screen-and-landscape-measurements {
+    display: none !important;
+  }
+
+  .print-portrait-measurements {
+    display: block !important;
+  }
+
+  /* Ultra compact layout table grid rules for Portrait */
+  table {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 7.5px !important;
+    table-layout: fixed !important;
+  }
+
+  th, td {
+    padding: 2px 2px !important;
+    border: 1px solid #94A3B8 !important;
+    color: #000 !important;
+    background: transparent !important;
+    font-size: 7.5px !important;
+    line-height: 1.15 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    word-break: break-word !important;
+  }
+
+  /* Fixed column width configurations (Total = 100%) */
+  .page-tailor-panel .table-wrap table th:nth-child(1),
+  .page-tailor-panel .table-wrap table td:nth-child(1) { width: 5% !important; }
+  .page-tailor-panel .table-wrap table th:nth-child(2),
+  .page-tailor-panel .table-wrap table td:nth-child(2) { width: 9% !important; }
+  .page-tailor-panel .table-wrap table th:nth-child(3),
+  .page-tailor-panel .table-wrap table td:nth-child(3) { width: 16% !important; }
+  .page-tailor-panel .table-wrap table th:nth-child(5),
+  .page-tailor-panel .table-wrap table td:nth-child(5) { width: 14% !important; }
+  .page-tailor-panel .table-wrap table th:nth-child(6),
+  .page-tailor-panel .table-wrap table td:nth-child(6) { width: 3% !important; }
+  .page-tailor-panel .table-wrap table th:nth-child(7),
+  .page-tailor-panel .table-wrap table td:nth-child(7) { width: 3% !important; }
+  .page-tailor-panel .table-wrap table th:nth-child(8),
+  .page-tailor-panel .table-wrap table td:nth-child(8) { width: 26% !important; }
+  .page-tailor-panel .table-wrap table th:nth-child(9),
+  .page-tailor-panel .table-wrap table td:nth-child(9) { width: 15% !important; }
+  .page-tailor-panel .table-wrap table th:nth-child(10),
+  .page-tailor-panel .table-wrap table td:nth-child(10) { width: 9% !important; }
 }
 
 /* User Authentication & Login Overlays */
