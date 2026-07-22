@@ -2295,14 +2295,23 @@ function App() {
     if (items.length === 0) return '-'
 
     return (
-      <div className="tailor-measurements-list">
-        {items.map((it) => (
-          <span key={it.label} className="measurement-tag" style={{ display: 'inline-block', marginRight: '6px' }}>
-            <strong className="print-hide-inline">{it.label}: </strong>
-            <strong className="print-show-inline" style={{ display: 'none' }}>{it.short}:</strong>{it.val}
-          </span>
-        ))}
-      </div>
+      <>
+        <div className="tailor-measurements-list screen-and-landscape-measurements">
+          {items.map((it) => (
+            <span key={it.label} className="measurement-tag">
+              <strong>{it.label}:</strong> {it.val}
+            </span>
+          ))}
+        </div>
+        <div className="print-portrait-measurements" style={{ display: 'none' }}>
+          {items.map((it, idx) => (
+            <span key={it.label} style={{ display: 'inline-block', whiteSpace: 'nowrap', marginRight: '6px', fontSize: '8px' }}>
+              <strong>{it.short}:</strong>{it.val}
+              {idx === 2 ? <br /> : null}
+            </span>
+          ))}
+        </div>
+      </>
     )
   }
 
@@ -3601,118 +3610,116 @@ function App() {
                         </thead>
                         <tbody>
                           {sortedTailorGarments.map((row) => (
-                            <React.Fragment key={row.uniqueRowId}>
-                              <tr
-                                className={`clickable-row ${highlightedOrderId === row.orderId ? 'highlighted-row' : ''}`}
-                                onClick={() => {
-                                  setSelectedOrder(row.order)
-                                  setHighlightedOrderId(row.orderId)
-                                  setShouldScrollToDetails(true)
-                                }}
-                                style={{ cursor: 'pointer' }}
-                              >
-                                <td style={{ fontWeight: '600' }}>#{row.orderNumber}</td>
-                                <td>
-                                  <span className={`product-tag ${row.product.toLowerCase()}`} style={{ whiteSpace: 'nowrap' }}>
-                                    {row.product}
-                                    {getSleeveTag(row.product, row.measurements) && (
-                                      <span className="sleeve-badge-tag" style={{ marginLeft: '4px', fontSize: '9px', padding: '1px 4px', background: 'rgba(0,0,0,0.08)', color: 'inherit', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                                        ({getSleeveTag(row.product, row.measurements)})
-                                      </span>
-                                    )}
-                                  </span>
-                                  <div className="portrait-print-product-tag" style={{ display: 'none' }}>
-                                    <div style={{ fontWeight: 'bold', fontSize: '8px', lineHeight: '1' }}>{row.product}</div>
-                                    {getSleeveTag(row.product, row.measurements) && (
-                                      <div style={{ fontSize: '7.5px', color: '#475569', marginTop: '2px', fontWeight: '600' }}>
-                                        ({getSleeveTag(row.product, row.measurements)})
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-                                <td onClick={(e) => e.stopPropagation()}>
-                                  <div className="screen-only-category-select">
-                                    <select
-                                      value={row.productionCategory || guessProductionCategory(row)}
-                                      onChange={(e) => handleInlineCategoryChange(row, e.target.value)}
-                                      style={{
-                                        fontSize: '11px',
-                                        fontWeight: '600',
-                                        padding: '4px 8px',
-                                        borderRadius: '6px',
-                                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #CBD5E1',
-                                        background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                                        color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
-                                        cursor: 'pointer',
-                                        width: '100%',
-                                        maxWidth: '145px'
-                                      }}
-                                    >
-                                      {PRODUCTION_CATEGORIES.map(cat => (
-                                        <option key={cat.id} value={cat.id}>
-                                          {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                  <span className="print-show-inline" style={{ display: 'none' }}>
-                                    {(() => {
-                                      const catVal = row.productionCategory || guessProductionCategory(row);
-                                      const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
-                                      if (!catObj) return catVal;
-                                      let name = catObj.name;
-                                      name = name.replace(/H\.S\./g, 'HS')
-                                                 .replace(/F\.S\./g, 'FS')
-                                                 .replace(/Order/g, 'Ord')
-                                                 .replace(/Regular/g, 'Reg')
-                                                 .replace(/Trousers/g, 'Tr.')
-                                                 .replace(/Elastic/g, 'Elast.')
-                                                 .replace(/Skirt \/ Divider/g, 'Skirt/Div')
-                                                 .replace(/Nirmala \/ SNS/g, 'Nirmala');
-                                      return `${name} (₹${pricingRates[catVal] !== undefined ? pricingRates[catVal] : catObj.defaultRate})`;
-                                    })()}
-                                  </span>
-                                </td>
-                                <td style={{ fontWeight: '500' }}>{row.customerName}</td>
-                                <td>{row.school}</td>
-                                <td>
-                                  <span className="print-hide-inline">{row.gender}</span>
-                                  <span className="print-show-inline" style={{ display: 'none', fontWeight: 'bold' }}>
-                                    {row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))}
-                                  </span>
-                                </td>
-                                <td style={{ fontWeight: '700' }}>{row.quantity}</td>
-                                <td>{renderTailorMeasurements(row.product, row.measurements)}</td>
-                                <td className="notes-cell" style={{ color: row.notes ? (theme === 'dark' ? '#cbd5e1' : '#334155') : '#94A3B8', fontSize: '13px' }}>
-                                  {row.notes || '-'}
-                                </td>
-                                <td style={{ color: '#E11D48', fontWeight: '600' }}>
-                                  <span className="print-hide-inline">{formatDateToDMY(row.deliveryDate)}</span>
-                                  <span className="print-show-inline" style={{ display: 'none' }}>
-                                    {(() => {
-                                      const d = new Date(row.deliveryDate);
-                                      if (isNaN(d.getTime())) return '-';
-                                      const day = String(d.getDate()).padStart(2, '0');
-                                      const month = String(d.getMonth() + 1).padStart(2, '0');
-                                      const year = String(d.getFullYear()).slice(-2);
-                                      return `${day}/${month}/${year}`;
-                                    })()}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className={`status-badge ${row.status.toLowerCase()}`}>
-                                    {row.status}
-                                  </span>
-                                </td>
-                              </tr>
-                              {row.notes && (
-                                <tr className="notes-print-row" style={{ display: 'none' }}>
-                                  <td colSpan={8} style={{ padding: '6px 8px', fontStyle: 'italic', background: '#F8FAFC', color: '#1E293B', borderTop: 'none', borderBottom: '1px solid #94A3B8', textAlign: 'left' }}>
-                                    <strong>Notes:</strong> {row.notes}
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
+                            <tr
+                              key={row.uniqueRowId}
+                              className={`clickable-row ${highlightedOrderId === row.orderId ? 'highlighted-row' : ''}`}
+                              onClick={() => {
+                                setSelectedOrder(row.order)
+                                setHighlightedOrderId(row.orderId)
+                                setShouldScrollToDetails(true)
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            >
+
+                              <td style={{ fontWeight: '600' }}>#{row.orderNumber}</td>
+                              <td>
+                                <span className={`product-tag ${row.product.toLowerCase()}`} style={{ whiteSpace: 'nowrap' }}>
+                                  {row.product}
+                                  {getSleeveTag(row.product, row.measurements) && (
+                                    <span className="sleeve-badge-tag" style={{ marginLeft: '4px', fontSize: '9px', padding: '1px 4px', background: 'rgba(0,0,0,0.08)', color: 'inherit', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                                      ({getSleeveTag(row.product, row.measurements)})
+                                    </span>
+                                  )}
+                                </span>
+                                <div className="portrait-print-product-tag" style={{ display: 'none' }}>
+                                  <div style={{ fontWeight: 'bold', fontSize: '8px', lineHeight: '1' }}>{row.product}</div>
+                                  {getSleeveTag(row.product, row.measurements) && (
+                                    <div style={{ fontSize: '7.5px', color: '#475569', marginTop: '2px', fontWeight: '600' }}>
+                                      ({getSleeveTag(row.product, row.measurements)})
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td onClick={(e) => e.stopPropagation()}>
+                                <div className="screen-only-category-select">
+                                  <select
+                                    value={row.productionCategory || guessProductionCategory(row)}
+                                    onChange={(e) => handleInlineCategoryChange(row, e.target.value)}
+                                    style={{
+                                      fontSize: '11px',
+                                      fontWeight: '600',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #CBD5E1',
+                                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                                      color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
+                                      cursor: 'pointer',
+                                      width: '100%',
+                                      maxWidth: '145px'
+                                    }}
+                                  >
+                                    {PRODUCTION_CATEGORIES.map(cat => (
+                                      <option key={cat.id} value={cat.id}>
+                                        {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <span className="print-landscape-only-category" style={{ display: 'none' }}>
+                                  {(() => {
+                                    const catVal = row.productionCategory || guessProductionCategory(row);
+                                    const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
+                                    return catObj ? `${catObj.name} (₹${pricingRates[catVal] !== undefined ? pricingRates[catVal] : catObj.defaultRate})` : catVal;
+                                  })()}
+                                </span>
+                                <span className="print-portrait-only-category" style={{ display: 'none' }}>
+                                  {(() => {
+                                    const catVal = row.productionCategory || guessProductionCategory(row);
+                                    const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
+                                    if (!catObj) return catVal;
+                                    let name = catObj.name;
+                                    name = name.replace(/H\.S\./g, 'HS')
+                                               .replace(/F\.S\./g, 'FS')
+                                               .replace(/Order/g, 'Ord')
+                                               .replace(/Regular/g, 'Reg')
+                                               .replace(/Trousers/g, 'Tr.')
+                                               .replace(/Elastic/g, 'Elast.')
+                                               .replace(/Skirt \/ Divider/g, 'Skirt/Div')
+                                               .replace(/Nirmala \/ SNS/g, 'Nirmala');
+                                    return name;
+                                  })()}
+                                </span>
+                              </td>
+                              <td style={{ fontWeight: '500' }}>{row.customerName}</td>
+                              <td>{row.school}</td>
+                              <td>
+                                <span className="screen-only-gender">{row.gender}</span>
+                                <span className="print-only-gender">{row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))}</span>
+                              </td>
+                              <td style={{ fontWeight: '700' }}>{row.quantity}</td>
+                              <td>{renderTailorMeasurements(row.product, row.measurements)}</td>
+                              <td className="notes-cell" style={{ color: row.notes ? (theme === 'dark' ? '#cbd5e1' : '#334155') : '#94A3B8', fontSize: '13px' }}>
+                                {row.notes || '-'}
+                              </td>
+                              <td style={{ color: '#E11D48', fontWeight: '600' }}>
+                                <span className="screen-and-landscape-delivery">{formatDateToDMY(row.deliveryDate)}</span>
+                                <span className="print-portrait-delivery" style={{ display: 'none' }}>
+                                  {(() => {
+                                    const d = new Date(row.deliveryDate);
+                                    if (isNaN(d.getTime())) return '-';
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const year = String(d.getFullYear()).slice(-2);
+                                    return `${day}/${month}/${year}`;
+                                  })()}
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`status-badge ${row.status.toLowerCase()}`}>
+                                  {row.status}
+                                </span>
+                              </td>
+                            </tr>
                           ))}
                         </tbody>
                       </table>
