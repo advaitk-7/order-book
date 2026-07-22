@@ -477,10 +477,6 @@ function App() {
   const [editingSchoolNameInput, setEditingSchoolNameInput] = useState('')
   const [activePage, setActivePage] = useState('Dashboard')
   const [exportingPDF, setExportingPDF] = useState(false)
-  const [showPDFModal, setShowPDFModal] = useState(false)
-  const [pdfOrientation, setPdfOrientation] = useState('landscape')
-  const [pdfPaperSize, setPdfPaperSize] = useState('a4')
-  const [pdfIncludeSummary, setPdfIncludeSummary] = useState(true)
   const [visibleCount, setVisibleCount] = useState(20)
   const loadStep = 20
   const [selectedIds, setSelectedIds] = useState([])
@@ -2274,11 +2270,7 @@ function App() {
     document.body.removeChild(link)
   }
 
-  const handleSaveAsPDF = () => {
-    setShowPDFModal(true)
-  }
-
-  const executePDFDownload = async () => {
+  const handleSaveAsPDF = async () => {
     try {
       setExportingPDF(true)
       if (!window.html2pdf) {
@@ -2298,13 +2290,10 @@ function App() {
       }
 
       const container = document.createElement('div')
-      const targetWidth = pdfOrientation === 'landscape' ? (pdfPaperSize === 'a3' ? '1400px' : '1100px') : '780px'
-      container.style.width = targetWidth
       container.style.padding = '20px'
       container.style.background = '#FFFFFF'
       container.style.color = '#0F172A'
       container.style.fontFamily = 'Plus Jakarta Sans, sans-serif'
-      container.style.boxSizing = 'border-box'
 
       const title = document.createElement('h2')
       title.innerText = `Liberty Uniform - Production Queue (${tailorStatusFilter || 'All'})`
@@ -2313,49 +2302,25 @@ function App() {
       title.style.fontSize = '18px'
       container.appendChild(title)
 
-      if (pdfIncludeSummary && tailorStatusFilter === 'Pending') {
-        const costPanel = document.querySelector('.production-cost-panel')
-        if (costPanel) {
-          const costClone = costPanel.cloneNode(true)
-          costClone.style.margin = '0 0 20px 0'
-          costClone.style.maxWidth = '100%'
-          container.appendChild(costClone)
-        }
-      }
-
       const clone = sourceEl.cloneNode(true)
       clone.style.maxHeight = 'none'
       clone.style.overflow = 'visible'
-      clone.style.width = '100%'
-
-      const tableEl = clone.querySelector('table')
-      if (tableEl) {
-        tableEl.style.width = '100%'
-        tableEl.style.minWidth = '100%'
-        tableEl.style.tableLayout = 'auto'
-      }
-
       container.appendChild(clone)
+
       document.body.appendChild(container)
 
       const dateStr = new Date().toISOString().slice(0, 10)
-      const filename = `Tailor_Production_Queue_${pdfOrientation}_${dateStr}.pdf`
+      const filename = `Tailor_Production_Queue_${dateStr}.pdf`
       const opt = {
         margin: [6, 6, 6, 6],
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true, 
-          logging: false,
-          windowWidth: pdfOrientation === 'landscape' ? 1150 : 820
-        },
-        jsPDF: { unit: 'mm', format: pdfPaperSize, orientation: pdfOrientation }
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
       }
 
       await window.html2pdf().set(opt).from(container).save()
       document.body.removeChild(container)
-      setShowPDFModal(false)
     } catch (err) {
       console.error('PDF export failed:', err)
       alert('Direct PDF generation encountered an issue. Opening browser print preview to save as PDF.')
@@ -5260,87 +5225,6 @@ function App() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {showPDFModal && (
-        <div className="manage-modal-backdrop">
-          <div className="manage-modal-card" style={{ maxWidth: '460px' }}>
-            <button type="button" className="manage-modal-close" onClick={() => setShowPDFModal(false)}>
-              ✕
-            </button>
-            <p className="manage-title">📄 PDF Export Options</p>
-            <p className="manage-subtitle">
-              Configure layout and orientation before downloading your Production Queue PDF.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '20px 0' }}>
-              <div className="manage-input-group">
-                <label>Page Orientation</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
-                  <button
-                    type="button"
-                    className={pdfOrientation === 'landscape' ? 'primary-btn' : 'secondary-btn'}
-                    onClick={() => setPdfOrientation('landscape')}
-                    style={{ padding: '10px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                  >
-                    🖼️ Landscape (Fits all columns)
-                  </button>
-                  <button
-                    type="button"
-                    className={pdfOrientation === 'portrait' ? 'primary-btn' : 'secondary-btn'}
-                    onClick={() => setPdfOrientation('portrait')}
-                    style={{ padding: '10px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                  >
-                    📄 Portrait
-                  </button>
-                </div>
-              </div>
-
-              <div className="manage-input-group">
-                <label>Paper Format</label>
-                <select
-                  value={pdfPaperSize}
-                  onChange={(e) => setPdfPaperSize(e.target.value)}
-                  style={{ width: '100%', padding: '10px', marginTop: '6px', borderRadius: '10px' }}
-                >
-                  <option value="a4">A4 Standard</option>
-                  <option value="letter">US Letter</option>
-                  <option value="a3">A3 Wide</option>
-                </select>
-              </div>
-
-              {tailorStatusFilter === 'Pending' && (
-                <div className="manage-input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
-                  <input
-                    type="checkbox"
-                    id="pdfIncludeSummaryCheck"
-                    checked={pdfIncludeSummary}
-                    onChange={(e) => setPdfIncludeSummary(e.target.checked)}
-                    style={{ width: '18px', height: '18px' }}
-                  />
-                  <label htmlFor="pdfIncludeSummaryCheck" style={{ cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                    Include Production Cost Summary at top
-                  </label>
-                </div>
-              )}
-            </div>
-
-            <div className="manage-btn-group" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button type="button" className="secondary-btn" onClick={() => setShowPDFModal(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={executePDFDownload}
-                disabled={exportingPDF}
-                style={{ padding: '10px 20px' }}
-              >
-                {exportingPDF ? '⌛ Generating PDF...' : '📥 Download PDF'}
-              </button>
-            </div>
           </div>
         </div>
       )}
