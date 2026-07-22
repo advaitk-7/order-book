@@ -4621,6 +4621,7 @@ function App() {
                             onChange={(e) => setLogSearch(e.target.value)}
                             style={{
                               flex: 1,
+                              minWidth: 0,
                               padding: '8px 12px',
                               fontSize: '12px',
                               borderRadius: '8px',
@@ -4634,7 +4635,8 @@ function App() {
                             value={logTypeFilter}
                             onChange={(e) => setLogTypeFilter(e.target.value)}
                             style={{
-                              minWidth: '135px',
+                              width: '125px',
+                              flexShrink: 0,
                               padding: '8px 10px',
                               fontSize: '12px',
                               borderRadius: '8px',
