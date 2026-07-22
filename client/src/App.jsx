@@ -2867,22 +2867,6 @@ function App() {
                                 Quantity
                                 <input type="number" name="quantity" value={item.quantity} onChange={(event) => handleItemChange(index, event)} min="1" required />
                               </label>
-
-                              <label style={{ gridColumn: 'span 2' }}>
-                                Production Category
-                                <select 
-                                  name="productionCategory" 
-                                  value={item.productionCategory || guessProductionCategory(item)} 
-                                  onChange={(event) => handleItemChange(index, event)}
-                                >
-                                  <option value="">-- Auto-Detect Category --</option>
-                                  {PRODUCTION_CATEGORIES.map(cat => (
-                                    <option key={cat.id} value={cat.id}>
-                                      {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
                             </div>
 
                             <div className="measurement-grid">
