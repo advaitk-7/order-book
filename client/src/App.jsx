@@ -141,36 +141,6 @@ const formatDateToDMY = (dateStr) => {
   return dateStr
 }
 
-const formatDateToShortDMY = (dateStr) => {
-  if (!dateStr) return '-'
-  const parts = dateStr.split('-')
-  if (parts.length === 3) {
-    const [year, month, day] = parts
-    return `${day}/${month}/${year.slice(2)}`
-  }
-  return dateStr
-}
-
-const getShortCategoryName = (catIdOrName) => {
-  if (!catIdOrName) return ''
-  const cat = PRODUCTION_CATEGORIES.find(c => c.id === catIdOrName || c.name === catIdOrName)
-  const n = cat ? cat.name : String(catIdOrName)
-  return n
-    .replace(/\s*\(₹\d+\)/g, '')
-    .replace(/H\.S\./g, 'HS')
-    .replace(/F\.S\./g, 'FS')
-    .replace(/\s*\(20 to 30\)/g, ' 20-30')
-    .replace(/\s*\(32 to 44\)/g, ' 32-44')
-    .replace(/\s*\(32 to 40\)/g, ' 32-40')
-    .replace(/Shirt/g, 'Shirt')
-    .replace(/Order Shirt/g, 'Order')
-    .replace(/Skirt \/ Divider/g, 'Skirt/Div')
-    .replace(/Trousers Elastic/g, 'Tr. Elastic')
-    .replace(/Trousers Belt/g, 'Tr. Belt')
-    .replace(/Cargo Trousers/g, 'Cargo Tr.')
-    .replace(/Nirmala \/ SNS Frock/g, 'Nirmala Frock')
-}
-
 const getSleeveTag = (itemType, measurements) => {
   if (!itemType || itemType.toLowerCase() !== 'shirt') return ''
   const sleeveVal = parseFloat(measurements?.sleeve)
@@ -2305,33 +2275,43 @@ function App() {
     const prod = product.toLowerCase()
 
     if (prod === 'shirt') {
-      if (measurements.length) items.push({ label: 'Length', val: measurements.length })
-      if (measurements.chest) items.push({ label: 'Chest', val: measurements.chest })
-      if (measurements.shoulder) items.push({ label: 'Shoulder', val: measurements.shoulder })
-      if (measurements.sleeve) items.push({ label: 'Sleeve', val: measurements.sleeve })
-      if (measurements.neck) items.push({ label: 'Neck', val: measurements.neck })
+      if (measurements.length) items.push({ label: 'Length', short: 'L', val: measurements.length })
+      if (measurements.chest) items.push({ label: 'Chest', short: 'C', val: measurements.chest })
+      if (measurements.shoulder) items.push({ label: 'Shoulder', short: 'Sh', val: measurements.shoulder })
+      if (measurements.sleeve) items.push({ label: 'Sleeve', short: 'Sl', val: measurements.sleeve })
+      if (measurements.neck) items.push({ label: 'Neck', short: 'N', val: measurements.neck })
     } else if (prod === 'pant') {
-      if (measurements.length) items.push({ label: 'Length', val: measurements.length })
-      if (measurements.waist) items.push({ label: 'Waist', val: measurements.waist })
-      if (measurements.seat) items.push({ label: 'Seat', val: measurements.seat })
-      if (measurements.thighs) items.push({ label: 'Thigh', val: measurements.thighs })
-      if (measurements.bottom) items.push({ label: 'Bottom', val: measurements.bottom })
+      if (measurements.length) items.push({ label: 'Length', short: 'L', val: measurements.length })
+      if (measurements.waist) items.push({ label: 'Waist', short: 'W', val: measurements.waist })
+      if (measurements.seat) items.push({ label: 'Seat', short: 'Se', val: measurements.seat })
+      if (measurements.thighs) items.push({ label: 'Thigh', short: 'Th', val: measurements.thighs })
+      if (measurements.bottom) items.push({ label: 'Bottom', short: 'B', val: measurements.bottom })
     } else if (prod === 'pina') {
-      if (measurements.length) items.push({ label: 'Length', val: measurements.length })
-      if (measurements.waist) items.push({ label: 'Waist', val: measurements.waist })
-      if (measurements.torsoLength) items.push({ label: 'Torso', val: measurements.torsoLength })
+      if (measurements.length) items.push({ label: 'Length', short: 'L', val: measurements.length })
+      if (measurements.waist) items.push({ label: 'Waist', short: 'W', val: measurements.waist })
+      if (measurements.torsoLength) items.push({ label: 'Torso', short: 'T', val: measurements.torsoLength })
     }
 
     if (items.length === 0) return '-'
 
     return (
-      <div className="tailor-measurements-list">
-        {items.map((it) => (
-          <span key={it.label} className="measurement-tag">
-            <strong>{it.label}:</strong> {it.val}
-          </span>
-        ))}
-      </div>
+      <>
+        <div className="tailor-measurements-list screen-and-landscape-measurements">
+          {items.map((it) => (
+            <span key={it.label} className="measurement-tag">
+              <strong>{it.label}:</strong> {it.val}
+            </span>
+          ))}
+        </div>
+        <div className="print-portrait-measurements" style={{ display: 'none' }}>
+          {items.map((it, idx) => (
+            <span key={it.label} style={{ display: 'inline-block', whiteSpace: 'nowrap', marginRight: '6px', fontSize: '8px' }}>
+              <strong>{it.short}:</strong>{it.val}
+              {idx === 2 ? <br /> : null}
+            </span>
+          ))}
+        </div>
+      </>
     )
   }
 
@@ -3643,7 +3623,7 @@ function App() {
 
                               <td style={{ fontWeight: '600' }}>#{row.orderNumber}</td>
                               <td>
-                                <span className={`product-tag ${row.product.toLowerCase()} screen-and-landscape-product`} style={{ whiteSpace: 'nowrap' }}>
+                                <span className={`product-tag ${row.product.toLowerCase()}`} style={{ whiteSpace: 'nowrap' }}>
                                   {row.product}
                                   {getSleeveTag(row.product, row.measurements) && (
                                     <span className="sleeve-badge-tag" style={{ marginLeft: '4px', fontSize: '9px', padding: '1px 4px', background: 'rgba(0,0,0,0.08)', color: 'inherit', borderRadius: '4px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
@@ -3651,17 +3631,17 @@ function App() {
                                     </span>
                                   )}
                                 </span>
-                                <div className="portrait-print-product">
-                                  <strong>{row.product}</strong>
+                                <div className="portrait-print-product-tag" style={{ display: 'none' }}>
+                                  <div style={{ fontWeight: 'bold', fontSize: '8px', lineHeight: '1' }}>{row.product}</div>
                                   {getSleeveTag(row.product, row.measurements) && (
-                                    <div style={{ fontSize: '7.5px', fontWeight: 'bold' }}>
+                                    <div style={{ fontSize: '7.5px', color: '#475569', marginTop: '2px', fontWeight: '600' }}>
                                       ({getSleeveTag(row.product, row.measurements)})
                                     </div>
                                   )}
                                 </div>
                               </td>
                               <td onClick={(e) => e.stopPropagation()}>
-                                <div className="screen-and-landscape-category">
+                                <div className="screen-only-category-select">
                                   <select
                                     value={row.productionCategory || guessProductionCategory(row)}
                                     onChange={(e) => handleInlineCategoryChange(row, e.target.value)}
@@ -3685,8 +3665,29 @@ function App() {
                                     ))}
                                   </select>
                                 </div>
-                                <span className="portrait-print-category">
-                                  {getShortCategoryName(row.productionCategory || guessProductionCategory(row))}
+                                <span className="print-landscape-only-category" style={{ display: 'none' }}>
+                                  {(() => {
+                                    const catVal = row.productionCategory || guessProductionCategory(row);
+                                    const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
+                                    return catObj ? `${catObj.name} (₹${pricingRates[catVal] !== undefined ? pricingRates[catVal] : catObj.defaultRate})` : catVal;
+                                  })()}
+                                </span>
+                                <span className="print-portrait-only-category" style={{ display: 'none' }}>
+                                  {(() => {
+                                    const catVal = row.productionCategory || guessProductionCategory(row);
+                                    const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
+                                    if (!catObj) return catVal;
+                                    let name = catObj.name;
+                                    name = name.replace(/H\.S\./g, 'HS')
+                                               .replace(/F\.S\./g, 'FS')
+                                               .replace(/Order/g, 'Ord')
+                                               .replace(/Regular/g, 'Reg')
+                                               .replace(/Trousers/g, 'Tr.')
+                                               .replace(/Elastic/g, 'Elast.')
+                                               .replace(/Skirt \/ Divider/g, 'Skirt/Div')
+                                               .replace(/Nirmala \/ SNS/g, 'Nirmala');
+                                    return name;
+                                  })()}
                                 </span>
                               </td>
                               <td style={{ fontWeight: '500' }}>{row.customerName}</td>
@@ -3701,8 +3702,17 @@ function App() {
                                 {row.notes || '-'}
                               </td>
                               <td style={{ color: '#E11D48', fontWeight: '600' }}>
-                                <span className="screen-and-landscape-date">{formatDateToDMY(row.deliveryDate)}</span>
-                                <span className="portrait-print-date">{formatDateToShortDMY(row.deliveryDate)}</span>
+                                <span className="screen-and-landscape-delivery">{formatDateToDMY(row.deliveryDate)}</span>
+                                <span className="print-portrait-delivery" style={{ display: 'none' }}>
+                                  {(() => {
+                                    const d = new Date(row.deliveryDate);
+                                    if (isNaN(d.getTime())) return '-';
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const year = String(d.getFullYear()).slice(-2);
+                                    return `${day}/${month}/${year}`;
+                                  })()}
+                                </span>
                               </td>
                               <td>
                                 <span className={`status-badge ${row.status.toLowerCase()}`}>
