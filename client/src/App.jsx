@@ -3044,34 +3044,7 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {loadingOrders ? (
-                        Array.from({ length: 8 }).map((_, i) => (
-                          <tr key={i} className="skeleton-row">
-                            <td><div className="skeleton-cell" style={{ width: '18px', height: '18px', borderRadius: '4px', margin: '0 auto' }} /></td>
-                            <td><div className="skeleton-cell" style={{ width: '40px' }} /></td>
-                            <td><div className="skeleton-cell" style={{ width: '110px' }} /></td>
-                            <td><div className="skeleton-cell" style={{ width: '90px' }} /></td>
-                            <td><div className="skeleton-cell" style={{ width: '70px' }} /></td>
-                            <td><div className="skeleton-cell" style={{ width: '55px' }} /></td>
-                            <td><div className="skeleton-cell" style={{ width: '65px' }} /></td>
-                            <td><div className="skeleton-cell" style={{ width: '65px' }} /></td>
-                            <td><div className="skeleton-cell" style={{ width: '80px' }} /></td>
-                            <td><div className="skeleton-cell" style={{ width: '70px' }} /></td>
-                          </tr>
-                        ))
-                      ) : visibleOrders.length === 0 ? (
-                        <tr>
-                          <td colSpan={10} style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--clr-text-muted)', border: 'none' }}>
-                            <div style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.4 }}>📋</div>
-                            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--clr-text-secondary)', marginBottom: '6px' }}>No orders found</div>
-                            <div style={{ fontSize: '13px' }}>
-                              {searchTerm || orderFilter !== 'All' || orderPaymentFilter !== 'All' || orderContactFilter !== 'All' || orderSchoolFilter !== 'All'
-                                ? 'Try adjusting your filters or search term.'
-                                : 'Create your first order using the New Order page.'}
-                            </div>
-                          </td>
-                        </tr>
-                      ) : visibleOrders.map((order) => (
+                      {visibleOrders.map((order) => (
                         <tr
                           key={order._id}
                           className={`clickable-row ${highlightedOrderId === order._id ? 'highlighted-row' : ''}`}
