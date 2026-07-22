@@ -1268,6 +1268,12 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
         query.orderNumber = { $ne: "System" };
       } else if (type === "Backup") {
         query.action = { $in: ["Backup", "Restore"] };
+      } else if (type === "Waitlist") {
+        query.action = { $regex: /WAITLIST/i };
+      } else if (type === "StatusChange") {
+        query.action = { $in: ["STATUS CHANGE", "CONTACT CHANGE", "Status Change", "Contact Change"] };
+      } else if (type === "Delete") {
+        query.action = { $regex: /DELETE/i };
       }
     }
 

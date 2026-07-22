@@ -4634,7 +4634,7 @@ function App() {
                             value={logTypeFilter}
                             onChange={(e) => setLogTypeFilter(e.target.value)}
                             style={{
-                              width: '110px',
+                              minWidth: '135px',
                               padding: '8px 10px',
                               fontSize: '12px',
                               borderRadius: '8px',
@@ -4646,6 +4646,9 @@ function App() {
                           >
                             <option value="All">All Types</option>
                             <option value="Order">Orders</option>
+                            <option value="Waitlist">Waitlist</option>
+                            <option value="StatusChange">Status Changes</option>
+                            <option value="Delete">Deletions</option>
                             <option value="System">System</option>
                             <option value="Backup">Backups</option>
                           </select>
