@@ -1393,6 +1393,83 @@ tbody tr:hover {
   .details-full {
     grid-column: span 2 !important;
   }
+
+  /* iOS auto-zoom prevention: Safari zooms in on fields < 16px font-size */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Touch-friendly minimum height for all buttons on mobile */
+  button,
+  .ghost-btn,
+  .secondary-btn,
+  .primary-btn,
+  .danger-btn {
+    min-height: 44px !important;
+  }
+
+  /* Card padding reduction on mobile to reclaim screen space */
+  .card {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  /* Stat card padding reduction on mobile */
+  .stat-card {
+    padding: 14px !important;
+    min-height: auto !important;
+  }
+
+  /* Hide topbar search on mobile (uses limited screen space poorly) */
+  .topbar-search {
+    display: none !important;
+  }
+
+  /* Tailor export action buttons: stack vertically on mobile */
+  .tailor-export-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    gap: 8px !important;
+  }
+  .tailor-export-actions button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Production Queue table: ensure touch scrolling works on inline wrapper */
+  .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-width: 100% !important;
+  }
+
+  /* Settings boxes padding reduction on mobile */
+  .settings-box {
+    padding: 14px !important;
+  }
+
+  /* Item card padding reduction on mobile */
+  .item-card {
+    padding: 14px !important;
+  }
+
+  /* Orders toolbar: ensure all action buttons are full width on mobile */
+  .orders-toolbar-actions button {
+    min-height: 44px !important;
+    width: 100% !important;
+    justify-content: center !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  /* Pagination buttons: full-width and touch-friendly */
+  .pagination-buttons .ghost-btn {
+    padding: 12px 16px !important;
+    min-height: 44px !important;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1411,6 +1488,33 @@ tbody tr:hover {
   }
   .nav-icon {
     font-size: 22px !important;
+  }
+
+  /* Modal: full-width on very small phones, no edge clipping */
+  .manage-modal-card {
+    max-width: 100% !important;
+    width: calc(100vw - 32px) !important;
+    padding: 20px !important;
+    border-radius: 16px !important;
+    margin: 16px !important;
+  }
+
+  /* Details grid: single column on tiny screens */
+  .details-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .details-full {
+    grid-column: span 1 !important;
+  }
+
+  /* Card: tighter padding on small phones */
+  .card {
+    padding: 12px !important;
+  }
+
+  /* Reduce main section horizontal padding on small phones */
+  .main-section {
+    padding: 12px 8px 100px !important;
   }
 }
 
