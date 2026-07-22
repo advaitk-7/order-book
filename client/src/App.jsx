@@ -3590,7 +3590,7 @@ function App() {
                             <th className="sortable-header" onClick={() => handleTailorSort('product')} style={{ cursor: 'pointer' }}>
                               Product {tailorSortKey === 'product' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
-                            <th style={{ minWidth: '145px' }}>Category</th>
+                            <th style={{ width: '130px' }}>Category</th>
                             <th className="sortable-header" onClick={() => handleTailorSort('customerName')} style={{ cursor: 'pointer' }}>
                               Customer {tailorSortKey === 'customerName' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
@@ -3599,8 +3599,8 @@ function App() {
                             </th>
                             <th>Gender</th>
                             <th>Qty</th>
-                            <th style={{ minWidth: '180px' }}>Measurements</th>
-                            <th style={{ minWidth: '140px' }}>Notes</th>
+                            <th style={{ width: '150px' }}>Measurements</th>
+                            <th style={{ minWidth: '100px' }}>Notes</th>
                             <th className="sortable-header" onClick={() => handleTailorSort('deliveryDate')} style={{ cursor: 'pointer' }}>
                               Delivery {tailorSortKey === 'deliveryDate' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
@@ -3654,7 +3654,7 @@ function App() {
                                       color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
                                       cursor: 'pointer',
                                       width: '100%',
-                                      maxWidth: '145px'
+                                      maxWidth: '130px'
                                     }}
                                   >
                                     {PRODUCTION_CATEGORIES.map(cat => (

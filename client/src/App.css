@@ -900,7 +900,7 @@ button:hover {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 980px;
+  min-width: 100%;
 }
 
 thead {
@@ -910,7 +910,7 @@ thead {
 th,
 td {
   text-align: left;
-  padding: 13px 14px;
+  padding: 12px 10px;
   border-bottom: 1px solid #E2E8F0;
 }
 
