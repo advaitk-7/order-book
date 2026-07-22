@@ -2275,21 +2275,21 @@ function App() {
     const prod = product.toLowerCase()
 
     if (prod === 'shirt') {
-      if (measurements.length) items.push({ label: 'Length', short: 'L', val: measurements.length })
-      if (measurements.chest) items.push({ label: 'Chest', short: 'C', val: measurements.chest })
-      if (measurements.shoulder) items.push({ label: 'Shoulder', short: 'Sh', val: measurements.shoulder })
-      if (measurements.sleeve) items.push({ label: 'Sleeve', short: 'Sl', val: measurements.sleeve })
-      if (measurements.neck) items.push({ label: 'Neck', short: 'N', val: measurements.neck })
+      if (measurements.length) items.push({ label: 'Length', val: measurements.length })
+      if (measurements.chest) items.push({ label: 'Chest', val: measurements.chest })
+      if (measurements.shoulder) items.push({ label: 'Shoulder', val: measurements.shoulder })
+      if (measurements.sleeve) items.push({ label: 'Sleeve', val: measurements.sleeve })
+      if (measurements.neck) items.push({ label: 'Neck', val: measurements.neck })
     } else if (prod === 'pant') {
-      if (measurements.length) items.push({ label: 'Length', short: 'L', val: measurements.length })
-      if (measurements.waist) items.push({ label: 'Waist', short: 'W', val: measurements.waist })
-      if (measurements.seat) items.push({ label: 'Seat', short: 'Se', val: measurements.seat })
-      if (measurements.thighs) items.push({ label: 'Thigh', short: 'Th', val: measurements.thighs })
-      if (measurements.bottom) items.push({ label: 'Bottom', short: 'B', val: measurements.bottom })
+      if (measurements.length) items.push({ label: 'Length', val: measurements.length })
+      if (measurements.waist) items.push({ label: 'Waist', val: measurements.waist })
+      if (measurements.seat) items.push({ label: 'Seat', val: measurements.seat })
+      if (measurements.thighs) items.push({ label: 'Thigh', val: measurements.thighs })
+      if (measurements.bottom) items.push({ label: 'Bottom', val: measurements.bottom })
     } else if (prod === 'pina') {
-      if (measurements.length) items.push({ label: 'Length', short: 'L', val: measurements.length })
-      if (measurements.waist) items.push({ label: 'Waist', short: 'W', val: measurements.waist })
-      if (measurements.torsoLength) items.push({ label: 'Torso', short: 'T', val: measurements.torsoLength })
+      if (measurements.length) items.push({ label: 'Length', val: measurements.length })
+      if (measurements.waist) items.push({ label: 'Waist', val: measurements.waist })
+      if (measurements.torsoLength) items.push({ label: 'Torso', val: measurements.torsoLength })
     }
 
     if (items.length === 0) return '-'
@@ -2306,7 +2306,7 @@ function App() {
         <div className="print-portrait-measurements" style={{ display: 'none' }}>
           {items.map((it, idx) => (
             <span key={it.label} style={{ display: 'inline-block', whiteSpace: 'nowrap', marginRight: '6px', fontSize: '8px' }}>
-              <strong>{it.short}:</strong> {it.val}
+              <strong>{it.label}:</strong> {it.val}
               {idx === 2 ? <br /> : null}
             </span>
           ))}
