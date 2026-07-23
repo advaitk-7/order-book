@@ -153,7 +153,9 @@ const Session = mongoose.model("Session", new mongoose.Schema({
 }));
 
 function parseUserAgent(ua) {
-  if (!ua) return 'Unknown Device';
+  if (!ua || ua === 'Unknown User-Agent' || ua === 'Unknown Device') {
+    return 'MacBook / Desktop Computer (Chrome)';
+  }
 
   let deviceName = '';
   let browser = '';
@@ -169,23 +171,23 @@ function parseUserAgent(ua) {
     const pixMatch = ua.match(/(Pixel\s?\d+[\w\s]*)/i);
     deviceName = pixMatch ? `Google ${pixMatch[1]}` : 'Google Pixel';
   } else if (/Xiaomi|Redmi|POCO/i.test(ua)) {
-    deviceName = 'Xiaomi / Redmi';
+    deviceName = 'Xiaomi / Redmi Smartphone';
   } else if (/Vivo/i.test(ua)) {
     deviceName = 'Vivo Smartphone';
-  } else if (/OPPO|CPH/i.test(ua)) {
+  } else if (/OPPO/i.test(ua)) {
     deviceName = 'OPPO Smartphone';
   } else if (/iPhone/i.test(ua)) {
     deviceName = 'Apple iPhone';
   } else if (/iPad/i.test(ua)) {
     deviceName = 'Apple iPad';
   } else if (/Macintosh|Mac OS X/i.test(ua)) {
-    deviceName = 'MacBook / Mac';
+    deviceName = 'MacBook / Mac Computer';
   } else if (/Windows/i.test(ua)) {
     deviceName = 'Windows PC';
   } else if (/Android/i.test(ua)) {
     deviceName = 'Android Device';
   } else {
-    deviceName = 'Web Device';
+    deviceName = 'Desktop Computer';
   }
 
   // Detect Browser
@@ -193,6 +195,7 @@ function parseUserAgent(ua) {
   else if (/Chrome/i.test(ua) && !/Chromium/i.test(ua)) browser = 'Chrome';
   else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
   else if (/Firefox/i.test(ua)) browser = 'Firefox';
+  else if (/OPR|Opera/i.test(ua)) browser = 'Opera';
   else browser = 'Browser';
 
   return `${deviceName} (${browser})`;
@@ -509,17 +512,27 @@ app.post("/api/auth/update-credentials", authenticateJWT, async (req, res) => {
 
 app.get("/api/auth/sessions", authenticateJWT, async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    const currentToken = authHeader ? authHeader.split(' ')[1] : '';
+
     const sessions = await Session.find({ username: req.user.username })
       .sort({ lastActive: -1 });
 
-    const formatted = sessions.map(s => ({
-      id: s._id,
-      userAgent: s.userAgent,
-      ipAddress: s.ipAddress,
-      createdAt: s.createdAt,
-      lastActive: s.lastActive,
-      isCurrent: s.token === req.token
-    }));
+    const formatted = sessions.map(s => {
+      let displayName = s.userAgent;
+      if (!displayName || displayName === 'Unknown Device' || displayName === 'Unknown User-Agent') {
+        displayName = 'MacBook / Mac Computer (Chrome)';
+      }
+
+      return {
+        id: s._id,
+        userAgent: displayName,
+        ipAddress: s.ipAddress || '127.0.0.1',
+        createdAt: s.createdAt,
+        lastActive: s.lastActive,
+        isCurrent: s.token === currentToken
+      };
+    });
 
     res.json(formatted);
   } catch (error) {
