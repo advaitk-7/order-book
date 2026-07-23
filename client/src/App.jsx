@@ -2302,100 +2302,248 @@ function App() {
   const executePDFDownload = async () => {
     try {
       setExportingPDF(true)
-      if (!window.html2pdf) {
+
+      // Load jsPDF + autoTable if not already loaded
+      // These generate PDF purely from data — no screenshots, no device-dependent canvas
+      if (!window.jspdf) {
         await new Promise((resolve, reject) => {
-          const script = document.createElement('script')
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
-          script.onload = resolve
-          script.onerror = reject
-          document.body.appendChild(script)
+          const s = document.createElement('script')
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+          s.onload = resolve
+          s.onerror = reject
+          document.head.appendChild(s)
         })
       }
-
-      const sourceEl = pdfPreviewSheetRef.current
-      if (!sourceEl) {
-        alert('Preview element not found.')
-        return
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        throw new Error('jsPDF failed to load')
       }
-
-      let marginVal = [6, 8, 6, 8]
-      if (pdfMargin === 'compact') marginVal = [3, 4, 3, 4]
-      if (pdfMargin === 'wide') marginVal = [12, 14, 12, 14]
+      if (!window.jspdfAutoTable) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'
+          s.onload = resolve
+          s.onerror = reject
+          document.head.appendChild(s)
+        })
+        window.jspdfAutoTable = true
+      }
 
       let cleanFileName = pdfFileName.trim() ? pdfFileName.trim() : getInitialPdfFileName()
-      if (!cleanFileName.toLowerCase().endsWith('.pdf')) {
-        cleanFileName += '.pdf'
-      }
+      if (!cleanFileName.toLowerCase().endsWith('.pdf')) cleanFileName += '.pdf'
 
-      // Use the exact paper pixel width so html2canvas renders the element
-      // at the same width as the PDF page — no clipping, no empty space
-      const paperPx = getPaperPxWidth()
+      // Margin in mm
+      let marginMm = 10
+      if (pdfMargin === 'compact') marginMm = 6
+      if (pdfMargin === 'wide') marginMm = 18
 
-      // Create a fixed off-screen container at exactly the paper pixel width
-      const cloneContainer = document.createElement('div')
-      cloneContainer.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: -${paperPx + 40}px;
-        width: ${paperPx}px;
-        z-index: -9999;
-        background: #ffffff;
-        margin: 0;
-        padding: 0;
-        overflow: visible;
-      `
+      // Font size based on scale
+      let bodyFontSize = 8
+      let headerFontSize = 8.5
+      if (pdfScale === 'compact') { bodyFontSize = 7; headerFontSize = 7.5 }
+      if (pdfScale === 'large') { bodyFontSize = 9.5; headerFontSize = 10 }
 
-      const clonedSheet = sourceEl.cloneNode(true)
-      clonedSheet.style.width = `${paperPx}px`
-      clonedSheet.style.maxWidth = `${paperPx}px`
-      clonedSheet.style.margin = '0'
-      clonedSheet.style.transform = 'none'
-      clonedSheet.style.boxShadow = 'none'
-      clonedSheet.style.background = '#ffffff'
-      clonedSheet.style.borderRadius = '0'
-
-      // Enforce page-break-inside avoid on every table row
-      clonedSheet.querySelectorAll('tr').forEach(r => {
-        r.style.pageBreakInside = 'avoid'
-        r.style.breakInside = 'avoid'
-      })
-      // Reset table widths to 100%
-      clonedSheet.querySelectorAll('table').forEach(t => {
-        t.style.width = '100%'
-        t.style.tableLayout = 'fixed'
+      const { jsPDF } = window.jspdf
+      const doc = new jsPDF({
+        orientation: pdfOrientation,
+        unit: 'mm',
+        format: pdfFormat
       })
 
-      cloneContainer.appendChild(clonedSheet)
-      document.body.appendChild(cloneContainer)
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const usableWidth = pageWidth - marginMm * 2
 
-      const opt = {
-        margin: marginVal,
-        filename: cleanFileName,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          scrollX: 0,
-          scrollY: 0,
-          // windowWidth must match the element width exactly
-          windowWidth: paperPx,
-          backgroundColor: '#ffffff'
+      // ── Header ──────────────────────────────────────────────────────────
+      doc.setFillColor(29, 78, 216)
+      doc.rect(marginMm, marginMm, usableWidth, 7, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(13)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Liberty Uniform \u2014 Production Queue', marginMm + 3, marginMm + 5)
+
+      doc.setTextColor(100, 116, 139)
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'normal')
+      const genDate = new Date().toLocaleDateString('en-GB')
+      const headerRight = `Generated: ${genDate}  |  ${pdfFormat.toUpperCase()} ${pdfOrientation}`
+      doc.text(headerRight, pageWidth - marginMm, marginMm + 5, { align: 'right' })
+
+      doc.setTextColor(71, 85, 105)
+      doc.setFontSize(7)
+      doc.text(
+        `Status: ${tailorStatusFilter || 'All'}   School: ${tailorSchoolFilter || 'All'}   Date: ${tailorDeliveryFilter || 'All'}`,
+        marginMm, marginMm + 11
+      )
+
+      const tableStartY = marginMm + 15
+
+      // ── Garments Table ──────────────────────────────────────────────────
+      const garmentRows = sortedTailorGarments.map(row => {
+        const catVal = row.productionCategory || guessProductionCategory(row)
+        const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal)
+        const catName = catObj ? catObj.name : (catVal || '-')
+        const gender = row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))
+        const meas = renderPDFMeasurements(row.product, row.measurements)
+        const delivery = formatDateToDMY(row.deliveryDate) || '-'
+        return [
+          `#${row.orderNumber}`,
+          row.product.toUpperCase(),
+          catName,
+          row.school || '-',
+          gender,
+          String(row.quantity || '-'),
+          meas,
+          row.notes || '-',
+          delivery
+        ]
+      })
+
+      // Column widths as % of usable width (total = 100%)
+      const colWidths = [7, 8, 14, 14, 5, 5, 24, 12, 11].map(pct => usableWidth * pct / 100)
+
+      doc.autoTable({
+        startY: tableStartY,
+        head: [['Order #', 'Product', 'Category', 'School', 'G', 'Qty', 'Measurements', 'Notes', 'Delivery']],
+        body: garmentRows.length > 0 ? garmentRows : [['No garments match the selected filters.', '', '', '', '', '', '', '', '']],
+        margin: { left: marginMm, right: marginMm },
+        tableWidth: usableWidth,
+        columnStyles: {
+          0: { cellWidth: colWidths[0], fontStyle: 'bold' },
+          1: { cellWidth: colWidths[1], fontStyle: 'bold', halign: 'center' },
+          2: { cellWidth: colWidths[2] },
+          3: { cellWidth: colWidths[3] },
+          4: { cellWidth: colWidths[4], halign: 'center' },
+          5: { cellWidth: colWidths[5], halign: 'center', fontStyle: 'bold' },
+          6: { cellWidth: colWidths[6] },
+          7: { cellWidth: colWidths[7] },
+          8: { cellWidth: colWidths[8], textColor: [225, 29, 72], fontStyle: 'bold' }
         },
-        jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        headStyles: {
+          fillColor: [241, 245, 249],
+          textColor: [71, 85, 105],
+          fontStyle: 'bold',
+          fontSize: headerFontSize,
+          lineColor: [203, 213, 225],
+          lineWidth: 0.3
+        },
+        bodyStyles: {
+          fontSize: bodyFontSize,
+          textColor: [15, 23, 42],
+          lineColor: [226, 232, 240],
+          lineWidth: 0.2,
+          cellPadding: { top: 3, bottom: 3, left: 2, right: 2 },
+          overflow: 'linebreak',
+          valign: 'middle'
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        didParseCell: (data) => {
+          // Product col: color the text by product type
+          if (data.section === 'body' && data.column.index === 1) {
+            const val = String(data.cell.raw).toLowerCase()
+            if (val === 'shirt') data.cell.styles.textColor = [29, 78, 216]
+            else if (val === 'pant') data.cell.styles.textColor = [124, 58, 237]
+            else data.cell.styles.textColor = [225, 29, 72]
+          }
+        },
+        pageBreak: 'auto',
+        rowPageBreak: 'avoid',
+        showHead: 'everyPage'
+      })
+
+      // ── Production Cost Summary Table ─────────────────────────────────
+      const costStartY = doc.lastAutoTable.finalY + 8
+
+      // Section heading
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(15, 23, 42)
+      doc.text('PRODUCTION COST SUMMARY', marginMm, costStartY)
+      doc.setLineWidth(0.5)
+      doc.setDrawColor(15, 23, 42)
+      doc.line(marginMm, costStartY + 1.5, pageWidth - marginMm, costStartY + 1.5)
+
+      const costRows = productionCostDetails.activeCategories.map(cat => [
+        cat.name,
+        `\u20b9${cat.rate}`,
+        String(cat.qty),
+        `\u20b9${cat.cost.toLocaleString()}`
+      ])
+      costRows.push([
+        'TOTAL PRODUCTION COST',
+        '',
+        `${productionCostDetails.totalQty} pcs`,
+        `\u20b9${productionCostDetails.totalCost.toLocaleString()}`
+      ])
+
+      // Cost table uses 40% of usable width (right-aligned)
+      const costTableWidth = usableWidth * 0.58
+      const costTableX = marginMm + usableWidth - costTableWidth
+
+      doc.autoTable({
+        startY: costStartY + 4,
+        startX: costTableX,
+        head: [['Category', 'Rate/Unit', 'Pieces', 'Total Cost']],
+        body: costRows.length > 0 ? costRows : [['No categories', '', '', '']],
+        margin: { left: costTableX, right: marginMm },
+        tableWidth: costTableWidth,
+        columnStyles: {
+          0: { cellWidth: costTableWidth * 0.40 },
+          1: { cellWidth: costTableWidth * 0.18, halign: 'right' },
+          2: { cellWidth: costTableWidth * 0.18, halign: 'center' },
+          3: { cellWidth: costTableWidth * 0.24, halign: 'right', fontStyle: 'bold' }
+        },
+        headStyles: {
+          fillColor: [248, 250, 252],
+          textColor: [71, 85, 105],
+          fontStyle: 'bold',
+          fontSize: bodyFontSize,
+          lineColor: [203, 213, 225],
+          lineWidth: 0.3
+        },
+        bodyStyles: {
+          fontSize: bodyFontSize,
+          textColor: [15, 23, 42],
+          lineColor: [226, 232, 240],
+          lineWidth: 0.2,
+          cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 }
+        },
+        didParseCell: (data) => {
+          // Total row styling
+          if (data.section === 'body' && data.row.index === costRows.length - 1) {
+            data.cell.styles.fontStyle = 'bold'
+            data.cell.styles.fillColor = [239, 246, 255]
+            data.cell.styles.textColor = [29, 78, 216]
+            data.cell.styles.lineWidth = 0.5
+            data.cell.styles.lineColor = [37, 99, 235]
+          }
+        },
+        pageBreak: 'avoid'
+      })
+
+      // ── Footer: page numbers ──────────────────────────────────────────
+      const totalPages = doc.internal.getNumberOfPages()
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+        doc.setFontSize(7)
+        doc.setTextColor(148, 163, 184)
+        doc.setFont('helvetica', 'normal')
+        doc.text(
+          `Page ${i} of ${totalPages}  |  Liberty Uniform Order Book`,
+          pageWidth / 2, pageHeight - marginMm / 2,
+          { align: 'center' }
+        )
       }
 
-      await window.html2pdf().set(opt).from(clonedSheet).save()
-      document.body.removeChild(cloneContainer)
+      doc.save(cleanFileName)
       setShowPDFModal(false)
     } catch (err) {
-      console.error('PDF export failed:', err)
-      alert('PDF generation failed. Try the Print Table option as a fallback.')
+      console.error('PDF generation failed:', err)
+      alert('PDF generation failed: ' + err.message)
     } finally {
       setExportingPDF(false)
     }
   }
+
 
   const renderTailorMeasurements = (product, measurements) => {
     if (!measurements) return '-'
