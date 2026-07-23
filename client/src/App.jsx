@@ -2464,33 +2464,29 @@ function App() {
 
       const costRows = productionCostDetails.activeCategories.map(cat => [
         cat.name,
-        `\u20b9${cat.rate}`,
+        `Rs.${cat.rate}`,
         String(cat.qty),
-        `\u20b9${cat.cost.toLocaleString()}`
+        `Rs.${cat.cost.toLocaleString()}`
       ])
       costRows.push([
         'TOTAL PRODUCTION COST',
         '',
         `${productionCostDetails.totalQty} pcs`,
-        `\u20b9${productionCostDetails.totalCost.toLocaleString()}`
+        `Rs.${productionCostDetails.totalCost.toLocaleString()}`
       ])
 
-      // Cost table uses 40% of usable width (right-aligned)
-      const costTableWidth = usableWidth * 0.58
-      const costTableX = marginMm + usableWidth - costTableWidth
-
+      // Cost table: full-width across the entire usable page width
       doc.autoTable({
         startY: costStartY + 4,
-        startX: costTableX,
-        head: [['Category', 'Rate/Unit', 'Pieces', 'Total Cost']],
+        head: [['Component Category', 'Rate/Unit', 'Pieces', 'Total Cost']],
         body: costRows.length > 0 ? costRows : [['No categories', '', '', '']],
-        margin: { left: costTableX, right: marginMm },
-        tableWidth: costTableWidth,
+        margin: { left: marginMm, right: marginMm },
+        tableWidth: usableWidth,
         columnStyles: {
-          0: { cellWidth: costTableWidth * 0.40 },
-          1: { cellWidth: costTableWidth * 0.18, halign: 'right' },
-          2: { cellWidth: costTableWidth * 0.18, halign: 'center' },
-          3: { cellWidth: costTableWidth * 0.24, halign: 'right', fontStyle: 'bold' }
+          0: { cellWidth: usableWidth * 0.45 },
+          1: { cellWidth: usableWidth * 0.18, halign: 'right' },
+          2: { cellWidth: usableWidth * 0.15, halign: 'center' },
+          3: { cellWidth: usableWidth * 0.22, halign: 'right', fontStyle: 'bold' }
         },
         headStyles: {
           fillColor: [248, 250, 252],
@@ -5169,14 +5165,39 @@ function App() {
                       if (pdfFormat === 'legal') return pdfOrientation === 'landscape' ? '816px' : '1344px'
                       return pdfOrientation === 'landscape' ? '794px' : '1123px' // A4
                     })(),
-                    padding: pdfMargin === 'compact' ? '24px 28px' : (pdfMargin === 'wide' ? '56px 64px' : '38px 46px'),
+                    // No padding here — we use an inner content div with the margin guide
+                    padding: '0',
                     fontSize: pdfScale === 'compact' ? '10px' : (pdfScale === 'large' ? '13px' : '11.5px'),
                     boxSizing: 'border-box',
                     fontFamily: 'Arial, sans-serif',
                     lineHeight: '1.3',
                     overflowX: 'hidden',
+                    position: 'relative',
                   }}
                 >
+                  {/* Margin Guide — dashed border showing exact printable area boundary */}
+                  {(() => {
+                    const marginPx = pdfMargin === 'compact' ? 23 : (pdfMargin === 'wide' ? 68 : 38)
+                    return (
+                      <div style={{
+                        position: 'absolute',
+                        top: `${marginPx}px`,
+                        left: `${marginPx}px`,
+                        right: `${marginPx}px`,
+                        bottom: `${marginPx}px`,
+                        border: '1.5px dashed rgba(37,99,235,0.35)',
+                        borderRadius: '2px',
+                        pointerEvents: 'none',
+                        zIndex: 10
+                      }} />
+                    )
+                  })()}
+
+                  {/* Inner content area with same padding as PDF margin */}
+                  <div style={{
+                    padding: pdfMargin === 'compact' ? '24px 24px' : (pdfMargin === 'wide' ? '68px 68px' : '38px 38px'),
+                    boxSizing: 'border-box',
+                  }}>
                   {/* Sheet Header */}
                   <div style={{ borderBottom: '2px solid #1D4ED8', paddingBottom: '8px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div>
@@ -5281,16 +5302,16 @@ function App() {
                     </h3>
                     <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '10px', color: '#0F172A' }}>
                       <colgroup>
-                        <col style={{ width: '40%' }} />
-                        <col style={{ width: '20%' }} />
-                        <col style={{ width: '20%' }} />
-                        <col style={{ width: '20%' }} />
+                        <col style={{ width: '45%' }} />
+                        <col style={{ width: '18%' }} />
+                        <col style={{ width: '15%' }} />
+                        <col style={{ width: '22%' }} />
                       </colgroup>
                       <thead>
                         <tr style={{ borderBottom: '1px solid #475569', textAlign: 'left', background: '#F8FAFC' }}>
                           <th style={{ padding: '5px 6px' }}>Component Category</th>
-                          <th style={{ padding: '5px 6px' }}>Rate / Unit</th>
-                          <th style={{ padding: '5px 6px' }}>Total Pieces</th>
+                          <th style={{ padding: '5px 6px', textAlign: 'right' }}>Rate/Unit</th>
+                          <th style={{ padding: '5px 6px', textAlign: 'center' }}>Pieces</th>
                           <th style={{ padding: '5px 6px', textAlign: 'right' }}>Total Cost</th>
                         </tr>
                       </thead>
@@ -5305,21 +5326,22 @@ function App() {
                           productionCostDetails.activeCategories.map(cat => (
                             <tr key={cat.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
                               <td style={{ padding: '5px 6px', fontWeight: '600' }}>{cat.name}</td>
-                              <td style={{ padding: '5px 6px' }}>₹{cat.rate}</td>
-                              <td style={{ padding: '5px 6px' }}>{cat.qty}</td>
-                              <td style={{ padding: '5px 6px', textAlign: 'right', fontWeight: '600' }}>₹{cat.cost.toLocaleString()}</td>
+                              <td style={{ padding: '5px 6px', textAlign: 'right' }}>Rs.{cat.rate}</td>
+                              <td style={{ padding: '5px 6px', textAlign: 'center' }}>{cat.qty}</td>
+                              <td style={{ padding: '5px 6px', textAlign: 'right', fontWeight: '600' }}>Rs.{cat.cost.toLocaleString()}</td>
                             </tr>
                           ))
                         )}
                         <tr style={{ fontWeight: '800', background: '#EFF6FF', borderTop: '2px solid #2563EB' }}>
                           <td style={{ padding: '6px', color: '#1D4ED8' }}>Total Production Cost</td>
                           <td style={{ padding: '6px' }}></td>
-                          <td style={{ padding: '6px', color: '#1D4ED8' }}>{productionCostDetails.totalQty} pcs</td>
-                          <td style={{ padding: '6px', textAlign: 'right', color: '#1D4ED8' }}>₹{productionCostDetails.totalCost.toLocaleString()}</td>
+                          <td style={{ padding: '6px', textAlign: 'center', color: '#1D4ED8' }}>{productionCostDetails.totalQty} pcs</td>
+                          <td style={{ padding: '6px', textAlign: 'right', color: '#1D4ED8' }}>Rs.{productionCostDetails.totalCost.toLocaleString()}</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
+                  </div> {/* end inner content div */}
                 </div>
               </div>
             </div>
