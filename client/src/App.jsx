@@ -693,10 +693,13 @@ function App() {
       const data = await response.json()
 
       if (response.ok) {
-        setOrders(data)
-        if (!selectedOrder) {
-          setSelectedOrder(data[0] || null)
+        const safeData = Array.isArray(data) ? data : []
+        setOrders(safeData)
+        if (!selectedOrder && safeData.length > 0) {
+          setSelectedOrder(safeData[0])
         }
+      } else {
+        setOrders([])
       }
     } catch (error) {
       console.error('Unable to load orders', error)
@@ -1999,24 +2002,27 @@ function App() {
     setActivePage('Orders')
   }
 
-  const filteredOrders = orders.filter((order) => {
-    if (orderSchoolFilter !== 'All' && order.school !== orderSchoolFilter) {
-      return false
-    }
-    if (orderFilter !== 'All' && order.status !== orderFilter) {
-      return false
-    }
-    if (orderPaymentFilter !== 'All' && (order.paymentStatus || 'Unpaid') !== orderPaymentFilter) {
-      return false
-    }
-    if (orderContactFilter !== 'All' && order.contactStatus !== orderContactFilter) {
-      return false
-    }
-    if (!isDateInFilter(order.deliveryDate, orderDeliveryFilter, orderCustomStartDate, orderCustomEndDate)) {
-      return false
-    }
-    return true
-  })
+  const filteredOrders = useMemo(() => {
+    const safeOrders = Array.isArray(orders) ? orders : []
+    return safeOrders.filter((order) => {
+      if (orderSchoolFilter !== 'All' && order.school !== orderSchoolFilter) {
+        return false
+      }
+      if (orderFilter !== 'All' && order.status !== orderFilter) {
+        return false
+      }
+      if (orderPaymentFilter !== 'All' && (order.paymentStatus || 'Unpaid') !== orderPaymentFilter) {
+        return false
+      }
+      if (orderContactFilter !== 'All' && order.contactStatus !== orderContactFilter) {
+        return false
+      }
+      if (!isDateInFilter(order.deliveryDate, orderDeliveryFilter, orderCustomStartDate, orderCustomEndDate)) {
+        return false
+      }
+      return true
+    })
+  }, [orders, orderSchoolFilter, orderFilter, orderPaymentFilter, orderContactFilter, orderDeliveryFilter, orderCustomStartDate, orderCustomEndDate])
 
   const sortedOrders = useMemo(() => {
     const scored = []
@@ -2097,7 +2103,8 @@ function App() {
   // Tailor Work - Derived Selectors and Helpers
   const tailorAvailableSchools = useMemo(() => {
     const schoolsSet = new Set()
-    orders.forEach((o) => {
+    const safeOrders = Array.isArray(orders) ? orders : []
+    safeOrders.forEach((o) => {
       if (o.school && o.school.trim() !== '') {
         schoolsSet.add(o.school.trim())
       }
@@ -2107,7 +2114,8 @@ function App() {
 
   const tailorAvailableCategories = useMemo(() => {
     const catsMap = new Map()
-    orders.forEach((o) => {
+    const safeOrders = Array.isArray(orders) ? orders : []
+    safeOrders.forEach((o) => {
       if (o.items && o.items.length > 0) {
         o.items.forEach((item) => {
           let catId = item.productionCategory || guessProductionCategory({ product: item.itemType, measurements: item.measurements })
@@ -2174,8 +2182,9 @@ function App() {
 
   const flatTailorGarments = useMemo(() => {
     const rows = []
+    const safeOrders = Array.isArray(orders) ? orders : []
 
-    orders.forEach((order) => {
+    safeOrders.forEach((order) => {
       // 1. Order Status Filter
       if (tailorStatusFilter !== 'All' && order.status !== tailorStatusFilter) {
         return
