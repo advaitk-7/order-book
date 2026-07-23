@@ -2469,8 +2469,8 @@ function App() {
 
       const sleeveTag = getSleeveTag(row.product, row.measurements);
       const productVal = sleeveTag ? `${row.product} (${sleeveTag})` : row.product;
-      const catObj = PRODUCTION_CATEGORIES.find(c => c.id === (row.productionCategory || guessProductionCategory(row)));
-      const catName = catObj ? catObj.name : (row.productionCategory || '');
+      const catObj = PRODUCTION_CATEGORIES.find(c => c.id === (row.productionCategory || ''));
+      const catName = catObj ? catObj.name : (row.productionCategory ? row.productionCategory : 'Uncategorized');
 
       const csvRow = [
         formatField(row.orderNumber),
@@ -2609,9 +2609,9 @@ function App() {
 
       // ── Garments Table ──────────────────────────────────────────────────
       const garmentRows = sortedTailorGarments.map(row => {
-        const catVal = row.productionCategory || guessProductionCategory(row)
+        const catVal = row.productionCategory || ''
         const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal)
-        const catName = catObj ? catObj.name : (catVal || '-')
+        const catName = catObj ? catObj.name : 'Uncategorized'
         const gender = row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))
         const meas = renderPDFMeasurements(row.product, row.measurements)
         const delivery = formatDateToDMY(row.deliveryDate) || '-'
@@ -4348,16 +4348,16 @@ function App() {
                                 </div>
                                 <span className="print-landscape-only-category" style={{ display: 'none' }}>
                                   {(() => {
-                                    const catVal = row.productionCategory || guessProductionCategory(row);
+                                    const catVal = row.productionCategory || '';
                                     const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
-                                    return catObj ? `${catObj.name} (₹${pricingRates[catVal] !== undefined ? pricingRates[catVal] : catObj.defaultRate})` : catVal;
+                                    return catObj ? `${catObj.name} (₹${pricingRates[catVal] !== undefined ? pricingRates[catVal] : catObj.defaultRate})` : 'Uncategorized';
                                   })()}
                                 </span>
                                 <span className="print-portrait-only-category" style={{ display: 'none' }}>
                                   {(() => {
-                                    const catVal = row.productionCategory || guessProductionCategory(row);
+                                    const catVal = row.productionCategory || '';
                                     const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
-                                    if (!catObj) return catVal;
+                                    if (!catObj) return 'Uncategorized';
                                     let name = catObj.name;
                                     name = name.replace(/H\.S\./g, 'HS')
                                                .replace(/F\.S\./g, 'FS')
@@ -5636,7 +5636,7 @@ function App() {
                             </td>
                             <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px' }}>
                               {(() => {
-                                const catVal = row.productionCategory || guessProductionCategory(row);
+                                const catVal = row.productionCategory || '';
                                 const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
                                 return catObj ? catObj.name : (catVal || '-');
                               })()}
