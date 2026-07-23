@@ -1407,6 +1407,28 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
   }
 });
 
+const parseBackupTimestamp = (filename, fileStats) => {
+  try {
+    const match = filename.match(/liberty_backup_(\d{2})-([A-Za-z]{3})-(\d{4})_(\d{2})-(\d{2})-(\d{2})-(AM|PM)\.json\.gz/);
+    if (match) {
+      const [_, day, monthStr, year, hrsStr, minsStr, secsStr, ampm] = match;
+      const months = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+      const month = months[monthStr] !== undefined ? months[monthStr] : 0;
+
+      let hours = parseInt(hrsStr, 10);
+      if (ampm === 'PM' && hours < 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+
+      const localMs = Date.UTC(parseInt(year, 10), month, parseInt(day, 10), hours, parseInt(minsStr, 10), parseInt(secsStr, 10));
+      const utcMs = localMs - (330 * 60000);
+      return new Date(utcMs);
+    }
+  } catch (e) {
+    console.error('Failed to parse backup filename timestamp:', e);
+  }
+  return fileStats.birthtime || fileStats.mtime || new Date();
+};
+
 // Backup Endpoints
 app.get("/api/backups", authenticateJWT, async (req, res) => {
   try {
@@ -1414,10 +1436,11 @@ app.get("/api/backups", authenticateJWT, async (req, res) => {
       .filter(f => f.endsWith(".json.gz"))
       .map(f => {
         const stats = fs.statSync(path.join(BACKUP_DIR, f));
+        const createdAt = parseBackupTimestamp(f, stats);
         return {
           filename: f,
           size: stats.size,
-          createdAt: stats.birthtime
+          createdAt: createdAt
         };
       })
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
