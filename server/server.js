@@ -994,15 +994,11 @@ app.patch("/api/orders/:id", async (req, res) => {
       changeLogs.push(`Contact Status changed from '${oldOrder.contactStatus}' to '${payload.contactStatus}'`);
     }
     if (payload.items !== undefined) {
-      const oldItemsStr = JSON.stringify(oldOrder.items.map(i => ({ type: i.itemType, qty: i.quantity })));
-      const newItemsStr = JSON.stringify((payload.items || []).map(i => ({ type: i.itemType, qty: Number(i.quantity || 0) })));
-      if (oldItemsStr !== newItemsStr) {
-        updates.items = (payload.items || []).map((item) => ({
-          ...item,
-          quantity: Number(item.quantity || 0),
-        }));
-        changeLogs.push(`Order items updated`);
-      }
+      updates.items = (payload.items || []).map((item) => ({
+        ...item,
+        quantity: Number(item.quantity || 0),
+      }));
+      changeLogs.push(`Order items and measurements updated`);
     }
     if (payload.notes !== undefined && payload.notes !== oldOrder.notes) {
       updates.notes = payload.notes;
