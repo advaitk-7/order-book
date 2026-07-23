@@ -3786,7 +3786,14 @@ function App() {
               {selectedOrder && (
                 <section className="card card-panel details-panel" ref={detailsPanelRef}>
                   <div className="card-header space-between" style={{ position: 'relative' }}>
-                    <p className="card-title">Selected Order Details</p>
+                    <div>
+                      <p className="card-title">Selected Order Details</p>
+                      {selectedOrder.createdAt && (
+                        <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', display: 'block', marginTop: '2px' }}>
+                          Order Created: {formatDateToDMY(String(selectedOrder.createdAt).split('T')[0])}
+                        </span>
+                      )}
+                    </div>
                     <span
                       className={`status-badge ${selectedOrder.status === 'Delivered' ? 'clickable' : ''} ${selectedOrder.status.toLowerCase()}`}
                       onClick={() => {
@@ -4395,7 +4402,14 @@ function App() {
               {selectedOrder && (
                 <section className="card card-panel details-panel" ref={detailsPanelRef}>
                   <div className="card-header space-between" style={{ position: 'relative' }}>
-                    <p className="card-title">Selected Order Details</p>
+                    <div>
+                      <p className="card-title">Selected Order Details</p>
+                      {selectedOrder.createdAt && (
+                        <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', display: 'block', marginTop: '2px' }}>
+                          Order Created: {formatDateToDMY(String(selectedOrder.createdAt).split('T')[0])}
+                        </span>
+                      )}
+                    </div>
                     <span
                       className={`status-badge ${selectedOrder.status === 'Delivered' ? 'clickable' : ''} ${selectedOrder.status.toLowerCase()}`}
                       onClick={() => {
