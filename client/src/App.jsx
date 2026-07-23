@@ -2401,6 +2401,11 @@ function App() {
       // Column widths as % of usable width (total = 100%)
       const colWidths = [7, 8, 14, 14, 5, 5, 24, 12, 11].map(pct => usableWidth * pct / 100)
 
+      const containsEmoji = (str) => {
+        if (!str) return false
+        return /[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/u.test(String(str))
+      }
+
       doc.autoTable({
         startY: tableStartY,
         head: [['Order #', 'Product', 'Category', 'School', 'G', 'Qty', 'Measurements', 'Notes', 'Delivery']],
@@ -2443,6 +2448,71 @@ function App() {
             if (val === 'shirt') data.cell.styles.textColor = [29, 78, 216]
             else if (val === 'pant') data.cell.styles.textColor = [124, 58, 237]
             else data.cell.styles.textColor = [225, 29, 72]
+          }
+          // Transparent text if cell has emoji to avoid drawing broken box glyphs
+          if (data.section === 'body' && containsEmoji(data.cell.raw)) {
+            data.cell.styles.textColor = [255, 255, 255]
+          }
+        },
+        didDrawCell: (data) => {
+          if (data.section === 'body' && containsEmoji(data.cell.raw)) {
+            try {
+              const cell = data.cell
+              const text = String(cell.raw)
+              const scale = 3
+              const mmToPx = 3.78
+              const widthPx = Math.ceil(cell.width * mmToPx * scale)
+              const heightPx = Math.ceil(cell.height * mmToPx * scale)
+
+              const canvas = document.createElement('canvas')
+              canvas.width = Math.max(widthPx, 10)
+              canvas.height = Math.max(heightPx, 10)
+
+              const ctx = canvas.getContext('2d')
+              ctx.scale(scale, scale)
+
+              const fontSizePx = Math.max(9, Math.round(cell.styles.fontSize * 1.33))
+              ctx.font = `${fontSizePx}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`
+              ctx.fillStyle = '#0F172A'
+              ctx.textBaseline = 'top'
+
+              const maxW = cell.width * mmToPx - 4
+              const words = text.split(' ')
+              const lines = []
+              let currentLine = ''
+
+              for (let i = 0; i < words.length; i++) {
+                const testLine = currentLine ? `${currentLine} ${words[i]}` : words[i]
+                const metrics = ctx.measureText(testLine)
+                if (metrics.width > maxW && currentLine) {
+                  lines.push(currentLine)
+                  currentLine = words[i]
+                } else {
+                  currentLine = testLine
+                }
+              }
+              if (currentLine) lines.push(currentLine)
+
+              const lineHeight = fontSizePx * 1.25
+              const totalTextHeight = lines.length * lineHeight
+              let startY = (cell.height * mmToPx - totalTextHeight) / 2
+              if (startY < 2) startY = 2
+
+              lines.forEach((line, index) => {
+                let startX = 2
+                if (cell.styles.halign === 'center') {
+                  startX = (cell.width * mmToPx - ctx.measureText(line).width) / 2
+                } else if (cell.styles.halign === 'right') {
+                  startX = cell.width * mmToPx - ctx.measureText(line).width - 2
+                }
+                ctx.fillText(line, Math.max(0, startX), startY + index * lineHeight)
+              })
+
+              const imgData = canvas.toDataURL('image/png')
+              doc.addImage(imgData, 'PNG', cell.x, cell.y, cell.width, cell.height)
+            } catch (e) {
+              console.warn('Emoji canvas render fallback:', e)
+            }
           }
         },
         pageBreak: 'auto',
