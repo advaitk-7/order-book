@@ -2011,8 +2011,8 @@ function App() {
     })
   }, [filteredOrders])
 
-  const visibleOrders = sortedOrders.slice(0, visibleCount)
-  const hasMoreOrders = visibleCount < sortedOrders.length
+  const visibleOrders = sortedOrders
+  const hasMoreOrders = false
 
   // Tailor Work - Derived Selectors and Helpers
   const tailorAvailableSchools = useMemo(() => {
@@ -4134,7 +4134,7 @@ function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {sortedTailorGarments.slice(0, tailorVisibleCount).map((row) => (
+                          {sortedTailorGarments.map((row) => (
                             <tr
                               key={row.uniqueRowId}
                               className={`clickable-row ${highlightedOrderId === row.orderId ? 'highlighted-row' : ''}`}
@@ -4278,18 +4278,11 @@ function App() {
 
                     <div className="pagination-row">
                       <span>
-                        Showing {Math.min(tailorVisibleCount, sortedTailorGarments.length)} of {sortedTailorGarments.length} product rows
+                        Showing all {sortedTailorGarments.length} product rows
                       </span>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        {tailorVisibleCount < sortedTailorGarments.length && (
-                          <button type="button" className="secondary-btn" onClick={() => setTailorVisibleCount(prev => prev + 30)} style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px' }}>
-                            Load More (+30)
-                          </button>
-                        )}
-                        <button type="button" className="ghost-btn" onClick={scrollTailorToTop}>
-                          ▲ Go to Top
-                        </button>
-                      </div>
+                      <button type="button" className="ghost-btn" onClick={scrollTailorToTop}>
+                        ▲ Go to Top
+                      </button>
                     </div>
 
                     {/* Print-only Footer Summary (only visible in print mode) */}
