@@ -1462,9 +1462,9 @@ app.post("/api/settings/templates", authenticateJWT, async (req, res) => {
   }
 });
 
-// Serve static assets from the client build in production
-if (process.env.NODE_ENV === "production") {
-  const distPath = path.join(__dirname, "../client/dist");
+// Serve static assets from the client build whenever client/dist exists
+const distPath = path.join(__dirname, "../client/dist");
+if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 
   app.get(/(.*)/, (req, res, next) => {
