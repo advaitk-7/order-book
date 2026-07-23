@@ -1534,11 +1534,8 @@ function App() {
   const unselectAll = () => setSelectedIds([])
 
   const handleStatusTap = async (order) => {
-    if (!order) return
-    if (order.status === 'Delivered') {
-      setTimerAlertOrder(order)
-      setMessage('')
-    }
+    // 75-day auto delete timer popup removed in favor of 100-block rolling cycle cleanup
+    return
   }
 
   const startEditingOrder = (order) => {
@@ -1568,7 +1565,7 @@ function App() {
     }
     setFormData(initialForm)
     setOriginalFormData(initialForm)
-    setActivePage('Orders')
+    setActivePage('New Order')
   }
 
   const handleChange = (event) => {
@@ -4769,58 +4766,10 @@ function App() {
                                 return (
                                   <div style={{ display: 'inline-block', position: 'relative' }}>
                                     <span
-                                      className={`status-badge ${allNotified ? 'ready clickable' : 'pending'}`}
-                                      onClick={(e) => {
-                                        if (allNotified) {
-                                          e.stopPropagation();
-                                          setTimerAlertWaitlist(timerAlertWaitlist?._id === request._id ? null : request);
-                                        }
-                                      }}
+                                      className={`status-badge ${allNotified ? 'ready' : 'pending'}`}
                                     >
                                       {allNotified ? 'Notified' : 'Pending'}
                                     </span>
-
-                                    {timerAlertWaitlist && timerAlertWaitlist._id === request._id && (
-                                      <div
-                                        className="timer-popup"
-                                        style={{
-                                          position: 'absolute',
-                                          bottom: '100%',
-                                          left: '50%',
-                                          transform: 'translateX(-50%) translateY(-8px)',
-                                          background: '#1E293B',
-                                          color: 'white',
-                                          padding: '10px 14px',
-                                          borderRadius: '12px',
-                                          boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
-                                          zIndex: 100,
-                                          fontSize: '13px',
-                                          fontWeight: '500',
-                                          whiteSpace: 'nowrap',
-                                          display: 'flex',
-                                          flexDirection: 'column',
-                                          alignItems: 'center',
-                                          gap: '4px',
-                                          pointerEvents: 'none'
-                                        }}
-                                      >
-                                        <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
-                                        <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
-                                          {computeWaitlistTimeLeftDescription(request.notifiedAt, request.updatedAt, request.createdAt)}
-                                        </span>
-                                        <div style={{
-                                          position: 'absolute',
-                                          top: '100%',
-                                          left: '50%',
-                                          transform: 'translateX(-50%)',
-                                          width: 0,
-                                          height: 0,
-                                          borderLeft: '6px solid transparent',
-                                          borderRight: '6px solid transparent',
-                                          borderTop: '6px solid #1E293B'
-                                        }} />
-                                      </div>
-                                    )}
                                   </div>
                                 );
                               })()}

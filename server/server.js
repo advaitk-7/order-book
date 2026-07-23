@@ -111,27 +111,30 @@ function isFuzzyWordMatch(queryToken, targetWord) {
   return false;
 }
 
-// High-quality Multi-Term Fuzzy Matcher for a document
+// High-quality Multi-Term & Substring Matcher for a document
 function checkFuzzyMatch(searchQuery, searchableTextArray) {
   if (!searchQuery || searchQuery.trim() === "") return true;
-  
-  const targetWords = searchableTextArray
-    .filter(Boolean)
-    .join(" ")
-    .replace(/[^\w\s]/g, "")
-    .split(/\s+/)
-    .filter(Boolean);
-    
-  const queryTokens = searchQuery
-    .trim()
-    .replace(/[^\w\s]/g, "")
-    .split(/\s+/)
-    .filter(Boolean);
-    
+
+  const rawQuery = searchQuery.trim().toLowerCase();
+  const rawTargetString = searchableTextArray.filter(Boolean).join(" ").toLowerCase();
+
+  // 1. Direct raw substring match (matches exact order numbers like #45, customer names, phone numbers)
+  if (rawTargetString.includes(rawQuery)) return true;
+
+  // 2. Clean query without symbols (#, -, spaces) match against target
+  const cleanQuery = rawQuery.replace(/[^\w\s]/g, "").trim();
+  const cleanTarget = rawTargetString.replace(/[^\w\s]/g, "").trim();
+
+  if (cleanQuery !== "" && cleanTarget.includes(cleanQuery)) return true;
+
+  // 3. Multi-token match: every token in query should match at least one word in target
+  const queryTokens = cleanQuery.split(/\s+/).filter(Boolean);
   if (queryTokens.length === 0) return true;
-  
+
+  const targetWords = cleanTarget.split(/\s+/).filter(Boolean);
+
   return queryTokens.every(token => {
-    return targetWords.some(word => isFuzzyWordMatch(token, word));
+    return targetWords.some(word => word.includes(token) || token.includes(word) || isFuzzyWordMatch(token, word));
   });
 }
 
@@ -941,9 +944,9 @@ app.patch("/api/orders/:id", async (req, res) => {
     if (payload.orderNumber !== undefined) {
       const trimmedOrderNumber = payload.orderNumber.trim();
       if (trimmedOrderNumber !== oldOrder.orderNumber) {
-        const duplicateOrder = await Order.findOne({ orderNumber: trimmedOrderNumber, _id: { $ne: req.params.id } });
+        const duplicateOrder = await Order.findOne({ orderNumber: trimmedOrderNumber, cycle: oldOrder.cycle || 1, _id: { $ne: req.params.id } });
         if (duplicateOrder) {
-          return res.status(409).json({ message: "Order number already exists. Please choose a unique order number." });
+          return res.status(409).json({ message: `Order #${trimmedOrderNumber} already exists in Cycle ${oldOrder.cycle || 1}.` });
         }
         updates.orderNumber = trimmedOrderNumber;
         changeLogs.push(`Order Number changed from '${oldOrder.orderNumber}' to '${trimmedOrderNumber}'`);
