@@ -1387,6 +1387,37 @@ function App() {
     reader.readAsDataURL(file)
   }
 
+  const handleSeed999Orders = async () => {
+    if (!window.confirm("⚠️ WARNING: This will clear all existing orders in your database and generate 999 test orders (#1 to #999) to test Cycle 1 -> Cycle 2 wrapping and 100-block cleanup!\n\nAre you sure you want to proceed?")) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/orders/seed-999`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        alert(data.message || 'Successfully seeded 999 test orders!')
+        fetchOrders(searchTerm)
+        fetchAuditLogs()
+        setActivePage('New Order')
+      } else {
+        const data = await response.json()
+        alert('Failed to seed orders: ' + (data.message || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error('Seed orders error:', err)
+      alert('Could not reach server to seed orders.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const fetchWhatsAppTemplates = async () => {
     try {
       const response = await fetch(`${API_BASE}/api/settings/templates`, {
@@ -4977,16 +5008,16 @@ function App() {
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
+                      <div style={{ display: 'flex', gap: '10px', marginTop: 'auto', flexWrap: 'wrap' }}>
                         <button
                           type="button"
                           className="primary-btn"
                           onClick={handleCreateBackup}
-                          style={{ flex: 1 }}
+                          style={{ flex: 1, minWidth: '140px' }}
                         >
                           Create Backup Now
                         </button>
-                        <label className="backup-upload-label" style={{ flex: 1, padding: '0', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <label className="backup-upload-label" style={{ flex: 1, minWidth: '140px', padding: '0', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           Restore from File
                           <input
                             type="file"
@@ -4995,6 +5026,23 @@ function App() {
                             style={{ display: 'none' }}
                           />
                         </label>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={handleSeed999Orders}
+                          style={{
+                            width: '100%',
+                            marginTop: '6px',
+                            padding: '8px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            borderColor: '#F59E0B',
+                            color: '#B45309',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          ⚡ Generate 999 Test Orders (#1 to #999)
+                        </button>
                       </div>
                     </div>
 

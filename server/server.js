@@ -1470,6 +1470,84 @@ app.get("/api/backups/download/:filename", authenticateJWT, (req, res) => {
   }
 });
 
+app.post("/api/orders/seed-999", async (req, res) => {
+  try {
+    // Clear existing orders
+    await Order.deleteMany({});
+
+    const schools = ["St. Xavier High School", "Delhi Public School", "Green Valley International", "City Convent", "St. Mary Academy"];
+    const customerFirstNames = ["Rahul", "Priya", "Amit", "Neha", "Vikram", "Ananya", "Rohan", "Sneha", "Karan", "Pooja", "Arjun", "Kavya", "Suresh", "Ritu", "Deepak"];
+    const customerLastNames = ["Sharma", "Verma", "Gupta", "Singh", "Patel", "Mehta", "Joshi", "Kumar", "Rao", "Nair", "Das", "Shah"];
+
+    const mockOrders = [];
+    const baseDate = new Date(2026, 6, 23); // 23 July 2026
+
+    for (let i = 1; i <= 999; i++) {
+      const fn = customerFirstNames[Math.floor(Math.random() * customerFirstNames.length)];
+      const ln = customerLastNames[Math.floor(Math.random() * customerLastNames.length)];
+      const customerName = `${fn} ${ln}`;
+      const gender = Math.random() > 0.5 ? "Male" : "Female";
+      const school = schools[Math.floor(Math.random() * schools.length)];
+      const amount = (Math.floor(Math.random() * 15) + 5) * 100;
+
+      // Status distribution:
+      // Range 1..99: ~90% Delivered (to test cleanup of delivered orders when #1000 is created)
+      // Range 100..999: mix of Pending, Ready, Delivered
+      let status = "Delivered";
+      if (i <= 99) {
+        status = i % 10 === 0 ? "Pending" : "Delivered";
+      } else {
+        const rand = Math.random();
+        if (rand < 0.4) status = "Pending";
+        else if (rand < 0.7) status = "Ready";
+        else status = "Delivered";
+      }
+
+      const deliveryOffset = Math.floor(Math.random() * 30) - 15;
+      const dDate = new Date(baseDate);
+      dDate.setDate(dDate.getDate() + deliveryOffset);
+      const deliveryDate = dDate.toISOString().split("T")[0];
+
+      const itemType = gender === "Female" && Math.random() > 0.5 ? "pina" : (Math.random() > 0.5 ? "shirt" : "pant");
+      const quantity = Math.floor(Math.random() * 3) + 1;
+
+      mockOrders.push({
+        orderNumber: String(i),
+        cycle: 1,
+        customerName,
+        contactNumber: `98${Math.floor(10000000 + Math.random() * 90000000)}`,
+        gender,
+        school,
+        deliveryDate,
+        amount,
+        paymentStatus: status === "Delivered" ? "Paid" : (Math.random() > 0.5 ? "Paid" : "Unpaid"),
+        status,
+        deliveredAt: status === "Delivered" ? new Date() : undefined,
+        contactStatus: status === "Delivered" ? "Contacted" : "Not contacted",
+        items: [
+          {
+            itemType,
+            quantity,
+            productionCategory: itemType === "shirt" ? "hs_shirt_32_44" : (itemType === "pant" ? "trouser_elastic_20_30" : "pinafore"),
+            measurements: itemType === "shirt"
+              ? { length: "28", chest: "36", shoulder: "16", sleeve: "14", neck: "15" }
+              : (itemType === "pant" ? { length: "38", waist: "32", seat: "36", thighs: "22", bottom: "16" } : { length: "34", waist: "30", torsoLength: "20" })
+          }
+        ],
+        notes: i <= 99 ? `Test seed order #${i} (Cycle 1)` : `Seed order #${i}`
+      });
+    }
+
+    await Order.insertMany(mockOrders);
+    await logAudit(null, "System", "Seed Data", "Cleared existing database and generated 999 mock orders for testing.");
+
+    res.json({ message: "Successfully cleared database and seeded 999 mock orders!", count: 999 });
+  } catch (error) {
+    console.error("Failed to seed orders:", error.message);
+    res.status(500).json({ message: "Failed to seed 999 orders", error: error.message });
+  }
+});
+
 app.post("/api/backups/restore", authenticateJWT, async (req, res) => {
   try {
     const { fileData } = req.body;
