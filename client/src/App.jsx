@@ -458,6 +458,9 @@ function App() {
   const [orderPaymentFilter, setOrderPaymentFilter] = useState('All')
   const [orderContactFilter, setOrderContactFilter] = useState('All')
   const [orderSchoolFilter, setOrderSchoolFilter] = useState('All')
+  const [orderDeliveryFilter, setOrderDeliveryFilter] = useState('All')
+  const [orderCustomStartDate, setOrderCustomStartDate] = useState('')
+  const [orderCustomEndDate, setOrderCustomEndDate] = useState('')
   const [whatsappMode, setWhatsappMode] = useState(() => {
     return localStorage.getItem('whatsapp_mode') || 'web'
   })
@@ -1588,7 +1591,7 @@ function App() {
     setTimerAlertOrder(null)
     setFormError('')
 
-    // Automatically reset Production Queue filters to default ('Pending') when navigating
+    // Automatically reset Production Queue and Orders Desk filters to default when navigating
     setTailorStatusFilter('Pending')
     setTailorProductFilter('All')
     setTailorCategoryFilter('All')
@@ -1597,6 +1600,10 @@ function App() {
     setTailorCustomStartDate('')
     setTailorCustomEndDate('')
     setTailorSearchTerm('')
+
+    setOrderDeliveryFilter('All')
+    setOrderCustomStartDate('')
+    setOrderCustomEndDate('')
 
     if (page === 'New Order') {
       resetForm()
@@ -2007,6 +2014,9 @@ function App() {
     if (orderContactFilter !== 'All' && order.contactStatus !== orderContactFilter) {
       return false
     }
+    if (!isDateInFilter(order.deliveryDate, orderDeliveryFilter, orderCustomStartDate, orderCustomEndDate)) {
+      return false
+    }
     return true
   })
 
@@ -2138,6 +2148,9 @@ function App() {
       sunday.setDate(monday.getDate() + 6)
       sunday.setHours(23, 59, 59, 999)
       return d >= monday && d <= sunday
+    }
+    if (filter === 'This Month') {
+      return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
     }
     if (filter === 'Custom') {
       if (customStart) {
@@ -3539,11 +3552,40 @@ function App() {
                     <span>School</span>
                     <select value={orderSchoolFilter} onChange={(event) => applyOrderSchoolFilter(event.target.value)}>
                       <option value="All">All Schools</option>
-                      {tailorAvailableSchools.map((s) => (
+                      {availableSchools.map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
                   </label>
+                  <label className="orders-filter-select">
+                    <span>Delivery</span>
+                    <select value={orderDeliveryFilter} onChange={(e) => setOrderDeliveryFilter(e.target.value)}>
+                      <option value="All">All Dates</option>
+                      <option value="Today">Today</option>
+                      <option value="Tomorrow">Tomorrow</option>
+                      <option value="This Week">This Week</option>
+                      <option value="This Month">This Month</option>
+                      <option value="Custom">Custom Range</option>
+                    </select>
+                  </label>
+
+                  {orderDeliveryFilter === 'Custom' && (
+                    <div className="custom-date-inputs" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <input
+                        type="date"
+                        value={orderCustomStartDate}
+                        onChange={(e) => setOrderCustomStartDate(e.target.value)}
+                        style={{ padding: '6px 10px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13px' }}
+                      />
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>to</span>
+                      <input
+                        type="date"
+                        value={orderCustomEndDate}
+                        onChange={(e) => setOrderCustomEndDate(e.target.value)}
+                        style={{ padding: '6px 10px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13px' }}
+                      />
+                    </div>
+                  )}
                   <button type="button" className="danger-btn" onClick={handleBulkDelete} disabled={selectedIds.length === 0}>
                     Delete Selected{selectedIds.length ? ` (${selectedIds.length})` : ''}
                   </button>
@@ -4011,6 +4053,7 @@ function App() {
                       <option value="Today">Today</option>
                       <option value="Tomorrow">Tomorrow</option>
                       <option value="This Week">This Week</option>
+                      <option value="This Month">This Month</option>
                       <option value="Custom">Custom Range</option>
                     </select>
                   </label>
