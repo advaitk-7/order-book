@@ -1357,23 +1357,8 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
       };
     }
 
-    const logs = await AuditLog.find(query).sort({ createdAt: -1 });
-
-    let filtered = logs;
-    if (search) {
-      filtered = logs.filter(log => {
-        const fields = [
-          log.message,
-          log.username,
-          log.action,
-          log.details,
-          log.orderNumber
-        ];
-        return checkFuzzyMatch(search, fields);
-      });
-    }
-
-    res.json(filtered.slice(0, 100));
+    const logs = await AuditLog.find(query).sort({ createdAt: -1 }).limit(300).lean();
+    res.json(logs);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch audit logs", error: error.message });
   }

@@ -941,11 +941,11 @@ function App() {
     }
   }
 
-  const fetchAuditLogs = async (search = logSearch, type = logTypeFilter, date = logDateFilter) => {
+  const fetchAuditLogs = async (search = '', type = logTypeFilter, date = logDateFilter) => {
     if (!token) return
     setLoadingAuditLogs(true)
     try {
-      let url = `${API_BASE}/api/audit-logs?search=${encodeURIComponent(search)}&type=${type}`;
+      let url = `${API_BASE}/api/audit-logs?type=${type}`;
       if (date) {
         url += `&date=${date}`;
       }
@@ -962,6 +962,26 @@ function App() {
       setLoadingAuditLogs(false)
     }
   }
+
+  const filteredAuditLogs = useMemo(() => {
+    if (!logSearch || logSearch.trim() === '') return auditLogs
+
+    const rawQuery = logSearch.trim().toLowerCase()
+    const cleanQuery = rawQuery.replace(/^#/, '').trim()
+    const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
+
+    if (queryTokens.length === 0) return auditLogs
+
+    return auditLogs.filter(log => {
+      const orderNum = String(log.orderNumber || '').trim().toLowerCase()
+      const action = String(log.action || '').trim().toLowerCase()
+      const details = String(log.details || log.message || '').trim().toLowerCase()
+      const username = String(log.performedBy || log.username || '').trim().toLowerCase()
+
+      const targetText = `${orderNum} ${action} ${details} ${username}`
+      return queryTokens.every(token => targetText.includes(token))
+    })
+  }, [auditLogs, logSearch])
 
   const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter, school = waitlistSchoolFilter, silent = false) => {
     if (!token) return
@@ -1356,9 +1376,9 @@ function App() {
 
   useEffect(() => {
     if (activePage === 'Settings' && token) {
-      fetchAuditLogs(logSearch, logTypeFilter, logDateFilter)
+      fetchAuditLogs('', logTypeFilter, logDateFilter)
     }
-  }, [logSearch, logTypeFilter, logDateFilter, activePage, token])
+  }, [logTypeFilter, logDateFilter, activePage, token])
 
   const handleCreateBackup = async () => {
     if (!token) return
@@ -5323,10 +5343,10 @@ function App() {
                       <div className="audit-timeline" style={{ maxHeight: '620px', overflowY: 'auto' }}>
                         {loadingAuditLogs ? (
                           <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '16px 0' }}>Loading audit trail...</p>
-                        ) : auditLogs.length === 0 ? (
-                          <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '16px 0' }}>No logs recorded yet.</p>
+                        ) : filteredAuditLogs.length === 0 ? (
+                          <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '16px 0' }}>No matching log entries found.</p>
                         ) : (
-                          auditLogs.map((log) => (
+                          filteredAuditLogs.map((log) => (
                             <div key={log._id} className="audit-card">
                               <div className="audit-header">
                                 <span className={`audit-action ${log.action.toLowerCase().replace(' ', '-')}`}>
