@@ -3127,3 +3127,26 @@ tr.clickable-row.highlighted-row td {
   margin-right: 3px !important;
 }
 
+/* Page Break Prevention for PDF Export */
+.pdf-paper-sheet tr {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  -webkit-column-break-inside: avoid !important;
+}
+
+.pdf-paper-sheet table {
+  page-break-inside: auto !important;
+  break-inside: auto !important;
+}
+
+.pdf-paper-sheet thead {
+  display: table-header-group !important;
+}
+
+.pdf-paper-sheet img,
+.pdf-paper-sheet .product-tag,
+.pdf-paper-sheet .measurement-tag {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+

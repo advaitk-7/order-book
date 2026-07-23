@@ -2317,15 +2317,52 @@ function App() {
         cleanFileName += '.pdf'
       }
 
+      // Create an off-screen fixed container to isolate rendering from scroll/modal offsets on mobile devices
+      const cloneContainer = document.createElement('div')
+      cloneContainer.style.position = 'fixed'
+      cloneContainer.style.top = '0'
+      cloneContainer.style.left = '-9999px'
+      cloneContainer.style.width = pdfFormat === 'a3' ? (pdfOrientation === 'landscape' ? '1100px' : '750px') : (pdfFormat === 'legal' ? (pdfOrientation === 'landscape' ? '950px' : '650px') : (pdfOrientation === 'landscape' ? '850px' : '650px'))
+      cloneContainer.style.zIndex = '-9999'
+      cloneContainer.style.background = '#ffffff'
+      cloneContainer.style.margin = '0'
+      cloneContainer.style.padding = '0'
+
+      const clonedSheet = sourceEl.cloneNode(true)
+      clonedSheet.style.margin = '0'
+      clonedSheet.style.transform = 'none'
+      clonedSheet.style.boxShadow = 'none'
+      clonedSheet.style.background = '#ffffff'
+
+      // Enforce page-break-inside avoid on every table row
+      const rows = clonedSheet.querySelectorAll('tr')
+      rows.forEach(r => {
+        r.style.pageBreakInside = 'avoid'
+        r.style.breakInside = 'avoid'
+      })
+
+      cloneContainer.appendChild(clonedSheet)
+      document.body.appendChild(cloneContainer)
+
       const opt = {
         margin: marginVal,
         filename: cleanFileName,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation }
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 1200,
+          backgroundColor: '#ffffff'
+        },
+        jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       }
 
-      await window.html2pdf().set(opt).from(sourceEl).save()
+      await window.html2pdf().set(opt).from(clonedSheet).save()
+      document.body.removeChild(cloneContainer)
       setShowPDFModal(false)
     } catch (err) {
       console.error('PDF export failed:', err)
