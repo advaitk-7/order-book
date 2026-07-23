@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef, useDeferredValue } from 'react'
 import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || (window.location.origin.includes('localhost') ? 'http://localhost:5001' : window.location.origin)
@@ -536,6 +536,10 @@ function App() {
   const [tailorCustomStartDate, setTailorCustomStartDate] = useState('')
   const [tailorCustomEndDate, setTailorCustomEndDate] = useState('')
   const [tailorSearchTerm, setTailorSearchTerm] = useState('')
+  const [tailorVisibleCount, setTailorVisibleCount] = useState(30)
+
+  const deferredSearchTerm = useDeferredValue(searchTerm)
+  const deferredTailorSearchTerm = useDeferredValue(tailorSearchTerm)
   const [tailorSortKey, setTailorSortKey] = useState('deliveryDate')
   const [tailorSortOrder, setTailorSortOrder] = useState('asc')
 
@@ -2105,8 +2109,8 @@ function App() {
       }
 
       // 4. Search Filter (Order Number or Customer Name)
-      if (tailorSearchTerm.trim() !== '') {
-        const term = tailorSearchTerm.toLowerCase()
+      if (deferredTailorSearchTerm.trim() !== '') {
+        const term = deferredTailorSearchTerm.toLowerCase()
         const orderNum = (order.orderNumber || '').toLowerCase()
         const custName = (order.customerName || '').toLowerCase()
         if (!orderNum.includes(term) && !custName.includes(term)) {
@@ -2167,7 +2171,7 @@ function App() {
     tailorDeliveryFilter,
     tailorCustomStartDate,
     tailorCustomEndDate,
-    tailorSearchTerm
+    deferredTailorSearchTerm
   ])
 
   const sortedTailorGarments = useMemo(() => {
@@ -4130,7 +4134,7 @@ function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {sortedTailorGarments.map((row) => (
+                          {sortedTailorGarments.slice(0, tailorVisibleCount).map((row) => (
                             <tr
                               key={row.uniqueRowId}
                               className={`clickable-row ${highlightedOrderId === row.orderId ? 'highlighted-row' : ''}`}
@@ -4274,11 +4278,18 @@ function App() {
 
                     <div className="pagination-row">
                       <span>
-                        Showing {sortedTailorGarments.length} product rows
+                        Showing {Math.min(tailorVisibleCount, sortedTailorGarments.length)} of {sortedTailorGarments.length} product rows
                       </span>
-                      <button type="button" className="ghost-btn" onClick={scrollTailorToTop}>
-                        ▲ Go to Top
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {tailorVisibleCount < sortedTailorGarments.length && (
+                          <button type="button" className="secondary-btn" onClick={() => setTailorVisibleCount(prev => prev + 30)} style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px' }}>
+                            Load More (+30)
+                          </button>
+                        )}
+                        <button type="button" className="ghost-btn" onClick={scrollTailorToTop}>
+                          ▲ Go to Top
+                        </button>
+                      </div>
                     </div>
 
                     {/* Print-only Footer Summary (only visible in print mode) */}
