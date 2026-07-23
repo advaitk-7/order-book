@@ -518,6 +518,7 @@ function App() {
   // Tailor Work Page Filters & Selections
   const [tailorStatusFilter, setTailorStatusFilter] = useState('Pending')
   const [tailorProductFilter, setTailorProductFilter] = useState('All')
+  const [tailorCategoryFilter, setTailorCategoryFilter] = useState('All')
   const [tailorSchoolFilter, setTailorSchoolFilter] = useState('All')
   const [tailorDeliveryFilter, setTailorDeliveryFilter] = useState('All')
   const [tailorCustomStartDate, setTailorCustomStartDate] = useState('')
@@ -2011,6 +2012,27 @@ function App() {
     return Array.from(schoolsSet).sort()
   }, [orders])
 
+  const tailorAvailableCategories = useMemo(() => {
+    const catsMap = new Map()
+    orders.forEach((o) => {
+      if (o.items && o.items.length > 0) {
+        o.items.forEach((item) => {
+          let catId = item.productionCategory || guessProductionCategory({ product: item.itemType, measurements: item.measurements })
+          if (catId === 'trouser_elastic_20_30') catId = 'trousers_elastic_20_30'
+          if (catId === 'trouser_elastic_32_40') catId = 'trousers_elastic_32_40'
+
+          const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catId)
+          const name = catObj ? catObj.name : (catId ? catId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Uncategorized')
+          const id = catObj ? catObj.id : catId
+          if (id && !catsMap.has(id)) {
+            catsMap.set(id, { id, name })
+          }
+        })
+      }
+    })
+    return Array.from(catsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [orders])
+
   const isDateInFilter = (dateStr, filter, customStart, customEnd) => {
     if (filter === 'All') return true
     if (!dateStr) return false
@@ -2093,6 +2115,18 @@ function App() {
             }
           }
 
+          // 7. Category Filter
+          if (tailorCategoryFilter !== 'All') {
+            let catId = item.productionCategory || guessProductionCategory({ product: item.itemType, measurements: item.measurements })
+            if (catId === 'trouser_elastic_20_30') catId = 'trousers_elastic_20_30'
+            if (catId === 'trouser_elastic_32_40') catId = 'trousers_elastic_32_40'
+            const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catId)
+            const catName = catObj ? catObj.name : catId
+            if (catId !== tailorCategoryFilter && catName !== tailorCategoryFilter) {
+              return
+            }
+          }
+
           rows.push({
             orderId: order._id,
             orderNumber: order.orderNumber || '',
@@ -2119,6 +2153,7 @@ function App() {
     orders,
     tailorStatusFilter,
     tailorProductFilter,
+    tailorCategoryFilter,
     tailorSchoolFilter,
     tailorDeliveryFilter,
     tailorCustomStartDate,
@@ -3866,6 +3901,16 @@ function App() {
                       <option value="Shirt">Shirt</option>
                       <option value="Pant">Pant</option>
                       <option value="Pina">Pina</option>
+                    </select>
+                  </label>
+
+                  <label className="orders-filter-select">
+                    <span>Category</span>
+                    <select value={tailorCategoryFilter} onChange={(e) => setTailorCategoryFilter(e.target.value)}>
+                      <option value="All">All Categories</option>
+                      {tailorAvailableCategories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
                     </select>
                   </label>
 
