@@ -876,7 +876,11 @@ app.post("/api/orders", async (req, res) => {
     });
   } catch (error) {
     console.error("Error saving order:", error.message);
-    res.status(500).json({ message: "Failed to save order", error: error.message });
+    let userMsg = `Failed to save order: ${error.message}`;
+    if (error.code === 11000) {
+      userMsg = `Order #${payload.orderNumber || ''} already exists in this cycle.`;
+    }
+    res.status(500).json({ message: userMsg, error: error.message });
   }
 });
 

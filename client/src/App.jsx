@@ -1767,7 +1767,7 @@ function App() {
         setActivePage('Orders')
         fetchOrders(searchTerm)
       } else {
-        setFormError(data.message || 'Unable to save order')
+        setFormError(data.message || data.error || 'Unable to save order')
         setMessage('')
       }
     } catch (error) {
