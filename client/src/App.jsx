@@ -2175,9 +2175,7 @@ function App() {
     })
 
     const list = Array.from(catsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-    if (hasUncategorized) {
-      list.unshift({ id: 'Uncategorized', name: 'Uncategorized' })
-    }
+    list.unshift({ id: 'Uncategorized', name: 'Uncategorized' })
     return list
   }, [orders])
 
@@ -2469,8 +2467,8 @@ function App() {
 
       const sleeveTag = getSleeveTag(row.product, row.measurements);
       const productVal = sleeveTag ? `${row.product} (${sleeveTag})` : row.product;
-      const catObj = PRODUCTION_CATEGORIES.find(c => c.id === (row.productionCategory || ''));
-      const catName = catObj ? catObj.name : (row.productionCategory ? row.productionCategory : 'Uncategorized');
+      const catObj = PRODUCTION_CATEGORIES.find(c => c.id === (row.productionCategory || guessProductionCategory(row)));
+      const catName = catObj ? catObj.name : (row.productionCategory || '');
 
       const csvRow = [
         formatField(row.orderNumber),
@@ -2609,9 +2607,9 @@ function App() {
 
       // ── Garments Table ──────────────────────────────────────────────────
       const garmentRows = sortedTailorGarments.map(row => {
-        const catVal = row.productionCategory || ''
+        const catVal = row.productionCategory || guessProductionCategory(row)
         const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal)
-        const catName = catObj ? catObj.name : 'Uncategorized'
+        const catName = catObj ? catObj.name : (catVal || '-')
         const gender = row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))
         const meas = renderPDFMeasurements(row.product, row.measurements)
         const delivery = formatDateToDMY(row.deliveryDate) || '-'
@@ -4338,7 +4336,7 @@ function App() {
                                       maxWidth: '130px'
                                     }}
                                   >
-                                    <option value="">Uncategorized (Select Category)</option>
+                                    <option value="">Select Category</option>
                                     {PRODUCTION_CATEGORIES.map(cat => (
                                       <option key={cat.id} value={cat.id}>
                                         {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
@@ -4350,14 +4348,14 @@ function App() {
                                   {(() => {
                                     const catVal = row.productionCategory || '';
                                     const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
-                                    return catObj ? `${catObj.name} (₹${pricingRates[catVal] !== undefined ? pricingRates[catVal] : catObj.defaultRate})` : 'Uncategorized';
+                                    return catObj ? `${catObj.name} (₹${pricingRates[catVal] !== undefined ? pricingRates[catVal] : catObj.defaultRate})` : (catVal || 'Uncategorized');
                                   })()}
                                 </span>
                                 <span className="print-portrait-only-category" style={{ display: 'none' }}>
                                   {(() => {
                                     const catVal = row.productionCategory || '';
                                     const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
-                                    if (!catObj) return 'Uncategorized';
+                                    if (!catObj) return catVal || 'Uncategorized';
                                     let name = catObj.name;
                                     name = name.replace(/H\.S\./g, 'HS')
                                                .replace(/F\.S\./g, 'FS')
@@ -5636,7 +5634,7 @@ function App() {
                             </td>
                             <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px' }}>
                               {(() => {
-                                const catVal = row.productionCategory || '';
+                                const catVal = row.productionCategory || guessProductionCategory(row);
                                 const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
                                 return catObj ? catObj.name : (catVal || '-');
                               })()}
