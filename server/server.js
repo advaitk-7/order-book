@@ -1528,7 +1528,7 @@ app.post("/api/orders/seed-999", async (req, res) => {
           {
             itemType,
             quantity,
-            productionCategory: itemType === "shirt" ? "hs_shirt_32_44" : (itemType === "pant" ? "trouser_elastic_20_30" : "pinafore"),
+            productionCategory: itemType === "shirt" ? "hs_shirt_32_44" : (itemType === "pant" ? "trousers_elastic_20_30" : "pinafore"),
             measurements: itemType === "shirt"
               ? { length: "28", chest: "36", shoulder: "16", sleeve: "14", neck: "15" }
               : (itemType === "pant" ? { length: "38", waist: "32", seat: "36", thighs: "22", bottom: "16" } : { length: "34", waist: "30", torsoLength: "20" })

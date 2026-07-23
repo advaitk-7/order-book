@@ -2163,9 +2163,12 @@ function App() {
 
     sortedTailorGarments.forEach((row) => {
       const qty = Number(row.quantity) || 0;
-      const catId = row.productionCategory || guessProductionCategory(row);
+      let catId = row.productionCategory || guessProductionCategory(row);
+      if (catId === 'trouser_elastic_20_30') catId = 'trousers_elastic_20_30';
+      if (catId === 'trouser_elastic_32_40') catId = 'trousers_elastic_32_40';
+
       const catInfo = PRODUCTION_CATEGORIES.find(c => c.id === catId);
-      const catName = catInfo ? catInfo.name : (catId || 'Uncategorized');
+      const catName = catInfo ? catInfo.name : (catId ? catId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Uncategorized');
       const rate = (pricingRates && pricingRates[catId] !== undefined)
         ? Number(pricingRates[catId])
         : (catInfo ? catInfo.defaultRate : 0);
@@ -3996,7 +3999,7 @@ function App() {
                         justifyContent: 'space-between'
                       }}>
                         <div>
-                          <span style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cat.name}>
+                          <span style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.3', minHeight: '28px' }} title={cat.name}>
                             {cat.name}
                           </span>
                           <span style={{ display: 'block', fontSize: '11px', color: theme === 'dark' ? '#94A3B8' : '#475569', marginTop: '1px', fontWeight: '500' }}>
