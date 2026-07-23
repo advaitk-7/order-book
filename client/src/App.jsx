@@ -2399,7 +2399,7 @@ function App() {
       })
 
       // Column widths as % of usable width (total = 100%)
-      const colWidths = [7, 8, 14, 14, 5, 5, 24, 12, 11].map(pct => usableWidth * pct / 100)
+      const colWidths = [6, 8, 13, 13, 4, 4, 29, 12, 11].map(pct => usableWidth * pct / 100)
 
       const containsEmoji = (str) => {
         if (!str) return false
@@ -2657,28 +2657,27 @@ function App() {
     )
   }
 
-  // PDF-specific compact measurement renderer — plain text, no boxes, no wrapping
-  // e.g. "L:32 C:38 S:16 Sl:14" — keeps rows thin and columns from overflowing
+  // PDF measurement renderer — full labels (Length, Waist, Chest, etc.), clear formatting, no clipping
   const renderPDFMeasurements = (product, measurements) => {
     if (!measurements) return '-'
     const parts = []
-    const prod = product.toLowerCase()
+    const prod = (product || '').toLowerCase()
     if (prod === 'shirt') {
-      if (measurements.length) parts.push(`L:${measurements.length}`)
-      if (measurements.chest) parts.push(`C:${measurements.chest}`)
-      if (measurements.shoulder) parts.push(`Sh:${measurements.shoulder}`)
-      if (measurements.sleeve) parts.push(`Sl:${measurements.sleeve}`)
-      if (measurements.neck) parts.push(`N:${measurements.neck}`)
+      if (measurements.length) parts.push(`Length: ${measurements.length}`)
+      if (measurements.chest) parts.push(`Chest: ${measurements.chest}`)
+      if (measurements.shoulder) parts.push(`Shoulder: ${measurements.shoulder}`)
+      if (measurements.sleeve) parts.push(`Sleeve: ${measurements.sleeve}`)
+      if (measurements.neck) parts.push(`Neck: ${measurements.neck}`)
     } else if (prod === 'pant') {
-      if (measurements.length) parts.push(`L:${measurements.length}`)
-      if (measurements.waist) parts.push(`W:${measurements.waist}`)
-      if (measurements.seat) parts.push(`Se:${measurements.seat}`)
-      if (measurements.thighs) parts.push(`Th:${measurements.thighs}`)
-      if (measurements.bottom) parts.push(`Bo:${measurements.bottom}`)
+      if (measurements.length) parts.push(`Length: ${measurements.length}`)
+      if (measurements.waist) parts.push(`Waist: ${measurements.waist}`)
+      if (measurements.seat) parts.push(`Seat: ${measurements.seat}`)
+      if (measurements.thighs) parts.push(`Thigh: ${measurements.thighs}`)
+      if (measurements.bottom) parts.push(`Bottom: ${measurements.bottom}`)
     } else if (prod === 'pina') {
-      if (measurements.length) parts.push(`L:${measurements.length}`)
-      if (measurements.waist) parts.push(`W:${measurements.waist}`)
-      if (measurements.torsoLength) parts.push(`T:${measurements.torsoLength}`)
+      if (measurements.length) parts.push(`Length: ${measurements.length}`)
+      if (measurements.waist) parts.push(`Waist: ${measurements.waist}`)
+      if (measurements.torsoLength) parts.push(`Torso: ${measurements.torsoLength}`)
     }
     return parts.length === 0 ? '-' : parts.join('  ')
   }
@@ -5294,15 +5293,15 @@ function App() {
                     marginBottom: '18px'
                   }}>
                     <colgroup>
-                      <col style={{ width: '7%' }} />   {/* Order # */}
+                      <col style={{ width: '6%' }} />   {/* Order # */}
                       <col style={{ width: '8%' }} />   {/* Product */}
-                      <col style={{ width: '14%' }} />  {/* Category */}
-                      <col style={{ width: '14%' }} />  {/* School */}
-                      <col style={{ width: '6%' }} />   {/* Gender */}
-                      <col style={{ width: '5%' }} />   {/* Qty */}
-                      <col style={{ width: '24%' }} />  {/* Measurements */}
+                      <col style={{ width: '13%' }} />  {/* Category */}
+                      <col style={{ width: '13%' }} />  {/* School */}
+                      <col style={{ width: '4%' }} />   {/* Gender */}
+                      <col style={{ width: '4%' }} />   {/* Qty */}
+                      <col style={{ width: '29%' }} />  {/* Measurements */}
                       <col style={{ width: '12%' }} />  {/* Notes */}
-                      <col style={{ width: '10%' }} />  {/* Delivery */}
+                      <col style={{ width: '11%' }} />  {/* Delivery */}
                     </colgroup>
                     <thead>
                       <tr style={{ background: '#F1F5F9', borderBottom: '2px solid #CBD5E1', textAlign: 'left' }}>
