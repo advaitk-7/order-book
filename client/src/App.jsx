@@ -2082,18 +2082,18 @@ function App() {
 
   const sortedOrders = useMemo(() => {
     const scored = []
-    const rawQuery = (searchTerm || '').trim().toLowerCase()
+    const rawQuery = (deferredSearchTerm || '').trim().toLowerCase()
     const cleanQuery = rawQuery.replace(/^#/, '').trim()
     const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
 
-    filteredOrders.forEach(order => {
-      if (queryTokens.length === 0) {
-        scored.push({ order, score: 0 })
-        return
-      }
+    if (queryTokens.length === 0) {
+      return filteredOrders
+    }
 
+    filteredOrders.forEach(order => {
       const orderNum = String(order.orderNumber || '').trim().toLowerCase()
       const custName = String(order.customerName || '').trim().toLowerCase()
+      const schoolName = String(order.school || '').trim().toLowerCase()
       const phone = String(order.contactNumber || '').replace(/\D/g, '')
 
       let totalScore = 0
@@ -2113,6 +2113,11 @@ function App() {
 
         if (custName.includes(token)) {
           totalScore += 50
+          tokenMatch = true
+        }
+
+        if (schoolName.includes(token)) {
+          totalScore += 40
           tokenMatch = true
         }
 
@@ -2145,10 +2150,13 @@ function App() {
     })
 
     return scored.map(s => s.order)
-  }, [filteredOrders, searchTerm])
+  }, [filteredOrders, deferredSearchTerm])
 
-  const visibleOrders = sortedOrders
-  const hasMoreOrders = false
+  const visibleOrders = useMemo(() => {
+    return sortedOrders.slice(0, visibleCount)
+  }, [sortedOrders, visibleCount])
+
+  const hasMoreOrders = visibleCount < sortedOrders.length
 
   // Tailor Work - Derived Selectors and Helpers
   const tailorAvailableSchools = useMemo(() => {
