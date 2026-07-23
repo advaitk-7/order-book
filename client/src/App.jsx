@@ -160,6 +160,54 @@ const getSleeveTag = (itemType, measurements) => {
   return sleeveVal >= 14 ? 'FS' : 'HS'
 }
 
+const isDateInFilter = (dateStr, filter, customStart, customEnd) => {
+  if (filter === 'All') return true
+  if (!dateStr || dateStr.trim() === '') return false
+
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return false
+
+  d.setHours(0, 0, 0, 0)
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  if (filter === 'Today') {
+    return d.getTime() === today.getTime()
+  }
+  if (filter === 'Tomorrow') {
+    const tomorrow = new Date(today)
+    tomorrow.setDate(today.getDate() + 1)
+    return d.getTime() === tomorrow.getTime()
+  }
+  if (filter === 'This Week') {
+    const day = today.getDay()
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1) // Monday of current week
+    const monday = new Date(today.setDate(diff))
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    sunday.setHours(23, 59, 59, 999)
+    return d >= monday && d <= sunday
+  }
+  if (filter === 'This Month') {
+    return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
+  }
+  if (filter === 'Custom') {
+    if (customStart) {
+      const start = new Date(customStart)
+      start.setHours(0, 0, 0, 0)
+      if (d < start) return false
+    }
+    if (customEnd) {
+      const end = new Date(customEnd)
+      end.setHours(23, 59, 59, 999)
+      if (d > end) return false
+    }
+    return true
+  }
+  return true
+}
+
 const getNextOrderNumber = (orders) => {
   if (!orders || orders.length === 0) return '1'
 
@@ -2132,52 +2180,6 @@ function App() {
     }
     return list
   }, [orders])
-
-  const isDateInFilter = (dateStr, filter, customStart, customEnd) => {
-    if (filter === 'All') return true
-    if (!dateStr) return false
-
-    const d = new Date(dateStr)
-    d.setHours(0, 0, 0, 0)
-
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    if (filter === 'Today') {
-      return d.getTime() === today.getTime()
-    }
-    if (filter === 'Tomorrow') {
-      const tomorrow = new Date(today)
-      tomorrow.setDate(today.getDate() + 1)
-      return d.getTime() === tomorrow.getTime()
-    }
-    if (filter === 'This Week') {
-      const day = today.getDay()
-      const diff = today.getDate() - day + (day === 0 ? -6 : 1) // Monday of current week
-      const monday = new Date(today.setDate(diff))
-      const sunday = new Date(monday)
-      sunday.setDate(monday.getDate() + 6)
-      sunday.setHours(23, 59, 59, 999)
-      return d >= monday && d <= sunday
-    }
-    if (filter === 'This Month') {
-      return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
-    }
-    if (filter === 'Custom') {
-      if (customStart) {
-        const start = new Date(customStart)
-        start.setHours(0, 0, 0, 0)
-        if (d < start) return false
-      }
-      if (customEnd) {
-        const end = new Date(customEnd)
-        end.setHours(23, 59, 59, 999)
-        if (d > end) return false
-      }
-      return true
-    }
-    return true
-  }
 
   const flatTailorGarments = useMemo(() => {
     const rows = []
