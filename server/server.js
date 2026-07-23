@@ -265,6 +265,7 @@ const orderSchema = new mongoose.Schema(
 );
 
 orderSchema.index({ orderNumber: 1, cycle: 1 }, { unique: true });
+orderSchema.index({ createdAt: -1 });
 
 const Order = mongoose.model("Order", orderSchema);
 
@@ -887,7 +888,7 @@ app.post("/api/orders", async (req, res) => {
 app.get("/api/orders", async (req, res) => {
   try {
     const search = (req.query.search || "").trim();
-    const orders = await Order.find({}).sort({ createdAt: -1 });
+    const orders = await Order.find({}).sort({ createdAt: -1 }).lean();
 
     let filtered = orders;
     if (search) {

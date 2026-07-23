@@ -753,7 +753,11 @@ function App() {
 
   useEffect(() => {
     if (token) {
-      fetchOrders('')
+      Promise.all([
+        fetchOrders(''),
+        fetchPricingRates(),
+        fetchCurrentUser()
+      ]).catch(() => {})
     } else {
       setOrders([])
       setSelectedOrder(null)
