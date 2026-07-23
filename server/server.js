@@ -835,8 +835,15 @@ app.post("/api/orders", async (req, res) => {
 
 app.get("/api/orders", async (req, res) => {
   try {
-    const search = (req.query.search || "").trim();
-    const orders = await Order.find({}).sort({ createdAt: -1 }).lean();
+    const orders = await Order.find({}).lean();
+    orders.sort((a, b) => {
+      const aNum = Number(a.orderNumber);
+      const bNum = Number(b.orderNumber);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return aNum - bNum;
+      }
+      return String(a.orderNumber).localeCompare(String(b.orderNumber), undefined, { numeric: true, sensitivity: 'base' });
+    });
 
     let filtered = orders;
     if (search) {

@@ -2058,7 +2058,14 @@ function App() {
     const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
 
     if (queryTokens.length === 0) {
-      return filteredOrders
+      return [...filteredOrders].sort((a, b) => {
+        const aNum = Number(a.orderNumber)
+        const bNum = Number(b.orderNumber)
+        if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
+          return aNum - bNum
+        }
+        return String(a.orderNumber).localeCompare(String(b.orderNumber), undefined, { numeric: true, sensitivity: 'base' })
+      })
     }
 
     filteredOrders.forEach(order => {
