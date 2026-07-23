@@ -1547,7 +1547,7 @@ app.post("/api/orders/seed-999", async (req, res) => {
           {
             itemType,
             quantity,
-            productionCategory: "",
+            productionCategory: itemType === "shirt" ? "fs_shirt_32_44" : (itemType === "pant" ? "trousers_elastic_20_30" : "pinafore"),
             measurements: itemType === "shirt"
               ? { length: "28", chest: "36", shoulder: "16", sleeve: "14", neck: "15" }
               : (itemType === "pant" ? { length: "38", waist: "32", seat: "36", thighs: "22", bottom: "16" } : { length: "34", waist: "30", torsoLength: "20" })
@@ -1558,23 +1558,12 @@ app.post("/api/orders/seed-999", async (req, res) => {
     }
 
     await Order.insertMany(mockOrders);
-    await logAudit(null, "System", "Seed Data", "Cleared existing database and generated 999 mock orders with uncategorized status.");
+    await logAudit(null, "System", "Seed Data", "Cleared existing database and generated 999 mock orders for testing.");
 
-    res.json({ message: "Successfully cleared database and seeded 999 mock orders (all Uncategorized)!", count: 999 });
+    res.json({ message: "Successfully cleared database and seeded 999 mock orders!", count: 999 });
   } catch (error) {
     console.error("Failed to seed orders:", error.message);
     res.status(500).json({ message: "Failed to seed 999 orders", error: error.message });
-  }
-});
-
-app.post("/api/orders/reset-categories", authenticateJWT, async (req, res) => {
-  try {
-    await Order.updateMany({}, { $set: { "items.$[].productionCategory": "" } });
-    await logAudit(req.user?.username || 'Admin', 'System', 'Reset Categories', 'Reset all order categories to Uncategorized (Select Category)');
-    res.json({ message: "Successfully reset all order categories to Uncategorized!" });
-  } catch (error) {
-    console.error("Failed to reset order categories:", error.message);
-    res.status(500).json({ message: "Failed to reset order categories", error: error.message });
   }
 });
 
