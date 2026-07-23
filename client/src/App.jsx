@@ -3679,16 +3679,16 @@ function App() {
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span>#{order.orderNumber}</span>
-                              {Number(order.cycle || 1) < maxActiveCycle && (
+                              {maxActiveCycle > 1 && (
                                 <span
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedOldCycleOrder(order);
                                   }}
                                   style={{
-                                    background: '#FEF3C7',
-                                    color: '#92400E',
-                                    border: '1px solid #FCD34D',
+                                    background: Number(order.cycle || 1) < maxActiveCycle ? '#FEF3C7' : '#DBEAFE',
+                                    color: Number(order.cycle || 1) < maxActiveCycle ? '#92400E' : '#1E40AF',
+                                    border: Number(order.cycle || 1) < maxActiveCycle ? '1px solid #FCD34D' : '1px solid #93C5FD',
                                     fontSize: '10px',
                                     fontWeight: '700',
                                     padding: '2px 6px',
@@ -3698,7 +3698,7 @@ function App() {
                                   }}
                                   title="Click for cycle details"
                                 >
-                                  ⏳ Old Cycle
+                                  {Number(order.cycle || 1) < maxActiveCycle ? `⏳ Cycle ${order.cycle || 1}` : `✨ Cycle ${order.cycle || 1}`}
                                 </span>
                               )}
                             </div>
@@ -4276,20 +4276,19 @@ function App() {
                               }}
                               style={{ cursor: 'pointer' }}
                             >
-
                               <td style={{ fontWeight: '600' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <span>#{row.orderNumber}</span>
-                                  {Number(row.order?.cycle || 1) < maxActiveCycle && (
+                                  {maxActiveCycle > 1 && (
                                     <span
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedOldCycleOrder(row.order);
                                       }}
                                       style={{
-                                        background: '#FEF3C7',
-                                        color: '#92400E',
-                                        border: '1px solid #FCD34D',
+                                        background: Number(row.order?.cycle || 1) < maxActiveCycle ? '#FEF3C7' : '#DBEAFE',
+                                        color: Number(row.order?.cycle || 1) < maxActiveCycle ? '#92400E' : '#1E40AF',
+                                        border: Number(row.order?.cycle || 1) < maxActiveCycle ? '1px solid #FCD34D' : '1px solid #93C5FD',
                                         fontSize: '9.5px',
                                         fontWeight: '700',
                                         padding: '1px 5px',
@@ -4299,7 +4298,7 @@ function App() {
                                       }}
                                       title="Click for cycle details"
                                     >
-                                      ⏳ Old Cycle
+                                      {Number(row.order?.cycle || 1) < maxActiveCycle ? `⏳ Cycle ${row.order?.cycle || 1}` : `✨ Cycle ${row.order?.cycle || 1}`}
                                     </span>
                                   )}
                                 </div>

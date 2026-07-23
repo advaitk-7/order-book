@@ -800,12 +800,11 @@ app.post("/api/orders", async (req, res) => {
     const cleanNumStr = payload.orderNumber.trim();
     const numVal = parseInt(cleanNumStr, 10);
 
-    // Calculate order cycle
-    let orderCycle = payload.cycle ? Number(payload.cycle) : 1;
-    if (!payload.cycle && !isNaN(numVal)) {
+    // Calculate order cycle automatically
+    let orderCycle = 1;
+    if (!isNaN(numVal)) {
       const existingSameNum = await Order.findOne({ orderNumber: cleanNumStr }).sort({ cycle: -1 });
       if (existingSameNum) {
-        // If order number already exists in current cycle, step up cycle
         orderCycle = existingSameNum.cycle + 1;
       }
     }
