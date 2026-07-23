@@ -104,17 +104,29 @@ const DEFAULT_PRICING_RATES = PRODUCTION_CATEGORIES.reduce((acc, cat) => {
 const guessProductionCategory = (item) => {
   if (!item) return ''
   const prodType = (item.itemType || item.product || '').toLowerCase().trim()
+  const notes = (item.notes || '').toLowerCase()
   const m = item.measurements || {}
   const sleeveVal = parseFloat(m.sleeve)
-  const isFS = !isNaN(sleeveVal) && sleeveVal >= 14
-  
+
+  const isExplicitFS = prodType.includes('fs') || prodType.includes('full') || notes.includes('fs') || notes.includes('full')
+  const isExplicitHS = prodType.includes('hs') || prodType.includes('half') || notes.includes('hs') || notes.includes('half')
+
+  let isFS = false
+  if (isExplicitFS) {
+    isFS = true
+  } else if (isExplicitHS) {
+    isFS = false
+  } else if (!isNaN(sleeveVal)) {
+    isFS = sleeveVal >= 12
+  }
+
   const numVal = parseFloat(m.chest) || parseFloat(m.waist) || parseFloat(m.length) || parseFloat(m.size) || 0
 
   if (prodType.includes('shirt')) {
     if (isFS) {
-      return (numVal >= 32) ? 'fs_shirt_32_44' : 'fs_shirt_20_30'
+      return (numVal >= 32 || numVal === 0) ? 'fs_shirt_32_44' : 'fs_shirt_20_30'
     } else {
-      return (numVal >= 32) ? 'hs_shirt_32_44' : 'hs_shirt_20_30'
+      return (numVal >= 32 || numVal === 0) ? 'hs_shirt_32_44' : 'hs_shirt_20_30'
     }
   }
 
