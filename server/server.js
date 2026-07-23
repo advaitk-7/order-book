@@ -264,7 +264,7 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-orderSchema.index({ orderNumber: 1, cycle: 1 }, { unique: true });
+orderSchema.index({ orderNumber: 1 }, { unique: true });
 orderSchema.index({ createdAt: -1 });
 
 const Order = mongoose.model("Order", orderSchema);
@@ -798,64 +798,15 @@ app.post("/api/orders", async (req, res) => {
 
   try {
     const cleanNumStr = payload.orderNumber.trim();
-    const numVal = parseInt(cleanNumStr, 10);
 
-    // Calculate order cycle automatically
-    let orderCycle = 1;
-    if (!isNaN(numVal)) {
-      const existingSameNum = await Order.findOne({ orderNumber: cleanNumStr }).sort({ cycle: -1 });
-      if (existingSameNum) {
-        orderCycle = existingSameNum.cycle + 1;
-      }
-    }
-
-    // Check if order number already exists in this exact cycle
-    const existingOrder = await Order.findOne({ orderNumber: cleanNumStr, cycle: orderCycle });
+    const existingOrder = await Order.findOne({ orderNumber: cleanNumStr });
     if (existingOrder) {
-      return res.status(409).json({ message: `Order #${cleanNumStr} already exists in Cycle ${orderCycle}.` });
-    }
-
-    // Perform rolling 100-block cleanup if triggered
-    let purgedCount = 0;
-    let targetStart = 0;
-    let targetEnd = 0;
-
-    if (!isNaN(numVal)) {
-      if (numVal === 1000 || (numVal > 0 && numVal % 1000 === 0)) {
-        targetStart = 1;
-        targetEnd = 100;
-      } else if (numVal > 0 && numVal % 100 === 0) {
-        targetStart = numVal + 1;
-        targetEnd = numVal + 100;
-      }
-
-      if (targetStart > 0) {
-        const targetNumbers = [];
-        for (let i = targetStart; i <= targetEnd; i++) {
-          targetNumbers.push(String(i));
-        }
-
-        const deleteResult = await Order.deleteMany({
-          orderNumber: { $in: targetNumbers },
-          status: "Delivered"
-        });
-
-        purgedCount = deleteResult.deletedCount || 0;
-        if (purgedCount > 0) {
-          await logAudit(
-            null,
-            String(numVal),
-            "Delete",
-            `Automated Maintenance: Purged ${purgedCount} delivered orders (Range #${targetStart} - #${targetEnd})`
-          );
-        }
-      }
+      return res.status(409).json({ message: `Order #${cleanNumStr} already exists.` });
     }
 
     const newOrder = new Order({
       ...payload,
       orderNumber: cleanNumStr,
-      cycle: orderCycle,
       amount: Number(payload.amount || 0),
       paymentStatus: payload.paymentStatus || 'Unpaid',
       deliveredAt: payload.status === 'Delivered' ? new Date() : undefined,
@@ -869,17 +820,14 @@ app.post("/api/orders", async (req, res) => {
     await newOrder.save();
     await logAudit(newOrder._id, newOrder.orderNumber, "Create", `Order created for customer '${newOrder.customerName}'`);
     res.status(201).json({
-      message: purgedCount > 0
-        ? `Order saved successfully. Purged ${purgedCount} delivered orders from range #${targetStart}-${targetEnd}.`
-        : "Order saved successfully",
-      order: newOrder,
-      purgedCount
+      message: "Order saved successfully",
+      order: newOrder
     });
   } catch (error) {
     console.error("Error saving order:", error.message);
     let userMsg = `Failed to save order: ${error.message}`;
     if (error.code === 11000) {
-      userMsg = `Order #${payload.orderNumber || ''} already exists in this cycle.`;
+      userMsg = `Order #${payload.orderNumber || ''} already exists.`;
     }
     res.status(500).json({ message: userMsg, error: error.message });
   }
@@ -1537,7 +1485,6 @@ app.post("/api/orders/seed-999", async (req, res) => {
 
       mockOrders.push({
         orderNumber: String(i),
-        cycle: 1,
         customerName,
         contactNumber: `98${Math.floor(10000000 + Math.random() * 90000000)}`,
         gender,

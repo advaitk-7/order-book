@@ -211,26 +211,14 @@ const isDateInFilter = (dateStr, filter, customStart, customEnd) => {
 const getNextOrderNumber = (orders) => {
   if (!orders || orders.length === 0) return '1'
 
-  const maxCycle = Math.max(...orders.map((o) => Number(o.cycle || 1)))
-  const currentCycleOrders = orders.filter((o) => Number(o.cycle || 1) === maxCycle)
-  const numericInCurrentCycle = currentCycleOrders
+  const numericOrders = orders
     .map((o) => Number(o.orderNumber))
     .filter((n) => !Number.isNaN(n) && n > 0)
 
-  if (numericInCurrentCycle.length === 0) return '1'
+  if (numericOrders.length === 0) return '1'
 
-  const maxInCurrent = Math.max(...numericInCurrentCycle)
-  if (maxInCurrent < 1000) {
-    return String(maxInCurrent + 1)
-  }
-
-  // If max is 1000, find lowest available number (1..1000) in current cycle
-  const usedInCurrent = new Set(numericInCurrentCycle)
-  for (let i = 1; i <= 1000; i++) {
-    if (!usedInCurrent.has(i)) return String(i)
-  }
-
-  return String(maxInCurrent + 1)
+  const maxNum = Math.max(...numericOrders)
+  return String(maxNum + 1)
 }
 
 function App() {
@@ -3677,29 +3665,7 @@ function App() {
                             />
                           </td>
                           <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span>#{order.orderNumber}</span>
-                              <span
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedOldCycleOrder(order);
-                                }}
-                                style={{
-                                  background: Number(order.cycle || 1) < maxActiveCycle ? '#FEF3C7' : '#DBEAFE',
-                                  color: Number(order.cycle || 1) < maxActiveCycle ? '#92400E' : '#1E40AF',
-                                  border: Number(order.cycle || 1) < maxActiveCycle ? '1px solid #FCD34D' : '1px solid #93C5FD',
-                                  fontSize: '10px',
-                                  fontWeight: '700',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  whiteSpace: 'nowrap'
-                                }}
-                                title="Click for cycle details"
-                              >
-                                {Number(order.cycle || 1) < maxActiveCycle ? `⏳ Cycle ${order.cycle || 1}` : `✨ Cycle ${order.cycle || 1}`}
-                              </span>
-                            </div>
+                            <span>#{order.orderNumber}</span>
                           </td>
                           <td>{order.customerName}</td>
                           <td>{order.school}</td>
@@ -4275,29 +4241,7 @@ function App() {
                               style={{ cursor: 'pointer' }}
                             >
                               <td style={{ fontWeight: '600' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span>#{row.orderNumber}</span>
-                                  <span
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedOldCycleOrder(row.order);
-                                    }}
-                                    style={{
-                                      background: Number(row.order?.cycle || 1) < maxActiveCycle ? '#FEF3C7' : '#DBEAFE',
-                                      color: Number(row.order?.cycle || 1) < maxActiveCycle ? '#92400E' : '#1E40AF',
-                                      border: Number(row.order?.cycle || 1) < maxActiveCycle ? '1px solid #FCD34D' : '1px solid #93C5FD',
-                                      fontSize: '9.5px',
-                                      fontWeight: '700',
-                                      padding: '1px 5px',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer',
-                                      whiteSpace: 'nowrap'
-                                    }}
-                                    title="Click for cycle details"
-                                  >
-                                    {Number(row.order?.cycle || 1) < maxActiveCycle ? `⏳ Cycle ${row.order?.cycle || 1}` : `✨ Cycle ${row.order?.cycle || 1}`}
-                                  </span>
-                                </div>
+                                <span>#{row.orderNumber}</span>
                               </td>
                               <td>
                                 <span className={`product-tag ${row.product.toLowerCase()}`} style={{ whiteSpace: 'nowrap' }}>
@@ -6199,47 +6143,7 @@ function App() {
         </div>
       )}
 
-      {/* Old Cycle Explanation Modal */}
-      {selectedOldCycleOrder && (
-        <div className="manage-modal-backdrop" onClick={() => setSelectedOldCycleOrder(null)}>
-          <div className="manage-modal-card" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="manage-modal-close"
-              onClick={() => setSelectedOldCycleOrder(null)}
-            >
-              &times;
-            </button>
-            <div style={{ padding: '8px 0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                <span style={{ fontSize: '28px' }}>ℹ️</span>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#1E293B' }}>
-                    Previous Cycle Order
-                  </h3>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>
-                    Order #{selectedOldCycleOrder.orderNumber}
-                  </p>
-                </div>
-              </div>
-              <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#334155', lineHeight: '1.5' }}>
-                This order (Customer: <strong>{selectedOldCycleOrder.customerName}</strong>) was created in an earlier 1000-order cycle (<strong>Cycle {selectedOldCycleOrder.cycle || 1}</strong>) before order numbers wrapped around.
-              </p>
-              <div style={{ background: '#F1F5F9', padding: '10px 14px', borderRadius: '8px', fontSize: '12px', color: '#475569', marginBottom: '18px' }}>
-                It remains active in your system until marked Delivered and cleaned up by its cycle threshold.
-              </div>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={() => setSelectedOldCycleOrder(null)}
-                style={{ width: '100%', padding: '10px', justifyContent: 'center' }}
-              >
-                Got It
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Cycle Cleanup Confirmation Warning Modal */}
     </div>
   )
 }
