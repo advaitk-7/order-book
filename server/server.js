@@ -1646,6 +1646,14 @@ async function startServer() {
       console.log("Updated 38 pricing rates structure in MongoDB");
     }
 
+    // Execute automatic startup database backup
+    try {
+      await performBackup();
+      console.log("Startup database backup created successfully.");
+    } catch (bErr) {
+      console.error("Startup database backup error:", bErr.message);
+    }
+
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
