@@ -124,6 +124,7 @@ function checkFuzzyMatch(searchQuery, order) {
   const orderNum = String(order.orderNumber || '').trim().toLowerCase();
   const custName = String(order.customerName || '').trim().toLowerCase();
   const phone = String(order.contactNumber || '').replace(/\D/g, '');
+  const notes = String(order.notes || '').trim().toLowerCase();
 
   for (const token of queryTokens) {
     const tokenDigits = token.replace(/\D/g, '');
@@ -134,6 +135,8 @@ function checkFuzzyMatch(searchQuery, order) {
     } else if (custName.includes(token)) {
       tokenMatch = true;
     } else if (tokenDigits.length >= 3 && phone.includes(tokenDigits)) {
+      tokenMatch = true;
+    } else if (notes.includes(token)) {
       tokenMatch = true;
     }
 

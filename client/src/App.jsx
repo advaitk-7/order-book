@@ -2033,6 +2033,7 @@ function App() {
       const orderNum = String(order.orderNumber || '').trim().toLowerCase()
       const custName = String(order.customerName || '').trim().toLowerCase()
       const phone = String(order.contactNumber || '').replace(/\D/g, '')
+      const notes = String(order.notes || '').trim().toLowerCase()
 
       let totalScore = 0
       let allMatched = true
@@ -2056,6 +2057,11 @@ function App() {
 
         if (tokenDigits.length >= 3 && phone.includes(tokenDigits)) {
           totalScore += 30
+          tokenMatch = true
+        }
+
+        if (notes.includes(token)) {
+          totalScore += 20
           tokenMatch = true
         }
 
