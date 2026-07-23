@@ -527,11 +527,6 @@ function App() {
   const [pendingOrderPayload, setPendingOrderPayload] = useState(null)
   const [selectedOldCycleOrder, setSelectedOldCycleOrder] = useState(null)
 
-  // Orders Desk Delivery Date Filter
-  const [orderDeliveryFilter, setOrderDeliveryFilter] = useState('All')
-  const [orderCustomStartDate, setOrderCustomStartDate] = useState('')
-  const [orderCustomEndDate, setOrderCustomEndDate] = useState('')
-
   // Tailor Work Page Filters & Selections
   const [tailorStatusFilter, setTailorStatusFilter] = useState('Pending')
   const [tailorProductFilter, setTailorProductFilter] = useState('All')
@@ -2012,9 +2007,6 @@ function App() {
     if (orderContactFilter !== 'All' && order.contactStatus !== orderContactFilter) {
       return false
     }
-    if (!isDateInFilter(order.deliveryDate, orderDeliveryFilter, orderCustomStartDate, orderCustomEndDate)) {
-      return false
-    }
     return true
   })
 
@@ -2146,9 +2138,6 @@ function App() {
       sunday.setDate(monday.getDate() + 6)
       sunday.setHours(23, 59, 59, 999)
       return d >= monday && d <= sunday
-    }
-    if (filter === 'This Month') {
-      return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()
     }
     if (filter === 'Custom') {
       if (customStart) {
@@ -3555,35 +3544,6 @@ function App() {
                       ))}
                     </select>
                   </label>
-                  <label className="orders-filter-select">
-                    <span>Delivery Date</span>
-                    <select value={orderDeliveryFilter} onChange={(e) => setOrderDeliveryFilter(e.target.value)}>
-                      <option value="All">All Dates</option>
-                      <option value="Today">Today</option>
-                      <option value="Tomorrow">Tomorrow</option>
-                      <option value="This Week">This Week</option>
-                      <option value="This Month">This Month</option>
-                      <option value="Custom">Custom Range</option>
-                    </select>
-                  </label>
-
-                  {orderDeliveryFilter === 'Custom' && (
-                    <div className="custom-date-inputs" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <input
-                        type="date"
-                        value={orderCustomStartDate}
-                        onChange={(e) => setOrderCustomStartDate(e.target.value)}
-                        style={{ padding: '6px 10px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13px' }}
-                      />
-                      <span style={{ fontSize: '12px', color: '#64748B' }}>to</span>
-                      <input
-                        type="date"
-                        value={orderCustomEndDate}
-                        onChange={(e) => setOrderCustomEndDate(e.target.value)}
-                        style={{ padding: '6px 10px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13px' }}
-                      />
-                    </div>
-                  )}
                   <button type="button" className="danger-btn" onClick={handleBulkDelete} disabled={selectedIds.length === 0}>
                     Delete Selected{selectedIds.length ? ` (${selectedIds.length})` : ''}
                   </button>
@@ -4051,7 +4011,6 @@ function App() {
                       <option value="Today">Today</option>
                       <option value="Tomorrow">Tomorrow</option>
                       <option value="This Week">This Week</option>
-                      <option value="This Month">This Month</option>
                       <option value="Custom">Custom Range</option>
                     </select>
                   </label>
