@@ -1486,6 +1486,36 @@ function App() {
     }
   }
 
+  const handleResetAllCategories = async () => {
+    if (!window.confirm("🧹 Reset all existing order categories in your database to 'Select Category' (Uncategorized)?\n\nThis will clear all pre-assigned categories so you can select them all manually.")) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/orders/reset-categories`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        alert(data.message || 'Successfully reset all categories to Select Category!')
+        fetchOrders('')
+        fetchAuditLogs()
+      } else {
+        const data = await response.json()
+        alert('Failed to reset categories: ' + (data.message || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error('Reset categories error:', err)
+      alert('Could not reach server to reset categories.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const fetchWhatsAppTemplates = async () => {
     try {
       const response = await fetch(`${API_BASE}/api/settings/templates`, {
@@ -2467,8 +2497,8 @@ function App() {
 
       const sleeveTag = getSleeveTag(row.product, row.measurements);
       const productVal = sleeveTag ? `${row.product} (${sleeveTag})` : row.product;
-      const catObj = PRODUCTION_CATEGORIES.find(c => c.id === (row.productionCategory || guessProductionCategory(row)));
-      const catName = catObj ? catObj.name : (row.productionCategory || '');
+      const catObj = PRODUCTION_CATEGORIES.find(c => c.id === (row.productionCategory || ''));
+      const catName = catObj ? catObj.name : (row.productionCategory || 'Uncategorized');
 
       const csvRow = [
         formatField(row.orderNumber),
@@ -2607,9 +2637,9 @@ function App() {
 
       // ── Garments Table ──────────────────────────────────────────────────
       const garmentRows = sortedTailorGarments.map(row => {
-        const catVal = row.productionCategory || guessProductionCategory(row)
+        const catVal = row.productionCategory || ''
         const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal)
-        const catName = catObj ? catObj.name : (catVal || '-')
+        const catName = catObj ? catObj.name : (catVal || 'Uncategorized')
         const gender = row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))
         const meas = renderPDFMeasurements(row.product, row.measurements)
         const delivery = formatDateToDMY(row.deliveryDate) || '-'
@@ -5185,6 +5215,23 @@ function App() {
                         >
                           ⚡ Generate 999 Test Orders (#1 to #999)
                         </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={handleResetAllCategories}
+                          style={{
+                            width: '100%',
+                            marginTop: '6px',
+                            padding: '8px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            borderColor: '#6366F1',
+                            color: '#4338CA',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          🧹 Reset All Orders to Uncategorized (Select Category)
+                        </button>
                       </div>
                     </div>
 
@@ -5634,9 +5681,9 @@ function App() {
                             </td>
                             <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px' }}>
                               {(() => {
-                                const catVal = row.productionCategory || guessProductionCategory(row);
+                                const catVal = row.productionCategory || '';
                                 const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
-                                return catObj ? catObj.name : (catVal || '-');
+                                return catObj ? catObj.name : (catVal || 'Uncategorized');
                               })()}
                             </td>
                             <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word' }}>{row.school}</td>
