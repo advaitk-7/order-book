@@ -124,7 +124,6 @@ function checkFuzzyMatch(searchQuery, order) {
   const orderNum = String(order.orderNumber || '').trim().toLowerCase();
   const custName = String(order.customerName || '').trim().toLowerCase();
   const phone = String(order.contactNumber || '').replace(/\D/g, '');
-  const notes = String(order.notes || '').trim().toLowerCase();
 
   for (const token of queryTokens) {
     const tokenDigits = token.replace(/\D/g, '');
@@ -135,8 +134,6 @@ function checkFuzzyMatch(searchQuery, order) {
     } else if (custName.includes(token)) {
       tokenMatch = true;
     } else if (tokenDigits.length >= 3 && phone.includes(tokenDigits)) {
-      tokenMatch = true;
-    } else if (notes.includes(token)) {
       tokenMatch = true;
     }
 
@@ -210,30 +207,18 @@ const authenticateJWT = async (req, res, next) => {
         return res.status(403).json({ message: "Invalid or expired token" });
       }
       try {
-        let session = await Session.findOne({ token });
+        const session = await Session.findOne({ token });
         if (!session) {
-          const userAgent = parseUserAgent(req.headers['user-agent']);
-          const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown IP';
-          session = await Session.create({
-            token,
-            username: user.username,
-            userAgent,
-            ipAddress,
-            createdAt: new Date(),
-            lastActive: new Date()
-          });
-        } else {
-          session.lastActive = new Date();
-          session.save().catch(() => {});
+          return res.status(401).json({ message: "Session expired or logged out" });
         }
+        session.lastActive = new Date();
+        session.save().catch(() => {});
 
         req.user = user;
         req.token = token;
         next();
       } catch (error) {
-        req.user = user;
-        req.token = token;
-        next();
+        res.status(500).json({ message: "Auth server database error" });
       }
     });
   } else {

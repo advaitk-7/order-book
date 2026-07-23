@@ -693,13 +693,10 @@ function App() {
       const data = await response.json()
 
       if (response.ok) {
-        const safeData = Array.isArray(data) ? data : []
-        setOrders(safeData)
-        if (!selectedOrder && safeData.length > 0) {
-          setSelectedOrder(safeData[0])
+        setOrders(data)
+        if (!selectedOrder) {
+          setSelectedOrder(data[0] || null)
         }
-      } else {
-        setOrders([])
       }
     } catch (error) {
       console.error('Unable to load orders', error)
@@ -2002,27 +1999,24 @@ function App() {
     setActivePage('Orders')
   }
 
-  const filteredOrders = useMemo(() => {
-    const safeOrders = Array.isArray(orders) ? orders : []
-    return safeOrders.filter((order) => {
-      if (orderSchoolFilter !== 'All' && order.school !== orderSchoolFilter) {
-        return false
-      }
-      if (orderFilter !== 'All' && order.status !== orderFilter) {
-        return false
-      }
-      if (orderPaymentFilter !== 'All' && (order.paymentStatus || 'Unpaid') !== orderPaymentFilter) {
-        return false
-      }
-      if (orderContactFilter !== 'All' && order.contactStatus !== orderContactFilter) {
-        return false
-      }
-      if (!isDateInFilter(order.deliveryDate, orderDeliveryFilter, orderCustomStartDate, orderCustomEndDate)) {
-        return false
-      }
-      return true
-    })
-  }, [orders, orderSchoolFilter, orderFilter, orderPaymentFilter, orderContactFilter, orderDeliveryFilter, orderCustomStartDate, orderCustomEndDate])
+  const filteredOrders = orders.filter((order) => {
+    if (orderSchoolFilter !== 'All' && order.school !== orderSchoolFilter) {
+      return false
+    }
+    if (orderFilter !== 'All' && order.status !== orderFilter) {
+      return false
+    }
+    if (orderPaymentFilter !== 'All' && (order.paymentStatus || 'Unpaid') !== orderPaymentFilter) {
+      return false
+    }
+    if (orderContactFilter !== 'All' && order.contactStatus !== orderContactFilter) {
+      return false
+    }
+    if (!isDateInFilter(order.deliveryDate, orderDeliveryFilter, orderCustomStartDate, orderCustomEndDate)) {
+      return false
+    }
+    return true
+  })
 
   const sortedOrders = useMemo(() => {
     const scored = []
@@ -2039,7 +2033,6 @@ function App() {
       const orderNum = String(order.orderNumber || '').trim().toLowerCase()
       const custName = String(order.customerName || '').trim().toLowerCase()
       const phone = String(order.contactNumber || '').replace(/\D/g, '')
-      const notes = String(order.notes || '').trim().toLowerCase()
 
       let totalScore = 0
       let allMatched = true
@@ -2063,11 +2056,6 @@ function App() {
 
         if (tokenDigits.length >= 3 && phone.includes(tokenDigits)) {
           totalScore += 30
-          tokenMatch = true
-        }
-
-        if (notes.includes(token)) {
-          totalScore += 20
           tokenMatch = true
         }
 
@@ -2103,8 +2091,7 @@ function App() {
   // Tailor Work - Derived Selectors and Helpers
   const tailorAvailableSchools = useMemo(() => {
     const schoolsSet = new Set()
-    const safeOrders = Array.isArray(orders) ? orders : []
-    safeOrders.forEach((o) => {
+    orders.forEach((o) => {
       if (o.school && o.school.trim() !== '') {
         schoolsSet.add(o.school.trim())
       }
@@ -2114,8 +2101,7 @@ function App() {
 
   const tailorAvailableCategories = useMemo(() => {
     const catsMap = new Map()
-    const safeOrders = Array.isArray(orders) ? orders : []
-    safeOrders.forEach((o) => {
+    orders.forEach((o) => {
       if (o.items && o.items.length > 0) {
         o.items.forEach((item) => {
           let catId = item.productionCategory || guessProductionCategory({ product: item.itemType, measurements: item.measurements })
@@ -2182,9 +2168,8 @@ function App() {
 
   const flatTailorGarments = useMemo(() => {
     const rows = []
-    const safeOrders = Array.isArray(orders) ? orders : []
 
-    safeOrders.forEach((order) => {
+    orders.forEach((order) => {
       // 1. Order Status Filter
       if (tailorStatusFilter !== 'All' && order.status !== tailorStatusFilter) {
         return
