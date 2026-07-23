@@ -818,9 +818,10 @@ app.post("/api/orders", async (req, res) => {
 
     // Perform rolling 100-block cleanup if triggered
     let purgedCount = 0;
+    let targetStart = 0;
+    let targetEnd = 0;
+
     if (!isNaN(numVal)) {
-      let targetStart = 0;
-      let targetEnd = 0;
       if (numVal === 1000 || (numVal > 0 && numVal % 1000 === 0)) {
         targetStart = 1;
         targetEnd = 100;
