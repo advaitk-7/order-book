@@ -194,7 +194,8 @@ const authenticateJWT = async (req, res, next) => {
 
 const orderSchema = new mongoose.Schema(
   {
-    orderNumber: { type: String, required: true, unique: true, trim: true },
+    orderNumber: { type: String, required: true, trim: true },
+    cycle: { type: Number, default: 1 },
     customerName: { type: String, required: true, trim: true },
     contactNumber: { type: String, required: true, trim: true },
     gender: { type: String, enum: ['Male', 'Female'], required: true },
@@ -228,6 +229,8 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+orderSchema.index({ orderNumber: 1, cycle: 1 }, { unique: true });
 
 const Order = mongoose.model("Order", orderSchema);
 
@@ -277,8 +280,7 @@ const waitlistSchoolSchema = new mongoose.Schema({
 });
 const WaitlistSchool = mongoose.model("WaitlistSchool", waitlistSchoolSchema);
 
-// TTL index: automatically remove orders 75 days after they were marked Delivered
-orderSchema.index({ deliveredAt: 1 }, { expireAfterSeconds: 6480000 });
+// 75-day TTL index removed in favor of 100-block rolling cycle cleanup
 
 if (process.env.NODE_ENV !== "production") {
   app.get("/", (req, res) => {
@@ -706,8 +708,51 @@ setInterval(async () => {
   }
 }, 24 * 60 * 60 * 1000);
 
-// Protect all order endpoints
-app.use("/api/orders", authenticateJWT);
+// Cleanup preview endpoint: checks if creating orderNumber X hits a 100-block boundary and counts delivered orders eligible for purge
+app.get("/api/orders/cleanup-preview", async (req, res) => {
+  try {
+    const newOrderNum = parseInt(req.query.orderNumber, 10);
+    if (isNaN(newOrderNum)) {
+      return res.json({ shouldTrigger: false });
+    }
+
+    let targetStart = 0;
+    let targetEnd = 0;
+
+    if (newOrderNum === 1000 || (newOrderNum > 0 && newOrderNum % 1000 === 0)) {
+      targetStart = 1;
+      targetEnd = 100;
+    } else if (newOrderNum > 0 && newOrderNum % 100 === 0) {
+      targetStart = newOrderNum + 1;
+      targetEnd = newOrderNum + 100;
+    }
+
+    if (targetStart === 0) {
+      return res.json({ shouldTrigger: false });
+    }
+
+    const targetNumbers = [];
+    for (let i = targetStart; i <= targetEnd; i++) {
+      targetNumbers.push(String(i));
+    }
+
+    const deliveredCount = await Order.countDocuments({
+      orderNumber: { $in: targetNumbers },
+      status: "Delivered"
+    });
+
+    res.json({
+      shouldTrigger: true,
+      orderNumber: newOrderNum,
+      startNum: targetStart,
+      endNum: targetEnd,
+      deliveredCount
+    });
+  } catch (error) {
+    console.error("Cleanup preview error:", error.message);
+    res.status(500).json({ message: "Failed to check cleanup preview", error: error.message });
+  }
+});
 
 app.post("/api/orders", async (req, res) => {
   const payload = req.body;
@@ -722,14 +767,65 @@ app.post("/api/orders", async (req, res) => {
   }
 
   try {
-    const existingOrder = await Order.findOne({ orderNumber: payload.orderNumber.trim() });
+    const cleanNumStr = payload.orderNumber.trim();
+    const numVal = parseInt(cleanNumStr, 10);
+
+    // Calculate order cycle
+    let orderCycle = payload.cycle ? Number(payload.cycle) : 1;
+    if (!payload.cycle && !isNaN(numVal)) {
+      const existingSameNum = await Order.findOne({ orderNumber: cleanNumStr }).sort({ cycle: -1 });
+      if (existingSameNum) {
+        // If order number already exists in current cycle, step up cycle
+        orderCycle = existingSameNum.cycle + 1;
+      }
+    }
+
+    // Check if order number already exists in this exact cycle
+    const existingOrder = await Order.findOne({ orderNumber: cleanNumStr, cycle: orderCycle });
     if (existingOrder) {
-      return res.status(409).json({ message: "This order number already exists." });
+      return res.status(409).json({ message: `Order #${cleanNumStr} already exists in Cycle ${orderCycle}.` });
+    }
+
+    // Perform rolling 100-block cleanup if triggered
+    let purgedCount = 0;
+    if (!isNaN(numVal)) {
+      let targetStart = 0;
+      let targetEnd = 0;
+      if (numVal === 1000 || (numVal > 0 && numVal % 1000 === 0)) {
+        targetStart = 1;
+        targetEnd = 100;
+      } else if (numVal > 0 && numVal % 100 === 0) {
+        targetStart = numVal + 1;
+        targetEnd = numVal + 100;
+      }
+
+      if (targetStart > 0) {
+        const targetNumbers = [];
+        for (let i = targetStart; i <= targetEnd; i++) {
+          targetNumbers.push(String(i));
+        }
+
+        const deleteResult = await Order.deleteMany({
+          orderNumber: { $in: targetNumbers },
+          status: "Delivered"
+        });
+
+        purgedCount = deleteResult.deletedCount || 0;
+        if (purgedCount > 0) {
+          await logAudit(
+            null,
+            String(numVal),
+            "Delete",
+            `Automated Maintenance: Purged ${purgedCount} delivered orders (Range #${targetStart} - #${targetEnd})`
+          );
+        }
+      }
     }
 
     const newOrder = new Order({
       ...payload,
-      orderNumber: payload.orderNumber.trim(),
+      orderNumber: cleanNumStr,
+      cycle: orderCycle,
       amount: Number(payload.amount || 0),
       paymentStatus: payload.paymentStatus || 'Unpaid',
       deliveredAt: payload.status === 'Delivered' ? new Date() : undefined,
@@ -742,7 +838,13 @@ app.post("/api/orders", async (req, res) => {
 
     await newOrder.save();
     await logAudit(newOrder._id, newOrder.orderNumber, "Create", `Order created for customer '${newOrder.customerName}'`);
-    res.status(201).json({ message: "Order saved successfully", order: newOrder });
+    res.status(201).json({
+      message: purgedCount > 0
+        ? `Order saved successfully. Purged ${purgedCount} delivered orders from range #${targetStart}-${targetEnd}.`
+        : "Order saved successfully",
+      order: newOrder,
+      purgedCount
+    });
   } catch (error) {
     console.error("Error saving order:", error.message);
     res.status(500).json({ message: "Failed to save order", error: error.message });

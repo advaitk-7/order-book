@@ -149,21 +149,28 @@ const getSleeveTag = (itemType, measurements) => {
 }
 
 const getNextOrderNumber = (orders) => {
-  // find first unused number in 1..1000 (wrap after 1000)
-  const used = new Set(
-    orders
-      .map((o) => Number(o.orderNumber))
-      .filter((n) => !Number.isNaN(n) && n >= 1 && n <= 1000),
-  )
+  if (!orders || orders.length === 0) return '1'
 
-  for (let i = 1; i <= 1000; i++) {
-    if (!used.has(i)) return String(i)
+  const maxCycle = Math.max(...orders.map((o) => Number(o.cycle || 1)))
+  const currentCycleOrders = orders.filter((o) => Number(o.cycle || 1) === maxCycle)
+  const numericInCurrentCycle = currentCycleOrders
+    .map((o) => Number(o.orderNumber))
+    .filter((n) => !Number.isNaN(n) && n > 0)
+
+  if (numericInCurrentCycle.length === 0) return '1'
+
+  const maxInCurrent = Math.max(...numericInCurrentCycle)
+  if (maxInCurrent < 1000) {
+    return String(maxInCurrent + 1)
   }
 
-  // if all 1..1000 are used, fall back to next numeric after max
-  const numeric = orders.map((order) => Number(order.orderNumber)).filter((num) => !Number.isNaN(num))
-  const nextNumber = numeric.length ? Math.max(...numeric) + 1 : 1001
-  return String(nextNumber)
+  // If max is 1000, find lowest available number (1..1000) in current cycle
+  const usedInCurrent = new Set(numericInCurrentCycle)
+  for (let i = 1; i <= 1000; i++) {
+    if (!usedInCurrent.has(i)) return String(i)
+  }
+
+  return String(maxInCurrent + 1)
 }
 
 function App() {
@@ -502,6 +509,12 @@ function App() {
   const [highlightedOrderId, setHighlightedOrderId] = useState(null)
   const [originalFormData, setOriginalFormData] = useState(null)
 
+  // Cycle & Cleanup Modals State
+  const [showCleanupConfirmModal, setShowCleanupConfirmModal] = useState(false)
+  const [cleanupPreviewData, setCleanupPreviewData] = useState(null)
+  const [pendingOrderPayload, setPendingOrderPayload] = useState(null)
+  const [selectedOldCycleOrder, setSelectedOldCycleOrder] = useState(null)
+
   // Tailor Work Page Filters & Selections
   const [tailorStatusFilter, setTailorStatusFilter] = useState('Pending')
   const [tailorProductFilter, setTailorProductFilter] = useState('All')
@@ -517,6 +530,11 @@ function App() {
     if (!editingOrderId || !originalFormData) return true
     return JSON.stringify(formData) !== JSON.stringify(originalFormData)
   }, [editingOrderId, formData, originalFormData])
+
+  const maxActiveCycle = useMemo(() => {
+    if (!orders || orders.length === 0) return 1
+    return Math.max(...orders.map((o) => Number(o.cycle || 1)))
+  }, [orders])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1601,24 +1619,8 @@ function App() {
     }))
   }
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
-    setLoading(true)
-    setMessage('')
-    setFormError('')
-
+  const executeSubmitOrder = async (payloadToSubmit) => {
     try {
-      const payload = {
-        ...formData,
-        amount: formData.amount === '' ? 0 : Number(formData.amount),
-        paymentStatus: formData.paymentStatus || 'Unpaid',
-        contactStatus: formData.contactStatus || 'Not contacted',
-        items: formData.items.map((item) => ({
-          ...item,
-          quantity: Number(item.quantity || 0),
-        })),
-      }
-
       const isEditing = Boolean(editingOrderId)
       const url = isEditing ? `${API_BASE}/api/orders/${editingOrderId}` : `${API_BASE}/api/orders`
       const method = isEditing ? 'PATCH' : 'POST'
@@ -1629,7 +1631,7 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payloadToSubmit),
       })
 
       if (response.status === 401 || response.status === 403) {
@@ -1641,7 +1643,10 @@ function App() {
 
       if (response.ok) {
         const actionText = isEditing ? 'updated' : 'saved'
-        setMessage(`Order ${data.order.orderNumber} ${actionText} successfully.`)
+        const msgText = data.purgedCount && data.purgedCount > 0
+          ? `Order ${data.order.orderNumber} saved successfully. Purged ${data.purgedCount} delivered orders from earlier range.`
+          : `Order ${data.order.orderNumber} ${actionText} successfully.`
+        setMessage(msgText)
         setFormError('')
         if (isEditing) {
           setHighlightedOrderId(data.order._id)
@@ -1660,7 +1665,53 @@ function App() {
       setMessage('')
     } finally {
       setLoading(false)
+      setShowCleanupConfirmModal(false)
+      setCleanupPreviewData(null)
+      setPendingOrderPayload(null)
     }
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    setMessage('')
+    setFormError('')
+
+    const payload = {
+      ...formData,
+      amount: formData.amount === '' ? 0 : Number(formData.amount),
+      paymentStatus: formData.paymentStatus || 'Unpaid',
+      contactStatus: formData.contactStatus || 'Not contacted',
+      items: formData.items.map((item) => ({
+        ...item,
+        quantity: Number(item.quantity || 0),
+      })),
+    }
+
+    const isEditing = Boolean(editingOrderId)
+
+    // Check if new order creation triggers a 100-block cleanup warning
+    if (!isEditing && formData.orderNumber) {
+      try {
+        const checkRes = await fetch(`${API_BASE}/api/orders/cleanup-preview?orderNumber=${encodeURIComponent(formData.orderNumber.trim())}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (checkRes.ok) {
+          const previewData = await checkRes.json()
+          if (previewData.shouldTrigger && previewData.deliveredCount > 0) {
+            setCleanupPreviewData(previewData)
+            setPendingOrderPayload(payload)
+            setShowCleanupConfirmModal(true)
+            setLoading(false)
+            return
+          }
+        }
+      } catch (err) {
+        console.error('Cleanup preview check failed:', err)
+      }
+    }
+
+    await executeSubmitOrder(payload)
   }
 
   const updateStatus = async (orderId, status) => {
@@ -3414,7 +3465,33 @@ function App() {
                               onChange={() => toggleSelect(order._id)}
                             />
                           </td>
-                          <td>{order.orderNumber}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>#{order.orderNumber}</span>
+                              {Number(order.cycle || 1) < maxActiveCycle && (
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedOldCycleOrder(order);
+                                  }}
+                                  style={{
+                                    background: '#FEF3C7',
+                                    color: '#92400E',
+                                    border: '1px solid #FCD34D',
+                                    fontSize: '10px',
+                                    fontWeight: '700',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                  title="Click for cycle details"
+                                >
+                                  ⏳ Old Cycle
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td>{order.customerName}</td>
                           <td>{order.school}</td>
                           <td>{formatDateToDMY(order.deliveryDate)}</td>
@@ -3977,7 +4054,33 @@ function App() {
                               style={{ cursor: 'pointer' }}
                             >
 
-                              <td style={{ fontWeight: '600' }}>#{row.orderNumber}</td>
+                              <td style={{ fontWeight: '600' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span>#{row.orderNumber}</span>
+                                  {Number(row.order?.cycle || 1) < maxActiveCycle && (
+                                    <span
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedOldCycleOrder(row.order);
+                                      }}
+                                      style={{
+                                        background: '#FEF3C7',
+                                        color: '#92400E',
+                                        border: '1px solid #FCD34D',
+                                        fontSize: '9.5px',
+                                        fontWeight: '700',
+                                        padding: '1px 5px',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                      title="Click for cycle details"
+                                    >
+                                      ⏳ Old Cycle
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
                               <td>
                                 <span className={`product-tag ${row.product.toLowerCase()}`} style={{ whiteSpace: 'nowrap' }}>
                                   {row.product}
@@ -5844,6 +5947,107 @@ function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cycle Cleanup Confirmation Warning Modal */}
+      {showCleanupConfirmModal && cleanupPreviewData && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '440px' }}>
+            <button
+              type="button"
+              className="manage-modal-close"
+              onClick={() => {
+                setShowCleanupConfirmModal(false)
+                setCleanupPreviewData(null)
+                setPendingOrderPayload(null)
+              }}
+            >
+              &times;
+            </button>
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <div style={{ fontSize: '38px', marginBottom: '8px' }}>⚠️</div>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '800', color: '#B45309' }}>
+                Cycle Cleanup Warning
+              </h3>
+              <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#475569', lineHeight: '1.5' }}>
+                Saving <strong>Order #{cleanupPreviewData.orderNumber}</strong> reaches a cycle threshold.
+                This will automatically purge <strong>{cleanupPreviewData.deliveredCount} delivered order(s)</strong> in range <strong>#{cleanupPreviewData.startNum} - #{cleanupPreviewData.endNum}</strong> to free space for the next cycle.
+              </p>
+              <div style={{ background: '#FEF3C7', padding: '10px 14px', borderRadius: '8px', border: '1px solid #FCD34D', fontSize: '12px', color: '#92400E', textAlign: 'left', marginBottom: '20px' }}>
+                ℹ️ <strong>Safety Note:</strong> Any active (Pending or Ready) orders in this range will remain completely safe.
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => {
+                    setShowCleanupConfirmModal(false)
+                    setCleanupPreviewData(null)
+                    setPendingOrderPayload(null)
+                  }}
+                  style={{ flex: 1, padding: '10px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => {
+                    if (pendingOrderPayload) {
+                      executeSubmitOrder(pendingOrderPayload)
+                    }
+                  }}
+                  style={{ flex: 1, padding: '10px', background: '#D97706', borderColor: '#B45309' }}
+                >
+                  Confirm & Save Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Old Cycle Explanation Modal */}
+      {selectedOldCycleOrder && (
+        <div className="manage-modal-backdrop" onClick={() => setSelectedOldCycleOrder(null)}>
+          <div className="manage-modal-card" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="manage-modal-close"
+              onClick={() => setSelectedOldCycleOrder(null)}
+            >
+              &times;
+            </button>
+            <div style={{ padding: '8px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '28px' }}>ℹ️</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#1E293B' }}>
+                    Previous Cycle Order
+                  </h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748B' }}>
+                    Order #{selectedOldCycleOrder.orderNumber}
+                  </p>
+                </div>
+              </div>
+              <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#334155', lineHeight: '1.5' }}>
+                This order (Customer: <strong>{selectedOldCycleOrder.customerName}</strong>) was created in an earlier 1000-order cycle (<strong>Cycle {selectedOldCycleOrder.cycle || 1}</strong>) before order numbers wrapped around.
+              </p>
+              <div style={{ background: '#F1F5F9', padding: '10px 14px', borderRadius: '8px', fontSize: '12px', color: '#475569', marginBottom: '18px' }}>
+                It remains active in your system until marked Delivered and cleaned up by its cycle threshold.
+              </div>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={() => setSelectedOldCycleOrder(null)}
+                style={{ width: '100%', padding: '10px', justifyContent: 'center' }}
+              >
+                Got It
+              </button>
+            </div>
           </div>
         </div>
       )}
