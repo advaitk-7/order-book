@@ -477,6 +477,12 @@ function App() {
   const [editingSchoolNameInput, setEditingSchoolNameInput] = useState('')
   const [activePage, setActivePage] = useState('Dashboard')
   const [exportingPDF, setExportingPDF] = useState(false)
+  const [showPDFModal, setShowPDFModal] = useState(false)
+  const [pdfOrientation, setPdfOrientation] = useState('landscape')
+  const [pdfFormat, setPdfFormat] = useState('a4')
+  const [pdfMargin, setPdfMargin] = useState('normal')
+  const [pdfScale, setPdfScale] = useState('normal')
+  const pdfPreviewSheetRef = useRef(null)
   const [visibleCount, setVisibleCount] = useState(20)
   const loadStep = 20
   const [selectedIds, setSelectedIds] = useState([])
@@ -2270,7 +2276,11 @@ function App() {
     document.body.removeChild(link)
   }
 
-  const handleSaveAsPDF = async () => {
+  const handleSaveAsPDF = () => {
+    setShowPDFModal(true)
+  }
+
+  const executePDFDownload = async () => {
     try {
       setExportingPDF(true)
       if (!window.html2pdf) {
@@ -2283,48 +2293,31 @@ function App() {
         })
       }
 
-      const sourceEl = tailorTableWrapRef.current
+      const sourceEl = pdfPreviewSheetRef.current
       if (!sourceEl) {
-        alert('Table element not found.')
+        alert('Preview element not found.')
         return
       }
 
-      const container = document.createElement('div')
-      container.style.padding = '20px'
-      container.style.background = '#FFFFFF'
-      container.style.color = '#0F172A'
-      container.style.fontFamily = 'Plus Jakarta Sans, sans-serif'
-
-      const title = document.createElement('h2')
-      title.innerText = `Liberty Uniform - Production Queue (${tailorStatusFilter || 'All'})`
-      title.style.margin = '0 0 16px 0'
-      title.style.color = '#1D4ED8'
-      title.style.fontSize = '18px'
-      container.appendChild(title)
-
-      const clone = sourceEl.cloneNode(true)
-      clone.style.maxHeight = 'none'
-      clone.style.overflow = 'visible'
-      container.appendChild(clone)
-
-      document.body.appendChild(container)
+      let marginVal = [6, 8, 6, 8]
+      if (pdfMargin === 'compact') marginVal = [3, 4, 3, 4]
+      if (pdfMargin === 'wide') marginVal = [12, 14, 12, 14]
 
       const dateStr = new Date().toISOString().slice(0, 10)
-      const filename = `Tailor_Production_Queue_${dateStr}.pdf`
+      const filename = `Tailor_Production_Queue_${pdfFormat.toUpperCase()}_${pdfOrientation}_${dateStr}.pdf`
       const opt = {
-        margin: [6, 6, 6, 6],
+        margin: marginVal,
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation }
       }
 
-      await window.html2pdf().set(opt).from(container).save()
-      document.body.removeChild(container)
+      await window.html2pdf().set(opt).from(sourceEl).save()
+      setShowPDFModal(false)
     } catch (err) {
       console.error('PDF export failed:', err)
-      alert('Direct PDF generation encountered an issue. Opening browser print preview to save as PDF.')
-      window.print()
+      alert('Direct PDF generation encountered an issue. You can use the Print Table option as a fallback.')
     } finally {
       setExportingPDF(false)
     }
@@ -4798,6 +4791,229 @@ function App() {
           )}
         </main>
       </div>
+
+      {showPDFModal && (
+        <div className="pdf-modal-backdrop">
+          <div className="pdf-modal-card">
+            <div className="pdf-modal-header">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>📄 PDF Export & Live Preview</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
+                  Configure paper format, orientation, margins, and density with a live sheet preview.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="manage-modal-close"
+                onClick={() => setShowPDFModal(false)}
+                style={{ position: 'static', fontSize: '20px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="pdf-modal-body">
+              {/* Settings Controls Sidebar */}
+              <div className="pdf-controls-sidebar">
+                <div className="pdf-control-group">
+                  <label>Orientation</label>
+                  <select
+                    value={pdfOrientation}
+                    onChange={(e) => setPdfOrientation(e.target.value)}
+                  >
+                    <option value="landscape">Landscape (Horizontal - Rec.)</option>
+                    <option value="portrait">Portrait (Vertical)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>Paper Format</label>
+                  <select
+                    value={pdfFormat}
+                    onChange={(e) => setPdfFormat(e.target.value)}
+                  >
+                    <option value="a4">A4 (210 × 297 mm)</option>
+                    <option value="a3">A3 (297 × 420 mm - Large Format)</option>
+                    <option value="letter">Letter (8.5 × 11 in)</option>
+                    <option value="legal">Legal (8.5 × 14 in)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>Margins</label>
+                  <select
+                    value={pdfMargin}
+                    onChange={(e) => setPdfMargin(e.target.value)}
+                  >
+                    <option value="compact">Compact (3mm)</option>
+                    <option value="normal">Normal (6mm)</option>
+                    <option value="wide">Wide (12mm)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>Table Scale</label>
+                  <select
+                    value={pdfScale}
+                    onChange={(e) => setPdfScale(e.target.value)}
+                  >
+                    <option value="compact">Compact (85%)</option>
+                    <option value="normal">Normal (100%)</option>
+                    <option value="large">Large Text (115%)</option>
+                  </select>
+                </div>
+
+                <div style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={executePDFDownload}
+                    disabled={exportingPDF}
+                    style={{ padding: '12px', fontSize: '14px', fontWeight: '700', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {exportingPDF ? '⌛ Generating PDF...' : '⬇️ Download PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setShowPDFModal(false)}
+                    style={{ padding: '10px', fontSize: '13px', justifyContent: 'center', display: 'flex', alignItems: 'center' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Preview Workspace */}
+              <div className="pdf-preview-workspace">
+                <div
+                  ref={pdfPreviewSheetRef}
+                  className="pdf-paper-sheet"
+                  style={{
+                    padding: pdfMargin === 'compact' ? '12px 16px' : (pdfMargin === 'wide' ? '32px 36px' : '20px 24px'),
+                    fontSize: pdfScale === 'compact' ? '11px' : (pdfScale === 'large' ? '14.5px' : '13px'),
+                    maxWidth: pdfFormat === 'a3' ? '1100px' : '900px',
+                    minHeight: pdfOrientation === 'portrait' ? '750px' : '500px'
+                  }}
+                >
+                  {/* Sheet Header */}
+                  <div style={{ borderBottom: '2px solid #1D4ED8', paddingBottom: '10px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div>
+                      <h2 style={{ margin: 0, fontSize: '18px', color: '#1D4ED8', fontWeight: '800' }}>
+                        Liberty Uniform - Production Queue
+                      </h2>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#475569' }}>
+                        Status: <strong>{tailorStatusFilter || 'All'}</strong> | School: <strong>{tailorSchoolFilter || 'All'}</strong> | Date: {tailorDeliveryFilter || 'All'}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748B' }}>
+                      <p style={{ margin: 0, fontWeight: '700' }}>Generated: {new Date().toLocaleDateString('en-GB')}</p>
+                      <p style={{ margin: '2px 0 0 0' }}>Format: {pdfFormat.toUpperCase()} ({pdfOrientation})</p>
+                    </div>
+                  </div>
+
+                  {/* Garments Table */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: pdfScale === 'compact' ? '10px' : (pdfScale === 'large' ? '12.5px' : '11.5px'), color: '#0F172A', marginBottom: '24px' }}>
+                    <thead>
+                      <tr style={{ background: '#F1F5F9', borderBottom: '2px solid #CBD5E1', textAlign: 'left' }}>
+                        <th style={{ padding: '8px 6px', width: '45px' }}>Order #</th>
+                        <th style={{ padding: '8px 6px' }}>Product</th>
+                        <th style={{ padding: '8px 6px' }}>Category</th>
+                        <th style={{ padding: '8px 6px' }}>Customer</th>
+                        <th style={{ padding: '8px 6px' }}>School</th>
+                        <th style={{ padding: '8px 6px' }}>Gender</th>
+                        <th style={{ padding: '8px 6px' }}>Qty</th>
+                        <th style={{ padding: '8px 6px' }}>Measurements</th>
+                        <th style={{ padding: '8px 6px' }}>Notes</th>
+                        <th style={{ padding: '8px 6px' }}>Delivery</th>
+                        <th style={{ padding: '8px 6px' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedTailorGarments.length === 0 ? (
+                        <tr>
+                          <td colSpan="11" style={{ padding: '20px', textAlign: 'center', color: '#64748B' }}>
+                            No garments match the selected filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        sortedTailorGarments.map((row) => (
+                          <tr key={row.uniqueRowId} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                            <td style={{ padding: '6px', fontWeight: '800' }}>#{row.orderNumber}</td>
+                            <td style={{ padding: '6px' }}>
+                              <span className={`product-tag ${row.product.toLowerCase()}`}>{row.product}</span>
+                            </td>
+                            <td style={{ padding: '6px', fontSize: '10.5px' }}>
+                              {(() => {
+                                const catVal = row.productionCategory || guessProductionCategory(row);
+                                const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
+                                return catObj ? catObj.name : (catVal || '-');
+                              })()}
+                            </td>
+                            <td style={{ padding: '6px', fontWeight: '600' }}>{row.customerName}</td>
+                            <td style={{ padding: '6px' }}>{row.school}</td>
+                            <td style={{ padding: '6px' }}>{row.gender}</td>
+                            <td style={{ padding: '6px', fontWeight: '800' }}>{row.quantity}</td>
+                            <td style={{ padding: '6px' }}>{renderTailorMeasurements(row.product, row.measurements)}</td>
+                            <td style={{ padding: '6px', fontSize: '10.5px', color: '#475569' }}>{row.notes || '-'}</td>
+                            <td style={{ padding: '6px', color: '#E11D48', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                              {formatDateToDMY(row.deliveryDate)}
+                            </td>
+                            <td style={{ padding: '6px' }}>
+                              <span className={`status-badge ${row.status.toLowerCase()}`}>{row.status}</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+
+                  {/* Production Cost Summary Table (ALWAYS included as required by user) */}
+                  <div style={{ marginTop: '20px', borderTop: '2px solid #0F172A', paddingTop: '14px' }}>
+                    <h3 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#0F172A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                      Production Cost Summary Table
+                    </h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', color: '#0F172A' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #475569', textAlign: 'left', fontWeight: 'bold', background: '#F8FAFC' }}>
+                          <th style={{ padding: '6px 8px', width: '40%' }}>Component Category</th>
+                          <th style={{ padding: '6px 8px', width: '20%' }}>Rate / Unit</th>
+                          <th style={{ padding: '6px 8px', width: '20%' }}>Total Pieces</th>
+                          <th style={{ padding: '6px 8px', width: '20%', textAlign: 'right' }}>Total Cost</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {productionCostDetails.activeCategories.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" style={{ padding: '8px', color: '#64748B', fontStyle: 'italic' }}>
+                              No active production categories for this selection.
+                            </td>
+                          </tr>
+                        ) : (
+                          productionCostDetails.activeCategories.map(cat => (
+                            <tr key={cat.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                              <td style={{ padding: '6px 8px', fontWeight: '600' }}>{cat.name}</td>
+                              <td style={{ padding: '6px 8px' }}>₹{cat.rate}</td>
+                              <td style={{ padding: '6px 8px' }}>{cat.qty}</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '600' }}>₹{cat.cost.toLocaleString()}</td>
+                            </tr>
+                          ))
+                        )}
+                        <tr style={{ fontWeight: '800', fontSize: '12.5px', background: '#EFF6FF', borderTop: '2px solid #2563EB' }}>
+                          <td style={{ padding: '8px', color: '#1D4ED8' }}>Total Production Cost</td>
+                          <td style={{ padding: '8px' }}></td>
+                          <td style={{ padding: '8px', color: '#1D4ED8' }}>{productionCostDetails.totalQty} pieces</td>
+                          <td style={{ padding: '8px', textAlign: 'right', color: '#1D4ED8' }}>₹{productionCostDetails.totalCost.toLocaleString()}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showManageModal && (
         <div className="manage-modal-backdrop">
