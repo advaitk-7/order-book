@@ -591,29 +591,24 @@ const performBackup = async () => {
     const compressed = zlib.gzipSync(jsonStr);
 
     const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
+    // Explicit IST offset calculation (UTC + 5h 30m) - 100% reliable across all Node environments
+    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const ist = new Date(utcMs + (330 * 60000));
 
-    const parts = formatter.formatToParts(now);
-    const getPart = (type) => parts.find(p => p.type === type)?.value || '';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = String(ist.getDate()).padStart(2, '0');
+    const month = months[ist.getMonth()];
+    const year = ist.getFullYear();
 
-    const year = getPart('year');
-    const month = getPart('month');
-    const day = getPart('day');
-    const hours = String(getPart('hour')).padStart(2, '0');
-    const minutes = String(getPart('minute')).padStart(2, '0');
-    const seconds = String(getPart('second')).padStart(2, '0');
-    const ampm = (getPart('dayPeriod') || '').toUpperCase();
+    let hours = ist.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0 becomes 12
+    const hoursStr = String(hours).padStart(2, '0');
+    const minutesStr = String(ist.getMinutes()).padStart(2, '0');
+    const secondsStr = String(ist.getSeconds()).padStart(2, '0');
 
-    const filename = `liberty_backup_${day}-${month}-${year}_${hours}-${minutes}-${seconds}-${ampm}.json.gz`;
+    const filename = `liberty_backup_${day}-${month}-${year}_${hoursStr}-${minutesStr}-${secondsStr}-${ampm}.json.gz`;
     const filepath = path.join(BACKUP_DIR, filename);
 
     fs.writeFileSync(filepath, compressed);
