@@ -475,6 +475,14 @@ function App() {
   const [newSchoolNameInput, setNewSchoolNameInput] = useState('')
   const [editingSchoolId, setEditingSchoolId] = useState(null)
   const [editingSchoolNameInput, setEditingSchoolNameInput] = useState('')
+  const getInitialPdfFileName = () => {
+    const today = new Date()
+    const dd = String(today.getDate()).padStart(2, '0')
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const yyyy = today.getFullYear()
+    return `Tailor_Production_Queue_${dd}-${mm}-${yyyy}`
+  }
+
   const [activePage, setActivePage] = useState('Dashboard')
   const [exportingPDF, setExportingPDF] = useState(false)
   const [showPDFModal, setShowPDFModal] = useState(false)
@@ -482,6 +490,7 @@ function App() {
   const [pdfFormat, setPdfFormat] = useState('a4')
   const [pdfMargin, setPdfMargin] = useState('normal')
   const [pdfScale, setPdfScale] = useState('normal')
+  const [pdfFileName, setPdfFileName] = useState(getInitialPdfFileName)
   const pdfPreviewSheetRef = useRef(null)
   const [visibleCount, setVisibleCount] = useState(20)
   const loadStep = 20
@@ -2303,11 +2312,14 @@ function App() {
       if (pdfMargin === 'compact') marginVal = [3, 4, 3, 4]
       if (pdfMargin === 'wide') marginVal = [12, 14, 12, 14]
 
-      const dateStr = new Date().toISOString().slice(0, 10)
-      const filename = `Tailor_Production_Queue_${pdfFormat.toUpperCase()}_${pdfOrientation}_${dateStr}.pdf`
+      let cleanFileName = pdfFileName.trim() ? pdfFileName.trim() : getInitialPdfFileName()
+      if (!cleanFileName.toLowerCase().endsWith('.pdf')) {
+        cleanFileName += '.pdf'
+      }
+
       const opt = {
         margin: marginVal,
-        filename: filename,
+        filename: cleanFileName,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation }
@@ -4816,6 +4828,24 @@ function App() {
               {/* Settings Controls Sidebar */}
               <div className="pdf-controls-sidebar">
                 <div className="pdf-control-group">
+                  <label>File Name</label>
+                  <input
+                    type="text"
+                    value={pdfFileName}
+                    onChange={(e) => setPdfFileName(e.target.value)}
+                    placeholder="Enter file name"
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #CBD5E1',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div className="pdf-control-group">
                   <label>Orientation</label>
                   <select
                     value={pdfOrientation}
@@ -4892,8 +4922,8 @@ function App() {
                   style={{
                     padding: pdfMargin === 'compact' ? '12px 16px' : (pdfMargin === 'wide' ? '32px 36px' : '20px 24px'),
                     fontSize: pdfScale === 'compact' ? '11px' : (pdfScale === 'large' ? '14.5px' : '13px'),
-                    maxWidth: pdfFormat === 'a3' ? '1100px' : '900px',
-                    minHeight: pdfOrientation === 'portrait' ? '750px' : '500px'
+                    width: pdfFormat === 'a3' ? (pdfOrientation === 'landscape' ? '1100px' : '750px') : (pdfFormat === 'legal' ? (pdfOrientation === 'landscape' ? '950px' : '650px') : (pdfOrientation === 'landscape' ? '850px' : '650px')),
+                    minHeight: pdfOrientation === 'portrait' ? (pdfFormat === 'a3' ? '1050px' : '850px') : (pdfFormat === 'a3' ? '750px' : '600px')
                   }}
                 >
                   {/* Sheet Header */}
@@ -4919,20 +4949,18 @@ function App() {
                         <th style={{ padding: '8px 6px', width: '45px' }}>Order #</th>
                         <th style={{ padding: '8px 6px' }}>Product</th>
                         <th style={{ padding: '8px 6px' }}>Category</th>
-                        <th style={{ padding: '8px 6px' }}>Customer</th>
                         <th style={{ padding: '8px 6px' }}>School</th>
-                        <th style={{ padding: '8px 6px' }}>Gender</th>
-                        <th style={{ padding: '8px 6px' }}>Qty</th>
+                        <th style={{ padding: '8px 6px', width: '55px' }}>Gender</th>
+                        <th style={{ padding: '8px 6px', width: '45px' }}>Qty</th>
                         <th style={{ padding: '8px 6px' }}>Measurements</th>
                         <th style={{ padding: '8px 6px' }}>Notes</th>
                         <th style={{ padding: '8px 6px' }}>Delivery</th>
-                        <th style={{ padding: '8px 6px' }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sortedTailorGarments.length === 0 ? (
                         <tr>
-                          <td colSpan="11" style={{ padding: '20px', textAlign: 'center', color: '#64748B' }}>
+                          <td colSpan="9" style={{ padding: '20px', textAlign: 'center', color: '#64748B' }}>
                             No garments match the selected filters.
                           </td>
                         </tr>
@@ -4950,17 +4978,15 @@ function App() {
                                 return catObj ? catObj.name : (catVal || '-');
                               })()}
                             </td>
-                            <td style={{ padding: '6px', fontWeight: '600' }}>{row.customerName}</td>
                             <td style={{ padding: '6px' }}>{row.school}</td>
-                            <td style={{ padding: '6px' }}>{row.gender}</td>
+                            <td style={{ padding: '6px', fontWeight: '800' }}>
+                              {row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : row.gender)}
+                            </td>
                             <td style={{ padding: '6px', fontWeight: '800' }}>{row.quantity}</td>
                             <td style={{ padding: '6px' }}>{renderTailorMeasurements(row.product, row.measurements)}</td>
                             <td style={{ padding: '6px', fontSize: '10.5px', color: '#475569' }}>{row.notes || '-'}</td>
                             <td style={{ padding: '6px', color: '#E11D48', fontWeight: '600', whiteSpace: 'nowrap' }}>
                               {formatDateToDMY(row.deliveryDate)}
-                            </td>
-                            <td style={{ padding: '6px' }}>
-                              <span className={`status-badge ${row.status.toLowerCase()}`}>{row.status}</span>
                             </td>
                           </tr>
                         ))

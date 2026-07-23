@@ -3069,3 +3069,22 @@ tr.clickable-row.highlighted-row td {
   margin: 0 auto;
 }
 
+.pdf-paper-sheet .measurement-tag {
+  background: #EEF2FF !important;
+  color: #1E293B !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-size: 10.5px !important;
+  border: 1px solid #C7D2FE !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  margin: 1px 2px !important;
+  white-space: nowrap !important;
+}
+
+.pdf-paper-sheet .measurement-tag strong {
+  font-weight: 800 !important;
+  color: #1D4ED8 !important;
+  margin-right: 3px !important;
+}
+
