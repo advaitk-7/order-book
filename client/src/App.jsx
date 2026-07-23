@@ -1587,6 +1587,17 @@ function App() {
     setMessage('')
     setTimerAlertOrder(null)
     setFormError('')
+
+    // Automatically reset Production Queue filters to default ('Pending') when navigating
+    setTailorStatusFilter('Pending')
+    setTailorProductFilter('All')
+    setTailorCategoryFilter('All')
+    setTailorSchoolFilter('All')
+    setTailorDeliveryFilter('All')
+    setTailorCustomStartDate('')
+    setTailorCustomEndDate('')
+    setTailorSearchTerm('')
+
     if (page === 'New Order') {
       resetForm()
       setSelectedOrder(null)
@@ -2211,7 +2222,7 @@ function App() {
 
     sortedTailorGarments.forEach((row) => {
       const qty = Number(row.quantity) || 0;
-      let catId = row.productionCategory || guessProductionCategory(row);
+      let catId = row.productionCategory || '';
       if (catId === 'trouser_elastic_20_30') catId = 'trousers_elastic_20_30';
       if (catId === 'trouser_elastic_32_40') catId = 'trousers_elastic_32_40';
 
@@ -3127,7 +3138,7 @@ function App() {
               'Dashboard': '📊',
               'New Order': '➕',
               'Orders': '📋',
-              'Production Queue': '🧵',
+              'Production Queue': '✂️',
               'Stock Waitlist': '🔔',
               'Settings': '⚙️'
             };
@@ -3758,8 +3769,8 @@ function App() {
                     </div>
                     <div>
                       <p className="details-label">Contact</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <p style={{ margin: 0 }}>{selectedOrder.contactNumber}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                        <span style={{ fontSize: '15px', fontWeight: '600', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{selectedOrder.contactNumber}</span>
                         <button
                           type="button"
                           className="whatsapp-btn"
@@ -3776,6 +3787,7 @@ function App() {
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
+                            marginTop: '2px',
                             transition: 'background-color 0.2s, transform 0.1s'
                           }}
                           onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#128C7E'}
@@ -4194,7 +4206,7 @@ function App() {
                               <td onClick={(e) => e.stopPropagation()}>
                                 <div className="screen-only-category-select">
                                   <select
-                                    value={row.productionCategory || guessProductionCategory(row)}
+                                    value={row.productionCategory || ''}
                                     onChange={(e) => handleInlineCategoryChange(row, e.target.value)}
                                     style={{
                                       fontSize: '11px',
@@ -4209,6 +4221,7 @@ function App() {
                                       maxWidth: '130px'
                                     }}
                                   >
+                                    <option value="">Uncategorized (Select Category)</option>
                                     {PRODUCTION_CATEGORIES.map(cat => (
                                       <option key={cat.id} value={cat.id}>
                                         {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
@@ -4389,8 +4402,8 @@ function App() {
                     </div>
                     <div>
                       <p className="details-label">Contact</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <p style={{ margin: 0 }}>{selectedOrder.contactNumber}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                        <span style={{ fontSize: '15px', fontWeight: '600', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{selectedOrder.contactNumber}</span>
                         <button
                           type="button"
                           className="whatsapp-btn"
@@ -4407,6 +4420,7 @@ function App() {
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
+                            marginTop: '2px',
                             transition: 'background-color 0.2s, transform 0.1s'
                           }}
                           onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#128C7E'}

@@ -1068,8 +1068,12 @@ tbody tr:hover {
 
 .details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 20px 24px;
+}
+
+.nav-item, .page-header-title, .status-badge, .tab-icon, .card-title {
+  font-family: -apple-system, BlinkMacSystemFont, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", sans-serif;
 }
 
 .details-label {

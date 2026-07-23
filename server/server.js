@@ -111,31 +111,25 @@ function isFuzzyWordMatch(queryToken, targetWord) {
   return false;
 }
 
-// High-quality Multi-Term & Substring Matcher for a document
+// Strict Exact & Multi-Term Substring Matcher for Search Bar
 function checkFuzzyMatch(searchQuery, searchableTextArray) {
   if (!searchQuery || searchQuery.trim() === "") return true;
 
   const rawQuery = searchQuery.trim().toLowerCase();
+  const cleanQuery = rawQuery.replace(/^#/, "").trim();
   const rawTargetString = searchableTextArray.filter(Boolean).join(" ").toLowerCase();
 
-  // 1. Direct raw substring match (matches exact order numbers like #45, customer names, phone numbers)
+  // 1. Direct raw substring match
   if (rawTargetString.includes(rawQuery)) return true;
 
-  // 2. Clean query without symbols (#, -, spaces) match against target
-  const cleanQuery = rawQuery.replace(/[^\w\s]/g, "").trim();
-  const cleanTarget = rawTargetString.replace(/[^\w\s]/g, "").trim();
+  // 2. Clean query without leading # symbol
+  if (cleanQuery !== "" && rawTargetString.includes(cleanQuery)) return true;
 
-  if (cleanQuery !== "" && cleanTarget.includes(cleanQuery)) return true;
-
-  // 3. Multi-token match: every token in query should match at least one word in target
+  // 3. Multi-token match: EVERY query token must be an exact substring of target text
   const queryTokens = cleanQuery.split(/\s+/).filter(Boolean);
-  if (queryTokens.length === 0) return true;
+  if (queryTokens.length === 0) return false;
 
-  const targetWords = cleanTarget.split(/\s+/).filter(Boolean);
-
-  return queryTokens.every(token => {
-    return targetWords.some(word => word.includes(token) || token.includes(word) || isFuzzyWordMatch(token, word));
-  });
+  return queryTokens.every(token => rawTargetString.includes(token));
 }
 
 const Session = mongoose.model("Session", new mongoose.Schema({
@@ -149,22 +143,48 @@ const Session = mongoose.model("Session", new mongoose.Schema({
 
 function parseUserAgent(ua) {
   if (!ua) return 'Unknown Device';
-  let os = 'Unknown OS';
-  let browser = 'Unknown Browser';
 
-  if (/like Mac OS X/.test(ua)) os = 'iOS';
-  else if (/Android/.test(ua)) os = 'Android';
-  else if (/Macintosh/.test(ua)) os = 'macOS';
-  else if (/Windows/.test(ua)) os = 'Windows';
-  else if (/Linux/.test(ua)) os = 'Linux';
+  let deviceName = '';
+  let browser = '';
 
-  if (/Chrome/.test(ua) && !/Chromium/.test(ua) && !/Edg/.test(ua)) browser = 'Chrome';
-  else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
-  else if (/Firefox/.test(ua)) browser = 'Firefox';
-  else if (/Edg/.test(ua)) browser = 'Edge';
-  else if (/Trident/.test(ua)) browser = 'Internet Explorer';
+  // Detect Specific Smartphone / Tablet Brand & Model
+  if (/OnePlus|CPH\d{4}|PJD\d{3}|PJG\d{3}/i.test(ua)) {
+    const modelMatch = ua.match(/(OnePlus[\w\s\+]+|CPH\d{4}|PJD\d{3})/i);
+    deviceName = modelMatch ? modelMatch[1].replace(/_/g, ' ') : 'OnePlus Smartphone';
+  } else if (/SM-[F|G|N|A|M|S]\d{3}/i.test(ua) || /Samsung/i.test(ua)) {
+    const samMatch = ua.match(/(SM-[A-Z0-9]+)/i);
+    deviceName = samMatch ? `Samsung Galaxy (${samMatch[1]})` : 'Samsung Galaxy';
+  } else if (/Pixel/i.test(ua)) {
+    const pixMatch = ua.match(/(Pixel\s?\d+[\w\s]*)/i);
+    deviceName = pixMatch ? `Google ${pixMatch[1]}` : 'Google Pixel';
+  } else if (/Xiaomi|Redmi|POCO/i.test(ua)) {
+    deviceName = 'Xiaomi / Redmi';
+  } else if (/Vivo/i.test(ua)) {
+    deviceName = 'Vivo Smartphone';
+  } else if (/OPPO|CPH/i.test(ua)) {
+    deviceName = 'OPPO Smartphone';
+  } else if (/iPhone/i.test(ua)) {
+    deviceName = 'Apple iPhone';
+  } else if (/iPad/i.test(ua)) {
+    deviceName = 'Apple iPad';
+  } else if (/Macintosh|Mac OS X/i.test(ua)) {
+    deviceName = 'MacBook / Mac';
+  } else if (/Windows/i.test(ua)) {
+    deviceName = 'Windows PC';
+  } else if (/Android/i.test(ua)) {
+    deviceName = 'Android Device';
+  } else {
+    deviceName = 'Web Device';
+  }
 
-  return `${browser} on ${os}`;
+  // Detect Browser
+  if (/Edg/i.test(ua)) browser = 'Edge';
+  else if (/Chrome/i.test(ua) && !/Chromium/i.test(ua)) browser = 'Chrome';
+  else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+  else if (/Firefox/i.test(ua)) browser = 'Firefox';
+  else browser = 'Browser';
+
+  return `${deviceName} (${browser})`;
 }
 
 const authenticateJWT = async (req, res, next) => {
