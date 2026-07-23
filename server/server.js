@@ -835,6 +835,7 @@ app.post("/api/orders", async (req, res) => {
 
 app.get("/api/orders", async (req, res) => {
   try {
+    const search = (req.query.search || "").trim();
     const orders = await Order.find({}).lean();
     orders.sort((a, b) => {
       const aNum = Number(a.orderNumber);
