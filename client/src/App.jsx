@@ -3679,28 +3679,26 @@ function App() {
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span>#{order.orderNumber}</span>
-                              {maxActiveCycle > 1 && (
-                                <span
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedOldCycleOrder(order);
-                                  }}
-                                  style={{
-                                    background: Number(order.cycle || 1) < maxActiveCycle ? '#FEF3C7' : '#DBEAFE',
-                                    color: Number(order.cycle || 1) < maxActiveCycle ? '#92400E' : '#1E40AF',
-                                    border: Number(order.cycle || 1) < maxActiveCycle ? '1px solid #FCD34D' : '1px solid #93C5FD',
-                                    fontSize: '10px',
-                                    fontWeight: '700',
-                                    padding: '2px 6px',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                  title="Click for cycle details"
-                                >
-                                  {Number(order.cycle || 1) < maxActiveCycle ? `⏳ Cycle ${order.cycle || 1}` : `✨ Cycle ${order.cycle || 1}`}
-                                </span>
-                              )}
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedOldCycleOrder(order);
+                                }}
+                                style={{
+                                  background: Number(order.cycle || 1) < maxActiveCycle ? '#FEF3C7' : '#DBEAFE',
+                                  color: Number(order.cycle || 1) < maxActiveCycle ? '#92400E' : '#1E40AF',
+                                  border: Number(order.cycle || 1) < maxActiveCycle ? '1px solid #FCD34D' : '1px solid #93C5FD',
+                                  fontSize: '10px',
+                                  fontWeight: '700',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="Click for cycle details"
+                              >
+                                {Number(order.cycle || 1) < maxActiveCycle ? `⏳ Cycle ${order.cycle || 1}` : `✨ Cycle ${order.cycle || 1}`}
+                              </span>
                             </div>
                           </td>
                           <td>{order.customerName}</td>
@@ -4279,28 +4277,26 @@ function App() {
                               <td style={{ fontWeight: '600' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                   <span>#{row.orderNumber}</span>
-                                  {maxActiveCycle > 1 && (
-                                    <span
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedOldCycleOrder(row.order);
-                                      }}
-                                      style={{
-                                        background: Number(row.order?.cycle || 1) < maxActiveCycle ? '#FEF3C7' : '#DBEAFE',
-                                        color: Number(row.order?.cycle || 1) < maxActiveCycle ? '#92400E' : '#1E40AF',
-                                        border: Number(row.order?.cycle || 1) < maxActiveCycle ? '1px solid #FCD34D' : '1px solid #93C5FD',
-                                        fontSize: '9.5px',
-                                        fontWeight: '700',
-                                        padding: '1px 5px',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        whiteSpace: 'nowrap'
-                                      }}
-                                      title="Click for cycle details"
-                                    >
-                                      {Number(row.order?.cycle || 1) < maxActiveCycle ? `⏳ Cycle ${row.order?.cycle || 1}` : `✨ Cycle ${row.order?.cycle || 1}`}
-                                    </span>
-                                  )}
+                                  <span
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedOldCycleOrder(row.order);
+                                    }}
+                                    style={{
+                                      background: Number(row.order?.cycle || 1) < maxActiveCycle ? '#FEF3C7' : '#DBEAFE',
+                                      color: Number(row.order?.cycle || 1) < maxActiveCycle ? '#92400E' : '#1E40AF',
+                                      border: Number(row.order?.cycle || 1) < maxActiveCycle ? '1px solid #FCD34D' : '1px solid #93C5FD',
+                                      fontSize: '9.5px',
+                                      fontWeight: '700',
+                                      padding: '1px 5px',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title="Click for cycle details"
+                                  >
+                                    {Number(row.order?.cycle || 1) < maxActiveCycle ? `⏳ Cycle ${row.order?.cycle || 1}` : `✨ Cycle ${row.order?.cycle || 1}`}
+                                  </span>
                                 </div>
                               </td>
                               <td>
