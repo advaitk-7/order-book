@@ -673,7 +673,7 @@ function App() {
     }, 250)
   }
 
-  const fetchOrders = async (term = searchTerm) => {
+  const fetchOrders = async (term = '') => {
     if (!token) return;
     setLoadingOrders(true)
 
@@ -702,12 +702,12 @@ function App() {
 
   useEffect(() => {
     if (token) {
-      fetchOrders(searchTerm)
+      fetchOrders('')
     } else {
       setOrders([])
       setSelectedOrder(null)
     }
-  }, [searchTerm, token])
+  }, [token])
 
   const fetchCurrentUser = async () => {
     if (!token) return;
@@ -2011,16 +2011,71 @@ function App() {
   })
 
   const sortedOrders = useMemo(() => {
-    const parsed = [...filteredOrders]
-    return parsed.sort((a, b) => {
-      const aNum = Number(a.orderNumber)
-      const bNum = Number(b.orderNumber)
+    const scored = []
+    const rawQuery = (searchTerm || '').trim().toLowerCase()
+    const cleanQuery = rawQuery.replace(/^#/, '').trim()
+    const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
+
+    filteredOrders.forEach(order => {
+      if (queryTokens.length === 0) {
+        scored.push({ order, score: 0 })
+        return
+      }
+
+      const orderNum = String(order.orderNumber || '').trim().toLowerCase()
+      const custName = String(order.customerName || '').trim().toLowerCase()
+      const phone = String(order.contactNumber || '').replace(/\D/g, '')
+
+      let totalScore = 0
+      let allMatched = true
+
+      for (const token of queryTokens) {
+        const tokenDigits = token.replace(/\D/g, '')
+        let tokenMatch = false
+
+        if (orderNum === token || orderNum === cleanQuery) {
+          totalScore += 100
+          tokenMatch = true
+        } else if (orderNum.includes(token)) {
+          totalScore += 75
+          tokenMatch = true
+        }
+
+        if (custName.includes(token)) {
+          totalScore += 50
+          tokenMatch = true
+        }
+
+        if (tokenDigits.length >= 3 && phone.includes(tokenDigits)) {
+          totalScore += 30
+          tokenMatch = true
+        }
+
+        if (!tokenMatch) {
+          allMatched = false
+          break
+        }
+      }
+
+      if (allMatched) {
+        scored.push({ order, score: totalScore })
+      }
+    })
+
+    scored.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score
+      }
+      const aNum = Number(a.order.orderNumber)
+      const bNum = Number(b.order.orderNumber)
       if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
         return aNum - bNum
       }
-      return String(a.orderNumber).localeCompare(String(b.orderNumber), undefined, { numeric: true, sensitivity: 'base' })
+      return String(a.order.orderNumber).localeCompare(String(b.order.orderNumber), undefined, { numeric: true, sensitivity: 'base' })
     })
-  }, [filteredOrders])
+
+    return scored.map(s => s.order)
+  }, [filteredOrders, searchTerm])
 
   const visibleOrders = sortedOrders
   const hasMoreOrders = false

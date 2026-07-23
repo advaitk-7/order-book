@@ -111,25 +111,36 @@ function isFuzzyWordMatch(queryToken, targetWord) {
   return false;
 }
 
-// Strict Exact & Multi-Term Substring Matcher for Search Bar
-function checkFuzzyMatch(searchQuery, searchableTextArray) {
+// High-Precision Gold Standard Matcher for Search Bar
+function checkFuzzyMatch(searchQuery, order) {
   if (!searchQuery || searchQuery.trim() === "") return true;
 
   const rawQuery = searchQuery.trim().toLowerCase();
   const cleanQuery = rawQuery.replace(/^#/, "").trim();
-  const rawTargetString = searchableTextArray.filter(Boolean).join(" ").toLowerCase();
-
-  // 1. Direct raw substring match
-  if (rawTargetString.includes(rawQuery)) return true;
-
-  // 2. Clean query without leading # symbol
-  if (cleanQuery !== "" && rawTargetString.includes(cleanQuery)) return true;
-
-  // 3. Multi-token match: EVERY query token must be an exact substring of target text
   const queryTokens = cleanQuery.split(/\s+/).filter(Boolean);
-  if (queryTokens.length === 0) return false;
 
-  return queryTokens.every(token => rawTargetString.includes(token));
+  if (queryTokens.length === 0) return true;
+
+  const orderNum = String(order.orderNumber || '').trim().toLowerCase();
+  const custName = String(order.customerName || '').trim().toLowerCase();
+  const phone = String(order.contactNumber || '').replace(/\D/g, '');
+
+  for (const token of queryTokens) {
+    const tokenDigits = token.replace(/\D/g, '');
+    let tokenMatch = false;
+
+    if (orderNum === token || orderNum === cleanQuery || orderNum.includes(token)) {
+      tokenMatch = true;
+    } else if (custName.includes(token)) {
+      tokenMatch = true;
+    } else if (tokenDigits.length >= 3 && phone.includes(tokenDigits)) {
+      tokenMatch = true;
+    }
+
+    if (!tokenMatch) return false;
+  }
+
+  return true;
 }
 
 const Session = mongoose.model("Session", new mongoose.Schema({
@@ -876,18 +887,7 @@ app.get("/api/orders", async (req, res) => {
 
     let filtered = orders;
     if (search) {
-      filtered = orders.filter(order => {
-        const fields = [
-          order.orderNumber,
-          order.customerName,
-          order.contactNumber,
-          order.school,
-          order.tailorName,
-          order.notes,
-          ...(order.items || []).map(i => `${i.itemType} ${i.itemSize} ${i.itemSubtype} ${i.labelNumber || ''}`)
-        ];
-        return checkFuzzyMatch(search, fields);
-      });
+      filtered = orders.filter(order => checkFuzzyMatch(search, order));
     }
 
     res.json(filtered);
