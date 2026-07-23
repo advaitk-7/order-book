@@ -2289,6 +2289,16 @@ function App() {
     setShowPDFModal(true)
   }
 
+  // Paper pixel widths at 96dpi matching exact PDF page sizes
+  // (These must match the preview widths below exactly)
+  const getPaperPxWidth = () => {
+    if (pdfFormat === 'a3') return pdfOrientation === 'landscape' ? 1587 : 1123
+    if (pdfFormat === 'legal') return pdfOrientation === 'landscape' ? 1344 : 816
+    if (pdfFormat === 'letter') return pdfOrientation === 'landscape' ? 1056 : 816
+    // a4 default
+    return pdfOrientation === 'landscape' ? 1123 : 794
+  }
+
   const executePDFDownload = async () => {
     try {
       setExportingPDF(true)
@@ -2317,28 +2327,42 @@ function App() {
         cleanFileName += '.pdf'
       }
 
-      // Create an off-screen fixed container to isolate rendering from scroll/modal offsets on mobile devices
+      // Use the exact paper pixel width so html2canvas renders the element
+      // at the same width as the PDF page — no clipping, no empty space
+      const paperPx = getPaperPxWidth()
+
+      // Create a fixed off-screen container at exactly the paper pixel width
       const cloneContainer = document.createElement('div')
-      cloneContainer.style.position = 'fixed'
-      cloneContainer.style.top = '0'
-      cloneContainer.style.left = '-9999px'
-      cloneContainer.style.width = pdfFormat === 'a3' ? (pdfOrientation === 'landscape' ? '1100px' : '750px') : (pdfFormat === 'legal' ? (pdfOrientation === 'landscape' ? '950px' : '650px') : (pdfOrientation === 'landscape' ? '850px' : '650px'))
-      cloneContainer.style.zIndex = '-9999'
-      cloneContainer.style.background = '#ffffff'
-      cloneContainer.style.margin = '0'
-      cloneContainer.style.padding = '0'
+      cloneContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: -${paperPx + 40}px;
+        width: ${paperPx}px;
+        z-index: -9999;
+        background: #ffffff;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+      `
 
       const clonedSheet = sourceEl.cloneNode(true)
+      clonedSheet.style.width = `${paperPx}px`
+      clonedSheet.style.maxWidth = `${paperPx}px`
       clonedSheet.style.margin = '0'
       clonedSheet.style.transform = 'none'
       clonedSheet.style.boxShadow = 'none'
       clonedSheet.style.background = '#ffffff'
+      clonedSheet.style.borderRadius = '0'
 
       // Enforce page-break-inside avoid on every table row
-      const rows = clonedSheet.querySelectorAll('tr')
-      rows.forEach(r => {
+      clonedSheet.querySelectorAll('tr').forEach(r => {
         r.style.pageBreakInside = 'avoid'
         r.style.breakInside = 'avoid'
+      })
+      // Reset table widths to 100%
+      clonedSheet.querySelectorAll('table').forEach(t => {
+        t.style.width = '100%'
+        t.style.tableLayout = 'fixed'
       })
 
       cloneContainer.appendChild(clonedSheet)
@@ -2354,7 +2378,8 @@ function App() {
           logging: false,
           scrollX: 0,
           scrollY: 0,
-          windowWidth: 1200,
+          // windowWidth must match the element width exactly
+          windowWidth: paperPx,
           backgroundColor: '#ffffff'
         },
         jsPDF: { unit: 'mm', format: pdfFormat, orientation: pdfOrientation },
@@ -2366,7 +2391,7 @@ function App() {
       setShowPDFModal(false)
     } catch (err) {
       console.error('PDF export failed:', err)
-      alert('Direct PDF generation encountered an issue. You can use the Print Table option as a fallback.')
+      alert('PDF generation failed. Try the Print Table option as a fallback.')
     } finally {
       setExportingPDF(false)
     }
@@ -2416,6 +2441,32 @@ function App() {
         </div>
       </>
     )
+  }
+
+  // PDF-specific compact measurement renderer — plain text, no boxes, no wrapping
+  // e.g. "L:32 C:38 S:16 Sl:14" — keeps rows thin and columns from overflowing
+  const renderPDFMeasurements = (product, measurements) => {
+    if (!measurements) return '-'
+    const parts = []
+    const prod = product.toLowerCase()
+    if (prod === 'shirt') {
+      if (measurements.length) parts.push(`L:${measurements.length}`)
+      if (measurements.chest) parts.push(`C:${measurements.chest}`)
+      if (measurements.shoulder) parts.push(`Sh:${measurements.shoulder}`)
+      if (measurements.sleeve) parts.push(`Sl:${measurements.sleeve}`)
+      if (measurements.neck) parts.push(`N:${measurements.neck}`)
+    } else if (prod === 'pant') {
+      if (measurements.length) parts.push(`L:${measurements.length}`)
+      if (measurements.waist) parts.push(`W:${measurements.waist}`)
+      if (measurements.seat) parts.push(`Se:${measurements.seat}`)
+      if (measurements.thighs) parts.push(`Th:${measurements.thighs}`)
+      if (measurements.bottom) parts.push(`Bo:${measurements.bottom}`)
+    } else if (prod === 'pina') {
+      if (measurements.length) parts.push(`L:${measurements.length}`)
+      if (measurements.waist) parts.push(`W:${measurements.waist}`)
+      if (measurements.torsoLength) parts.push(`T:${measurements.torsoLength}`)
+    }
+    return parts.length === 0 ? '-' : parts.join('  ')
   }
 
   const recentOrders = orders.slice(0, 5)
@@ -4953,76 +5004,120 @@ function App() {
 
               {/* Live Preview Workspace */}
               <div className="pdf-preview-workspace">
+                {/* The preview element: width matches exact PDF paper px dimensions for WYSIWYG accuracy */}
                 <div
                   ref={pdfPreviewSheetRef}
                   className="pdf-paper-sheet"
                   style={{
-                    padding: pdfMargin === 'compact' ? '12px 16px' : (pdfMargin === 'wide' ? '32px 36px' : '20px 24px'),
-                    fontSize: pdfScale === 'compact' ? '11px' : (pdfScale === 'large' ? '14.5px' : '13px'),
-                    width: pdfFormat === 'a3' ? (pdfOrientation === 'landscape' ? '1100px' : '750px') : (pdfFormat === 'legal' ? (pdfOrientation === 'landscape' ? '950px' : '650px') : (pdfOrientation === 'landscape' ? '850px' : '650px')),
-                    minHeight: pdfOrientation === 'portrait' ? (pdfFormat === 'a3' ? '1050px' : '850px') : (pdfFormat === 'a3' ? '750px' : '600px')
+                    // Exact paper pixel widths at 96dpi (matches getPaperPxWidth exactly)
+                    width: (() => {
+                      if (pdfFormat === 'a3') return pdfOrientation === 'landscape' ? '1587px' : '1123px'
+                      if (pdfFormat === 'legal') return pdfOrientation === 'landscape' ? '1344px' : '816px'
+                      if (pdfFormat === 'letter') return pdfOrientation === 'landscape' ? '1056px' : '816px'
+                      return pdfOrientation === 'landscape' ? '1123px' : '794px' // A4
+                    })(),
+                    minHeight: (() => {
+                      if (pdfFormat === 'a3') return pdfOrientation === 'landscape' ? '1123px' : '1587px'
+                      if (pdfFormat === 'legal') return pdfOrientation === 'landscape' ? '816px' : '1344px'
+                      return pdfOrientation === 'landscape' ? '794px' : '1123px' // A4
+                    })(),
+                    padding: pdfMargin === 'compact' ? '24px 28px' : (pdfMargin === 'wide' ? '56px 64px' : '38px 46px'),
+                    fontSize: pdfScale === 'compact' ? '10px' : (pdfScale === 'large' ? '13px' : '11.5px'),
+                    boxSizing: 'border-box',
+                    fontFamily: 'Arial, sans-serif',
+                    lineHeight: '1.3',
+                    overflowX: 'hidden',
                   }}
                 >
                   {/* Sheet Header */}
-                  <div style={{ borderBottom: '2px solid #1D4ED8', paddingBottom: '10px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div style={{ borderBottom: '2px solid #1D4ED8', paddingBottom: '8px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div>
-                      <h2 style={{ margin: 0, fontSize: '18px', color: '#1D4ED8', fontWeight: '800' }}>
-                        Liberty Uniform - Production Queue
+                      <h2 style={{ margin: 0, fontSize: '16px', color: '#1D4ED8', fontWeight: '800' }}>
+                        Liberty Uniform — Production Queue
                       </h2>
-                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#475569' }}>
-                        Status: <strong>{tailorStatusFilter || 'All'}</strong> | School: <strong>{tailorSchoolFilter || 'All'}</strong> | Date: {tailorDeliveryFilter || 'All'}
+                      <p style={{ margin: '3px 0 0 0', fontSize: '10px', color: '#475569' }}>
+                        Status: <strong>{tailorStatusFilter || 'All'}</strong> &nbsp;|&nbsp; School: <strong>{tailorSchoolFilter || 'All'}</strong> &nbsp;|&nbsp; Date: {tailorDeliveryFilter || 'All'}
                       </p>
                     </div>
-                    <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748B' }}>
-                      <p style={{ margin: 0, fontWeight: '700' }}>Generated: {new Date().toLocaleDateString('en-GB')}</p>
-                      <p style={{ margin: '2px 0 0 0' }}>Format: {pdfFormat.toUpperCase()} ({pdfOrientation})</p>
+                    <div style={{ textAlign: 'right', fontSize: '10px', color: '#64748B' }}>
+                      <div style={{ fontWeight: '700' }}>Generated: {new Date().toLocaleDateString('en-GB')}</div>
+                      <div style={{ marginTop: '2px' }}>{pdfFormat.toUpperCase()} · {pdfOrientation}</div>
                     </div>
                   </div>
 
-                  {/* Garments Table */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: pdfScale === 'compact' ? '10px' : (pdfScale === 'large' ? '12.5px' : '11.5px'), color: '#0F172A', marginBottom: '24px' }}>
+                  {/* Garments Table — fixed layout with % column widths so nothing overflows */}
+                  <table style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    tableLayout: 'fixed',
+                    fontSize: pdfScale === 'compact' ? '9px' : (pdfScale === 'large' ? '11.5px' : '10.5px'),
+                    color: '#0F172A',
+                    marginBottom: '18px'
+                  }}>
+                    <colgroup>
+                      <col style={{ width: '7%' }} />   {/* Order # */}
+                      <col style={{ width: '8%' }} />   {/* Product */}
+                      <col style={{ width: '14%' }} />  {/* Category */}
+                      <col style={{ width: '14%' }} />  {/* School */}
+                      <col style={{ width: '6%' }} />   {/* Gender */}
+                      <col style={{ width: '5%' }} />   {/* Qty */}
+                      <col style={{ width: '24%' }} />  {/* Measurements */}
+                      <col style={{ width: '12%' }} />  {/* Notes */}
+                      <col style={{ width: '10%' }} />  {/* Delivery */}
+                    </colgroup>
                     <thead>
                       <tr style={{ background: '#F1F5F9', borderBottom: '2px solid #CBD5E1', textAlign: 'left' }}>
-                        <th style={{ padding: '8px 6px', width: '45px' }}>Order #</th>
-                        <th style={{ padding: '8px 6px' }}>Product</th>
-                        <th style={{ padding: '8px 6px' }}>Category</th>
-                        <th style={{ padding: '8px 6px' }}>School</th>
-                        <th style={{ padding: '8px 6px', width: '55px' }}>Gender</th>
-                        <th style={{ padding: '8px 6px', width: '45px' }}>Qty</th>
-                        <th style={{ padding: '8px 6px' }}>Measurements</th>
-                        <th style={{ padding: '8px 6px' }}>Notes</th>
-                        <th style={{ padding: '8px 6px' }}>Delivery</th>
+                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Order #</th>
+                        <th style={{ padding: '6px 5px', overflow: 'hidden' }}>Product</th>
+                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Category</th>
+                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>School</th>
+                        <th style={{ padding: '6px 5px', overflow: 'hidden' }}>G</th>
+                        <th style={{ padding: '6px 5px', overflow: 'hidden' }}>Qty</th>
+                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Measurements</th>
+                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Notes</th>
+                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Delivery</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sortedTailorGarments.length === 0 ? (
                         <tr>
-                          <td colSpan="9" style={{ padding: '20px', textAlign: 'center', color: '#64748B' }}>
+                          <td colSpan="9" style={{ padding: '16px', textAlign: 'center', color: '#64748B' }}>
                             No garments match the selected filters.
                           </td>
                         </tr>
                       ) : (
                         sortedTailorGarments.map((row) => (
-                          <tr key={row.uniqueRowId} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                            <td style={{ padding: '6px', fontWeight: '800' }}>#{row.orderNumber}</td>
-                            <td style={{ padding: '6px' }}>
-                              <span className={`product-tag ${row.product.toLowerCase()}`}>{row.product}</span>
+                          <tr key={row.uniqueRowId} style={{ borderBottom: '1px solid #E2E8F0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                            <td style={{ padding: '5px', fontWeight: '800', overflow: 'hidden' }}>#{row.orderNumber}</td>
+                            <td style={{ padding: '5px', overflow: 'hidden' }}>
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '2px 5px',
+                                borderRadius: '4px',
+                                fontSize: '9px',
+                                fontWeight: '700',
+                                textTransform: 'uppercase',
+                                background: row.product.toLowerCase() === 'shirt' ? '#EFF6FF' : row.product.toLowerCase() === 'pant' ? '#FAF5FF' : '#FFF1F2',
+                                color: row.product.toLowerCase() === 'shirt' ? '#1D4ED8' : row.product.toLowerCase() === 'pant' ? '#7C3AED' : '#E11D48',
+                              }}>{row.product}</span>
                             </td>
-                            <td style={{ padding: '6px', fontSize: '10.5px' }}>
+                            <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px' }}>
                               {(() => {
                                 const catVal = row.productionCategory || guessProductionCategory(row);
                                 const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
                                 return catObj ? catObj.name : (catVal || '-');
                               })()}
                             </td>
-                            <td style={{ padding: '6px' }}>{row.school}</td>
-                            <td style={{ padding: '6px', fontWeight: '800' }}>
-                              {row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : row.gender)}
+                            <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word' }}>{row.school}</td>
+                            <td style={{ padding: '5px', fontWeight: '800', overflow: 'hidden' }}>
+                              {row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))}
                             </td>
-                            <td style={{ padding: '6px', fontWeight: '800' }}>{row.quantity}</td>
-                            <td style={{ padding: '6px' }}>{renderTailorMeasurements(row.product, row.measurements)}</td>
-                            <td style={{ padding: '6px', fontSize: '10.5px', color: '#475569' }}>{row.notes || '-'}</td>
-                            <td style={{ padding: '6px', color: '#E11D48', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                            <td style={{ padding: '5px', fontWeight: '800', overflow: 'hidden' }}>{row.quantity}</td>
+                            <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px', letterSpacing: '-0.01em' }}>
+                              {renderPDFMeasurements(row.product, row.measurements)}
+                            </td>
+                            <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px', color: '#475569' }}>{row.notes || '-'}</td>
+                            <td style={{ padding: '5px', overflow: 'hidden', color: '#E11D48', fontWeight: '600', wordBreak: 'break-word' }}>
                               {formatDateToDMY(row.deliveryDate)}
                             </td>
                           </tr>
@@ -5031,42 +5126,48 @@ function App() {
                     </tbody>
                   </table>
 
-                  {/* Production Cost Summary Table (ALWAYS included as required by user) */}
-                  <div style={{ marginTop: '20px', borderTop: '2px solid #0F172A', paddingTop: '14px' }}>
-                    <h3 style={{ fontSize: '14px', margin: '0 0 10px 0', color: '#0F172A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                      Production Cost Summary Table
+                  {/* Production Cost Summary Table */}
+                  <div style={{ marginTop: '16px', borderTop: '2px solid #0F172A', paddingTop: '12px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <h3 style={{ fontSize: '11px', margin: '0 0 8px 0', color: '#0F172A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                      Production Cost Summary
                     </h3>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', color: '#0F172A' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '10px', color: '#0F172A' }}>
+                      <colgroup>
+                        <col style={{ width: '40%' }} />
+                        <col style={{ width: '20%' }} />
+                        <col style={{ width: '20%' }} />
+                        <col style={{ width: '20%' }} />
+                      </colgroup>
                       <thead>
-                        <tr style={{ borderBottom: '1px solid #475569', textAlign: 'left', fontWeight: 'bold', background: '#F8FAFC' }}>
-                          <th style={{ padding: '6px 8px', width: '40%' }}>Component Category</th>
-                          <th style={{ padding: '6px 8px', width: '20%' }}>Rate / Unit</th>
-                          <th style={{ padding: '6px 8px', width: '20%' }}>Total Pieces</th>
-                          <th style={{ padding: '6px 8px', width: '20%', textAlign: 'right' }}>Total Cost</th>
+                        <tr style={{ borderBottom: '1px solid #475569', textAlign: 'left', background: '#F8FAFC' }}>
+                          <th style={{ padding: '5px 6px' }}>Component Category</th>
+                          <th style={{ padding: '5px 6px' }}>Rate / Unit</th>
+                          <th style={{ padding: '5px 6px' }}>Total Pieces</th>
+                          <th style={{ padding: '5px 6px', textAlign: 'right' }}>Total Cost</th>
                         </tr>
                       </thead>
                       <tbody>
                         {productionCostDetails.activeCategories.length === 0 ? (
                           <tr>
-                            <td colSpan="4" style={{ padding: '8px', color: '#64748B', fontStyle: 'italic' }}>
-                              No active production categories for this selection.
+                            <td colSpan="4" style={{ padding: '6px', color: '#64748B', fontStyle: 'italic' }}>
+                              No active production categories.
                             </td>
                           </tr>
                         ) : (
                           productionCostDetails.activeCategories.map(cat => (
                             <tr key={cat.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                              <td style={{ padding: '6px 8px', fontWeight: '600' }}>{cat.name}</td>
-                              <td style={{ padding: '6px 8px' }}>₹{cat.rate}</td>
-                              <td style={{ padding: '6px 8px' }}>{cat.qty}</td>
-                              <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '600' }}>₹{cat.cost.toLocaleString()}</td>
+                              <td style={{ padding: '5px 6px', fontWeight: '600' }}>{cat.name}</td>
+                              <td style={{ padding: '5px 6px' }}>₹{cat.rate}</td>
+                              <td style={{ padding: '5px 6px' }}>{cat.qty}</td>
+                              <td style={{ padding: '5px 6px', textAlign: 'right', fontWeight: '600' }}>₹{cat.cost.toLocaleString()}</td>
                             </tr>
                           ))
                         )}
-                        <tr style={{ fontWeight: '800', fontSize: '12.5px', background: '#EFF6FF', borderTop: '2px solid #2563EB' }}>
-                          <td style={{ padding: '8px', color: '#1D4ED8' }}>Total Production Cost</td>
-                          <td style={{ padding: '8px' }}></td>
-                          <td style={{ padding: '8px', color: '#1D4ED8' }}>{productionCostDetails.totalQty} pieces</td>
-                          <td style={{ padding: '8px', textAlign: 'right', color: '#1D4ED8' }}>₹{productionCostDetails.totalCost.toLocaleString()}</td>
+                        <tr style={{ fontWeight: '800', background: '#EFF6FF', borderTop: '2px solid #2563EB' }}>
+                          <td style={{ padding: '6px', color: '#1D4ED8' }}>Total Production Cost</td>
+                          <td style={{ padding: '6px' }}></td>
+                          <td style={{ padding: '6px', color: '#1D4ED8' }}>{productionCostDetails.totalQty} pcs</td>
+                          <td style={{ padding: '6px', textAlign: 'right', color: '#1D4ED8' }}>₹{productionCostDetails.totalCost.toLocaleString()}</td>
                         </tr>
                       </tbody>
                     </table>
