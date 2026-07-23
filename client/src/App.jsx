@@ -5268,23 +5268,49 @@ function App() {
                         border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid #E2E8F0'
                       }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <input
-                            type="text"
-                            placeholder="🔍 Search log messages..."
-                            value={logSearch}
-                            onChange={(e) => setLogSearch(e.target.value)}
-                            style={{
-                              flex: 1,
-                              minWidth: 0,
-                              padding: '8px 12px',
-                              fontSize: '12px',
-                              borderRadius: '8px',
-                              minHeight: '34px',
-                              background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                              color: 'inherit',
-                              border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
-                            }}
-                          />
+                          <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                            <input
+                              type="text"
+                              placeholder="🔍 Search log messages..."
+                              value={logSearch}
+                              onChange={(e) => setLogSearch(e.target.value)}
+                              style={{
+                                flex: 1,
+                                width: '100%',
+                                minWidth: 0,
+                                padding: logSearch ? '8px 28px 8px 12px' : '8px 12px',
+                                fontSize: '12px',
+                                borderRadius: '8px',
+                                minHeight: '34px',
+                                background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                                color: 'inherit',
+                                border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
+                              }}
+                            />
+                            {logSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setLogSearch('')}
+                                style={{
+                                  position: 'absolute',
+                                  right: '8px',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontSize: '14px',
+                                  color: '#94A3B8',
+                                  padding: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  lineHeight: 1
+                                }}
+                                title="Clear search"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
                           <select
                             value={logTypeFilter}
                             onChange={(e) => setLogTypeFilter(e.target.value)}
