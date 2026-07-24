@@ -1734,6 +1734,14 @@ async function startServer() {
       console.log("Updated 38 pricing rates structure in MongoDB");
     }
 
+    // Wipe all audit logs from MongoDB for fresh start as requested
+    try {
+      await AuditLog.deleteMany({});
+      console.log("Wiped all audit log entries from MongoDB.");
+    } catch (purgeErr) {
+      console.error("Failed to clear audit logs:", purgeErr.message);
+    }
+
     // Execute automatic startup database backup
     try {
       await performBackup();
