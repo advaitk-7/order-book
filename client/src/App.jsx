@@ -256,7 +256,10 @@ function App() {
   const [loadingBackups, setLoadingBackups] = useState(false)
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false)
 
-  // Pricing Settings States
+  // Production Categories & Pricing Settings States
+  const [productionCategories, setProductionCategories] = useState(PRODUCTION_CATEGORIES)
+  const [newCatName, setNewCatName] = useState('')
+  const [newCatRate, setNewCatRate] = useState('')
   const [pricingRates, setPricingRates] = useState(DEFAULT_PRICING_RATES)
   const [pricingInputs, setPricingInputs] = useState(DEFAULT_PRICING_RATES)
   const [loadingPricing, setLoadingPricing] = useState(false)
@@ -863,19 +866,81 @@ function App() {
     if (!token) return
     setLoadingPricing(true)
     try {
-      const response = await fetch(`${API_BASE}/api/settings/pricing`, {
+      const response = await fetch(`${API_BASE}/api/settings/categories`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
-        if (data && data.value) {
-          const merged = { ...DEFAULT_PRICING_RATES, ...data.value }
-          setPricingRates(merged)
-          setPricingInputs(merged)
+        if (data.categories) {
+          setProductionCategories(data.categories)
+        }
+        if (data.rates) {
+          setPricingRates(data.rates)
+          setPricingInputs(data.rates)
         }
       }
     } catch (error) {
-      console.error('Failed to load pricing rates', error)
+      console.error('Failed to load production categories & pricing rates', error)
+    } finally {
+      setLoadingPricing(false)
+    }
+  }
+
+  const handleAddCategory = async (e) => {
+    e.preventDefault()
+    if (!token || !newCatName.trim()) return
+    setLoadingPricing(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/settings/categories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newCatName.trim(), defaultRate: Number(newCatRate || 0) })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        alert(data.message || 'Production category added successfully!')
+        if (data.categories) setProductionCategories(data.categories)
+        if (data.rates) {
+          setPricingRates(data.rates)
+          setPricingInputs(data.rates)
+        }
+        setNewCatName('')
+        setNewCatRate('')
+        fetchAuditLogs()
+      } else {
+        alert('Failed to add category: ' + (data.message || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Add category error', error)
+      alert('Network error while adding category.')
+    } finally {
+      setLoadingPricing(false)
+    }
+  }
+
+  const handleDeleteCategory = async (id, name) => {
+    if (!token) return
+    if (!window.confirm(`Are you sure you want to delete category "${name}"?`)) return
+    setLoadingPricing(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/settings/categories/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (response.ok) {
+        alert(data.message || 'Production category deleted!')
+        if (data.categories) setProductionCategories(data.categories)
+        fetchAuditLogs()
+      } else {
+        alert('Failed to delete category: ' + (data.message || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Delete category error', error)
+      alert('Network error while deleting category.')
     } finally {
       setLoadingPricing(false)
     }
@@ -898,9 +963,8 @@ function App() {
         const data = await response.json()
         setMessage(data.message || 'Garment cost pricing rates updated successfully!')
         if (data.settings && data.settings.value) {
-          const merged = { ...DEFAULT_PRICING_RATES, ...data.settings.value }
-          setPricingRates(merged)
-          setPricingInputs(merged)
+          setPricingRates(data.settings.value)
+          setPricingInputs(data.settings.value)
         } else {
           setPricingRates(pricingInputs)
         }
@@ -2161,7 +2225,7 @@ function App() {
           if (!catId) {
             hasUncategorized = true
           } else {
-            const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catId)
+            const catObj = productionCategories.find(c => c.id === catId)
             const name = catObj ? catObj.name : catId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
             const id = catObj ? catObj.id : catId
             if (id && !catsMap.has(id)) {
@@ -2225,7 +2289,7 @@ function App() {
             if (tailorCategoryFilter === 'Uncategorized') {
               if (catId !== '') return
             } else {
-              const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catId)
+              const catObj = productionCategories.find(c => c.id === catId)
               const catName = catObj ? catObj.name : catId
               if (catId !== tailorCategoryFilter && catName !== tailorCategoryFilter) {
                 return
@@ -2308,7 +2372,7 @@ function App() {
       if (catId === 'trouser_elastic_20_30') catId = 'trousers_elastic_20_30';
       if (catId === 'trouser_elastic_32_40') catId = 'trousers_elastic_32_40';
 
-      const catInfo = PRODUCTION_CATEGORIES.find(c => c.id === catId);
+      const catInfo = productionCategories.find(c => c.id === catId);
       const catName = catInfo ? catInfo.name : (catId ? catId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Uncategorized');
       const rate = (pricingRates && pricingRates[catId] !== undefined)
         ? Number(pricingRates[catId])
@@ -2465,7 +2529,7 @@ function App() {
 
       const sleeveTag = getSleeveTag(row.product, row.measurements);
       const productVal = sleeveTag ? `${row.product} (${sleeveTag})` : row.product;
-      const catObj = PRODUCTION_CATEGORIES.find(c => c.id === (row.productionCategory || guessProductionCategory(row)));
+      const catObj = productionCategories.find(c => c.id === (row.productionCategory || guessProductionCategory(row)));
       const catName = catObj ? catObj.name : (row.productionCategory || '');
 
       const csvRow = [
@@ -2606,7 +2670,7 @@ function App() {
       // ── Garments Table ──────────────────────────────────────────────────
       const garmentRows = sortedTailorGarments.map(row => {
         const catVal = row.productionCategory || guessProductionCategory(row)
-        const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal)
+        const catObj = productionCategories.find(c => c.id === catVal)
         const catName = catObj ? catObj.name : (catVal || '-')
         const gender = row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))
         const meas = renderPDFMeasurements(row.product, row.measurements)
@@ -4293,7 +4357,7 @@ function App() {
                                     }}
                                   >
                                     <option value="">Select Category</option>
-                                    {PRODUCTION_CATEGORIES.map(cat => (
+                                    {productionCategories.map(cat => (
                                       <option key={cat.id} value={cat.id}>
                                         {cat.name} (₹{(pricingRates && pricingRates[cat.id] !== undefined) ? pricingRates[cat.id] : cat.defaultRate})
                                       </option>
@@ -4303,25 +4367,15 @@ function App() {
                                 <span className="print-landscape-only-category" style={{ display: 'none' }}>
                                   {(() => {
                                     const catVal = row.productionCategory || '';
-                                    const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
+                                    const catObj = productionCategories.find(c => c.id === catVal);
                                     return catObj ? `${catObj.name} (₹${pricingRates[catVal] !== undefined ? pricingRates[catVal] : catObj.defaultRate})` : (catVal || 'Uncategorized');
                                   })()}
                                 </span>
                                 <span className="print-portrait-only-category" style={{ display: 'none' }}>
                                   {(() => {
                                     const catVal = row.productionCategory || '';
-                                    const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
-                                    if (!catObj) return catVal || 'Uncategorized';
-                                    let name = catObj.name;
-                                    name = name.replace(/H\.S\./g, 'HS')
-                                               .replace(/F\.S\./g, 'FS')
-                                               .replace(/Order/g, 'Ord')
-                                               .replace(/Regular/g, 'Reg')
-                                               .replace(/Trousers/g, 'Tr.')
-                                               .replace(/Elastic/g, 'Elast.')
-                                               .replace(/Skirt \/ Divider/g, 'Skirt/Div')
-                                               .replace(/Nirmala \/ SNS/g, 'Nirmala');
-                                    return name;
+                                    const catObj = productionCategories.find(c => c.id === catVal);
+                                    return catObj ? `${catObj.name} (₹${pricingRates[catVal] !== undefined ? pricingRates[catVal] : catObj.defaultRate})` : (catVal || 'Uncategorized');
                                   })()}
                                 </span>
                               </td>
@@ -4932,38 +4986,106 @@ function App() {
                       </button>
                     </div>
 
-                    {/* Production Pricing Rates */}
+                    {/* Production Categories & Pricing Rates */}
                     <div className="settings-box" style={{ gridColumn: 'span 2' }}>
-                      <p className="settings-box-title">💵 Garment Cost Pricing Rates (38 Categories)</p>
-                      <p className="settings-box-desc">Configure unit rates (₹) for all 38 production categories used inside the Production Queue Cost Calculator.</p>
+                      <p className="settings-box-title">💵 Production Categories & Pricing Rates ({productionCategories.length} Categories)</p>
+                      <p className="settings-box-desc">Add new categories, edit unit rates (₹), or remove categories used inside the Production Queue Cost Calculator.</p>
 
+                      {/* Add New Category Form */}
+                      <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '12px', borderRadius: '10px', marginBottom: '16px', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #E2E8F0' }}>
+                        <div style={{ flex: 2, minWidth: '180px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>
+                            ➕ New Category Name
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Blazer (28 to 36)"
+                            value={newCatName}
+                            onChange={(e) => setNewCatName(e.target.value)}
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', fontSize: '12px' }}
+                            required
+                          />
+                        </div>
+                        <div style={{ flex: 1, minWidth: '110px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>
+                            Tailor Rate (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="e.g. 250"
+                            value={newCatRate}
+                            onChange={(e) => setNewCatRate(e.target.value)}
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', fontSize: '12px' }}
+                            required
+                          />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                          <button
+                            type="submit"
+                            className="primary-btn"
+                            style={{ padding: '6px 14px', fontSize: '12px', height: '32px', whiteSpace: 'nowrap' }}
+                            disabled={loadingPricing}
+                          >
+                            + Add Category
+                          </button>
+                        </div>
+                      </form>
+
+                      {/* Category Rates List */}
                       <form onSubmit={handleUpdatePricing} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={{
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                          gap: '12px',
-                          maxHeight: '340px',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                          gap: '10px',
+                          maxHeight: '380px',
                           overflowY: 'auto',
                           paddingRight: '6px'
                         }}>
-                          {PRODUCTION_CATEGORIES.map((cat) => (
+                          {productionCategories.map((cat) => (
                             <div key={cat.id} style={{
                               background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
-                              padding: '10px 12px',
+                              padding: '8px 10px',
                               borderRadius: '10px',
-                              border: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #E2E8F0'
+                              border: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #E2E8F0',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              gap: '6px'
                             }}>
-                              <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cat.name}>
-                                {cat.name} (₹)
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={pricingInputs[cat.id] !== undefined ? pricingInputs[cat.id] : cat.defaultRate}
-                                onChange={(e) => setPricingInputs(prev => ({ ...prev, [cat.id]: Number(e.target.value || 0) }))}
-                                style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', fontSize: '13px' }}
-                                required
-                              />
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cat.name}>
+                                  {cat.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    color: '#EF4444',
+                                    padding: '2px 4px',
+                                    borderRadius: '4px',
+                                    lineHeight: 1
+                                  }}
+                                  title={`Delete ${cat.name}`}
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748B' }}>Rate (₹):</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pricingInputs[cat.id] !== undefined ? pricingInputs[cat.id] : cat.defaultRate}
+                                  onChange={(e) => setPricingInputs(prev => ({ ...prev, [cat.id]: Number(e.target.value || 0) }))}
+                                  style={{ flex: 1, padding: '4px 8px', borderRadius: '6px', fontSize: '12px' }}
+                                  required
+                                />
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -4979,7 +5101,7 @@ function App() {
                           }}
                           disabled={loadingPricing}
                         >
-                          {loadingPricing ? 'Saving All Pricing Rates...' : 'Save All 38 Pricing Rates'}
+                          {loadingPricing ? 'Saving All Pricing Rates...' : `Save All ${productionCategories.length} Pricing Rates`}
                         </button>
                       </form>
                     </div>

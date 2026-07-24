@@ -21,46 +21,51 @@ const JWT_SECRET = process.env.JWT_SECRET || "liberty_uniform_secret_key_12345";
 let ADMIN_USERNAME = process.env.ADMIN_USERNAME || "sarju";
 let currentAdminPassword = process.env.ADMIN_PASSWORD || "1";
 
-const DEFAULT_PRICING_RATES = {
-  hs_shirt_20_30: 100,
-  hs_shirt_32_44: 120,
-  hs_order_shirt_20_30: 130,
-  hs_order_shirt_32_44: 150,
-  fs_shirt_20_30: 120,
-  fs_shirt_32_44: 140,
-  fs_order_shirt_20_30: 150,
-  fs_order_shirt_32_44: 180,
-  ni_top_reg: 100,
-  ni_top_order: 130,
-  ni_top_cbse: 160,
-  ni_top_cb_sc_order: 190,
-  chefcoat: 160,
-  coaty_at: 120,
-  coaty_at_order: 150,
-  coaty_kv_dk: 100,
-  coaty_kv_dk_order: 130,
-  kurta_regular: 100,
-  kurta_order: 130,
-  kitchen_apron: 60,
-  cooking_cap: 40,
-  mody_apron: 130,
-  pinafore: 100,
-  pinafore_order: 130,
-  skirt_div_regular: 90,
-  skirt_div_order: 120,
-  at_skirt: 120,
-  at_skirt_order: 150,
-  nirmala_sns_frock: 150,
-  nirmala_sns_frock_order: 180,
-  trousers_elastic_20_30: 100,
-  trousers_elastic_20_30_order: 130,
-  trousers_elastic_32_40: 125,
-  trousers_elastic_32_40_order: 155,
-  trousers_belt: 150,
-  trousers_belt_order: 180,
-  cargo_trousers: 120,
-  cargo_trousers_order: 150
-};
+const DEFAULT_PRODUCTION_CATEGORIES = [
+  { id: 'hs_shirt_20_30', name: 'H.S. Shirt (20 to 30)', defaultRate: 100 },
+  { id: 'hs_shirt_32_44', name: 'H.S. Shirt (32 to 44)', defaultRate: 120 },
+  { id: 'hs_order_shirt_20_30', name: 'H.S. Order Shirt (20 to 30)', defaultRate: 130 },
+  { id: 'hs_order_shirt_32_44', name: 'H.S. Order Shirt (32 to 44)', defaultRate: 150 },
+  { id: 'fs_shirt_20_30', name: 'F.S. Shirt (20 to 30)', defaultRate: 120 },
+  { id: 'fs_shirt_32_44', name: 'F.S. Shirt (32 to 44)', defaultRate: 140 },
+  { id: 'fs_order_shirt_20_30', name: 'F.S. Order Shirt (20 to 30)', defaultRate: 150 },
+  { id: 'fs_order_shirt_32_44', name: 'F.S. Order Shirt (32 to 44)', defaultRate: 180 },
+  { id: 'ni_top_reg', name: 'NI Top Regular', defaultRate: 100 },
+  { id: 'ni_top_order', name: 'NI Top Order', defaultRate: 130 },
+  { id: 'ni_top_cbse', name: 'NI Top CBSE', defaultRate: 160 },
+  { id: 'ni_top_cb_sc_order', name: 'NI Top CBSE Order', defaultRate: 190 },
+  { id: 'chefcoat', name: 'Chef Coat', defaultRate: 160 },
+  { id: 'coaty_at', name: 'Coaty AT', defaultRate: 120 },
+  { id: 'coaty_at_order', name: 'Coaty AT Order', defaultRate: 150 },
+  { id: 'coaty_kv_dk', name: 'Coaty KV / DK', defaultRate: 100 },
+  { id: 'coaty_kv_dk_order', name: 'Coaty KV / DK Order', defaultRate: 130 },
+  { id: 'kurta_regular', name: 'Kurta Regular', defaultRate: 100 },
+  { id: 'kurta_order', name: 'Kurta Order', defaultRate: 130 },
+  { id: 'kitchen_apron', name: 'Kitchen Apron', defaultRate: 60 },
+  { id: 'cooking_cap', name: 'Cooking Cap', defaultRate: 40 },
+  { id: 'mody_apron', name: 'Modi Apron', defaultRate: 130 },
+  { id: 'pinafore', name: 'Pinafore', defaultRate: 100 },
+  { id: 'pinafore_order', name: 'Pinafore Order', defaultRate: 130 },
+  { id: 'skirt_div_regular', name: 'Skirt / Divider Regular', defaultRate: 90 },
+  { id: 'skirt_div_order', name: 'Skirt / Divider Order', defaultRate: 120 },
+  { id: 'at_skirt', name: 'AT Skirt', defaultRate: 120 },
+  { id: 'at_skirt_order', name: 'AT Skirt Order', defaultRate: 150 },
+  { id: 'nirmala_sns_frock', name: 'Nirmala / SNS Frock', defaultRate: 150 },
+  { id: 'nirmala_sns_frock_order', name: 'Nirmala / SNS Frock Order', defaultRate: 180 },
+  { id: 'trousers_elastic_20_30', name: 'Trousers Elastic (20 to 30)', defaultRate: 100 },
+  { id: 'trousers_elastic_20_30_order', name: 'Trousers Elastic Order (20 to 30)', defaultRate: 130 },
+  { id: 'trousers_elastic_32_40', name: 'Trousers Elastic (32 to 40)', defaultRate: 125 },
+  { id: 'trousers_elastic_32_40_order', name: 'Trousers Elastic Order (32 to 40)', defaultRate: 155 },
+  { id: 'trousers_belt', name: 'Trousers Belt', defaultRate: 150 },
+  { id: 'trousers_belt_order', name: 'Trousers Belt Order', defaultRate: 180 },
+  { id: 'cargo_trousers', name: 'Cargo Trousers', defaultRate: 120 },
+  { id: 'cargo_trousers_order', name: 'Cargo Trousers Order', defaultRate: 150 }
+];
+
+const DEFAULT_PRICING_RATES = DEFAULT_PRODUCTION_CATEGORIES.reduce((acc, cat) => {
+  acc[cat.id] = cat.defaultRate;
+  return acc;
+}, {});
 
 // Levenshtein Distance Helper
 function getLevenshteinDistance(a, b) {
@@ -1481,14 +1486,105 @@ app.post("/api/backups/restore", authenticateJWT, async (req, res) => {
   }
 });
 
-// Pricing Settings Endpoints
+// Production Category & Pricing Settings Endpoints
+app.get("/api/settings/categories", authenticateJWT, async (req, res) => {
+  try {
+    let catSettings = await SystemSettings.findOne({ key: "production_categories" });
+    let categories = catSettings ? catSettings.value : DEFAULT_PRODUCTION_CATEGORIES;
+
+    let ratesSettings = await SystemSettings.findOne({ key: "pricing_rates" });
+    let rates = ratesSettings ? ratesSettings.value : DEFAULT_PRICING_RATES;
+
+    res.json({ categories, rates });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch production categories", error: error.message });
+  }
+});
+
+app.post("/api/settings/categories", authenticateJWT, async (req, res) => {
+  try {
+    const { name, defaultRate } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: "Category name is required" });
+    }
+
+    const trimmedName = name.trim();
+    const rateVal = Number(defaultRate || 0);
+
+    let catSettings = await SystemSettings.findOne({ key: "production_categories" });
+    let currentCategories = catSettings ? catSettings.value : [...DEFAULT_PRODUCTION_CATEGORIES];
+
+    const cleanId = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') + '_' + Date.now();
+
+    const newCategory = {
+      id: cleanId,
+      name: trimmedName,
+      defaultRate: rateVal
+    };
+
+    currentCategories.push(newCategory);
+
+    await SystemSettings.findOneAndUpdate(
+      { key: "production_categories" },
+      { value: currentCategories },
+      { new: true, upsert: true }
+    );
+
+    let ratesSettings = await SystemSettings.findOne({ key: "pricing_rates" });
+    let currentRates = ratesSettings ? { ...ratesSettings.value } : { ...DEFAULT_PRICING_RATES };
+    currentRates[cleanId] = rateVal;
+
+    await SystemSettings.findOneAndUpdate(
+      { key: "pricing_rates" },
+      { value: currentRates },
+      { new: true, upsert: true }
+    );
+
+    await logAudit(null, "System", "Category Added", `Added new production category '${trimmedName}' (₹${rateVal})`);
+    res.status(201).json({ message: "Production category added successfully", category: newCategory, categories: currentCategories, rates: currentRates });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to add production category", error: error.message });
+  }
+});
+
+app.delete("/api/settings/categories/:id", authenticateJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    let catSettings = await SystemSettings.findOne({ key: "production_categories" });
+    let currentCategories = catSettings ? catSettings.value : [...DEFAULT_PRODUCTION_CATEGORIES];
+
+    const targetCat = currentCategories.find(c => c.id === id);
+    const updatedCategories = currentCategories.filter(c => c.id !== id);
+
+    await SystemSettings.findOneAndUpdate(
+      { key: "production_categories" },
+      { value: updatedCategories },
+      { new: true, upsert: true }
+    );
+
+    let ratesSettings = await SystemSettings.findOne({ key: "pricing_rates" });
+    if (ratesSettings && ratesSettings.value) {
+      delete ratesSettings.value[id];
+      ratesSettings.markModified('value');
+      await ratesSettings.save();
+    }
+
+    const catName = targetCat ? targetCat.name : id;
+    await logAudit(null, "System", "Category Deleted", `Deleted production category '${catName}'`);
+    res.json({ message: `Production category '${catName}' deleted successfully`, categories: updatedCategories });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete production category", error: error.message });
+  }
+});
+
 app.get("/api/settings/pricing", authenticateJWT, async (req, res) => {
   try {
     let settings = await SystemSettings.findOne({ key: "pricing_rates" });
     if (!settings) {
       settings = await SystemSettings.create({
         key: "pricing_rates",
-        value: { pant: 150, pina: 75, shirtHs: 90, shirtFs: 110 }
+        value: DEFAULT_PRICING_RATES
       });
     }
     res.json(settings);
@@ -1504,20 +1600,13 @@ app.post("/api/settings/pricing", authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: "Invalid value payload." });
     }
 
-    const rates = {
-      pant: Number(value.pant || 0),
-      pina: Number(value.pina || 0),
-      shirtHs: Number(value.shirtHs || 0),
-      shirtFs: Number(value.shirtFs || 0)
-    };
-
     let settings = await SystemSettings.findOneAndUpdate(
       { key: "pricing_rates" },
-      { value: rates },
+      { value },
       { new: true, upsert: true }
     );
 
-    await logAudit(null, "System", "Settings Update", `Pricing rates updated: Pant ₹${rates.pant}, Pina ₹${rates.pina}, Shirt HS ₹${rates.shirtHs}, Shirt FS ₹${rates.shirtFs}`);
+    await logAudit(null, "System", "Settings Update", `Updated pricing rates for production categories`);
     res.json({ message: "Pricing rates updated successfully", settings });
   } catch (error) {
     res.status(500).json({ message: "Failed to update pricing settings", error: error.message });
