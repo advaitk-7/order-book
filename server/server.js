@@ -747,14 +747,25 @@ const restoreBackup = async (compressedBuffer) => {
   }
 };
 
-// Schedule automatic daily backup (every 24 hours)
+// Schedule automatic daily backup at 11:59 PM IST (23:59 IST) every night
+let lastScheduledBackupDate = null;
 setInterval(async () => {
   try {
-    await performBackup();
+    const now = new Date();
+    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const ist = new Date(utcMs + (330 * 60000));
+    const todayStr = ist.toISOString().split('T')[0];
+
+    // Trigger at 11:59 PM IST (23:59 IST) once per day
+    if (ist.getHours() === 23 && ist.getMinutes() >= 59 && lastScheduledBackupDate !== todayStr) {
+      lastScheduledBackupDate = todayStr;
+      await performBackup();
+      console.log(`Automatic 11:59 PM IST backup executed for date: ${todayStr}`);
+    }
   } catch (err) {
-    console.error("Scheduled backup failed", err);
+    console.error("Scheduled daily backup failed:", err.message);
   }
-}, 24 * 60 * 60 * 1000);
+}, 30 * 1000);
 
 // Cleanup preview endpoint: checks if creating orderNumber X hits a 100-block boundary and counts delivered orders eligible for purge
 app.get("/api/orders/cleanup-preview", async (req, res) => {
