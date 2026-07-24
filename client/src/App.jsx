@@ -4992,9 +4992,9 @@ function App() {
                       <p className="settings-box-desc">Add new categories, edit unit rates (₹), or remove categories used inside the Production Queue Cost Calculator.</p>
 
                       {/* Add New Category Form */}
-                      <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '12px', borderRadius: '10px', marginBottom: '16px', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #E2E8F0' }}>
+                      <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '12px', marginBottom: '16px', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #E2E8F0' }}>
                         <div style={{ flex: 2, minWidth: '180px' }}>
-                          <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '6px' }}>
                             ➕ New Category Name
                           </label>
                           <input
@@ -5002,12 +5002,12 @@ function App() {
                             placeholder="e.g. Blazer (28 to 36)"
                             value={newCatName}
                             onChange={(e) => setNewCatName(e.target.value)}
-                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', fontSize: '12px' }}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', height: '38px', boxSizing: 'border-box' }}
                             required
                           />
                         </div>
-                        <div style={{ flex: 1, minWidth: '110px' }}>
-                          <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '4px' }}>
+                        <div style={{ flex: 1, minWidth: '120px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '6px' }}>
                             Tailor Rate (₹)
                           </label>
                           <input
@@ -5016,7 +5016,7 @@ function App() {
                             placeholder="e.g. 250"
                             value={newCatRate}
                             onChange={(e) => setNewCatRate(e.target.value)}
-                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', fontSize: '12px' }}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', height: '38px', boxSizing: 'border-box' }}
                             required
                           />
                         </div>
@@ -5024,7 +5024,18 @@ function App() {
                           <button
                             type="submit"
                             className="primary-btn"
-                            style={{ padding: '6px 14px', fontSize: '12px', height: '32px', whiteSpace: 'nowrap' }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '0 18px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              height: '38px',
+                              borderRadius: '8px',
+                              whiteSpace: 'nowrap',
+                              lineHeight: 1
+                            }}
                             disabled={loadingPricing}
                           >
                             + Add Category
