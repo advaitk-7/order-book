@@ -983,22 +983,6 @@ function App() {
     })
   }, [auditLogs, logSearch])
 
-  const handleClearAuditLogs = async () => {
-    if (!token) return
-    if (!window.confirm("Are you sure you want to clear all system audit logs? This cannot be undone.")) return
-    try {
-      const response = await fetch(`${API_BASE}/api/audit-logs`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        setAuditLogs([])
-      }
-    } catch (error) {
-      console.error('Failed to clear audit logs', error)
-    }
-  }
-
   const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter, school = waitlistSchoolFilter, silent = false) => {
     if (!token) return
     if (!silent) setLoadingWaitlist(true)
@@ -5231,19 +5215,7 @@ function App() {
                   <div className="settings-right-col">
                     {/* Timeline Audit Logs */}
                     <div className="settings-box" style={{ height: '100%' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <p className="settings-box-title" style={{ margin: 0 }}>📋 System Audit Logs</p>
-                        {auditLogs.length > 0 && (
-                          <button
-                            type="button"
-                            className="ghost-btn"
-                            onClick={handleClearAuditLogs}
-                            style={{ fontSize: '11px', padding: '3px 8px', color: '#EF4444', borderColor: '#FCA5A5', height: '26px' }}
-                          >
-                            🗑️ Clear Logs
-                          </button>
-                        )}
-                      </div>
+                      <p className="settings-box-title">📋 System Audit Logs</p>
                       <p className="settings-box-desc">Real-time trail of edits, creations, deletions, and status changes made to your data.</p>
 
                       {/* Search and Filters Controls */}
