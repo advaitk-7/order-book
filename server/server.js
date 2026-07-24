@@ -1385,6 +1385,15 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
   }
 });
 
+app.delete("/api/audit-logs", authenticateJWT, async (req, res) => {
+  try {
+    await AuditLog.deleteMany({});
+    res.json({ message: "All audit logs cleared successfully." });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to clear audit logs", error: error.message });
+  }
+});
+
 const parseBackupTimestamp = (filename, fileStats) => {
   try {
     const match = filename.match(/liberty_backup_(\d{2})-([A-Za-z]{3})-(\d{4})_(\d{2})-(\d{2})-(\d{2})-(AM|PM)\.json\.gz/);
