@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useDeferredValue } from 'react'
 import './App.css'
+import { getSafeEmoji } from './emojiUtils.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || (window.location.origin.includes('localhost') ? 'http://localhost:5001' : window.location.origin)
 
@@ -2024,11 +2025,11 @@ function App() {
   const pendingPayments = orders.filter((order) => (order.paymentStatus || 'Unpaid') === 'Unpaid').length
 
   const stats = [
-    { label: 'Total Orders', value: totalOrders, icon: '📦', description: 'All time orders', filter: 'All' },
-    { label: 'Pending Orders', value: pendingOrders, icon: '⏳', description: 'Awaiting processing', filter: 'Pending' },
-    { label: 'Ready Orders', value: readyOrders, icon: '✅', description: 'Ready for collection', filter: 'Ready' },
-    { label: 'Delivered Orders', value: deliveredOrders, icon: '🚚', description: 'Completed orders', filter: 'Delivered' },
-    { label: 'Pending Payments', value: pendingPayments, icon: '💰', description: 'Amount unpaid', filter: 'PendingPayments' },
+    { label: 'Total Orders', value: totalOrders, icon: getSafeEmoji('📦'), description: 'All time orders', filter: 'All' },
+    { label: 'Pending Orders', value: pendingOrders, icon: getSafeEmoji('⏳'), description: 'Awaiting processing', filter: 'Pending' },
+    { label: 'Ready Orders', value: readyOrders, icon: getSafeEmoji('✅'), description: 'Ready for collection', filter: 'Ready' },
+    { label: 'Delivered Orders', value: deliveredOrders, icon: getSafeEmoji('🚚'), description: 'Completed orders', filter: 'Delivered' },
+    { label: 'Pending Payments', value: pendingPayments, icon: getSafeEmoji('💰'), description: 'Amount unpaid', filter: 'PendingPayments' },
   ]
 
   const pageSubtitles = {
@@ -3082,7 +3083,7 @@ function App() {
                         justifyContent: 'center',
                       }}
                     >
-                      {showLoginPassword ? '🙈' : '👁️'}
+                      {showLoginPassword ? getSafeEmoji('🙈') : getSafeEmoji('👁️')}
                     </button>
                   </div>
                 </label>
@@ -3160,7 +3161,7 @@ function App() {
                         cursor: 'pointer'
                       }}
                     >
-                      🔄 Resend Code
+                      {getSafeEmoji('🔄')} Resend Code
                     </button>
                     <button
                       type="button"
@@ -3240,7 +3241,7 @@ function App() {
 
               {forgotStep === 3 && (
                 <div className="login-form" style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '48px', color: '#10B981', marginBottom: '16px' }}>✓</div>
+                  <div style={{ fontSize: '48px', color: '#10B981', marginBottom: '16px' }}>{getSafeEmoji('✓')}</div>
                   <h2 className="login-title">Password Updated Successfully</h2>
                   <p className="login-subtitle" style={{ marginBottom: '24px' }}>
                     Your password has been changed successfully.
@@ -3281,12 +3282,12 @@ function App() {
         <nav className="sidebar-nav">
           {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Settings'].map((page) => {
             const emojis = {
-              'Dashboard': '📊',
-              'New Order': '➕',
-              'Orders': '📋',
-              'Production Queue': '🧵',
-              'Stock Waitlist': '🔔',
-              'Settings': '⚙️'
+              'Dashboard': getSafeEmoji('📊'),
+              'New Order': getSafeEmoji('➕'),
+              'Orders': getSafeEmoji('📋'),
+              'Production Queue': getSafeEmoji('🧵'),
+              'Stock Waitlist': getSafeEmoji('🔔'),
+              'Settings': getSafeEmoji('⚙️')
             };
             return (
               <button
@@ -3591,7 +3592,7 @@ function App() {
               )}
               <div className="orders-toolbar">
                 <div className="orders-search-bar">
-                  <span className="topbar-search-icon">🔍</span>
+                  <span className="topbar-search-icon">{getSafeEmoji('🔍')}</span>
                   <input
                     type="search"
                     placeholder="Search by order, customer or school..."
@@ -3817,7 +3818,7 @@ function App() {
                                   startEditingOrder(order);
                                 }}
                               >
-                                ✏️
+                                {getSafeEmoji('✏️')}
                               </button>
                               <button
                                 type="button"
@@ -3830,7 +3831,7 @@ function App() {
                                   }
                                 }}
                               >
-                                🗑️
+                                {getSafeEmoji('🗑️')}
                               </button>
                             </div>
                           </td>
@@ -4058,7 +4059,7 @@ function App() {
               {/* Filter bar container */}
               <div className="orders-toolbar tailor-toolbar">
                 <div className="orders-search-bar">
-                  <span className="topbar-search-icon">🔍</span>
+                  <span className="topbar-search-icon">{getSafeEmoji('🔍')}</span>
                   <input
                     type="search"
                     placeholder="Search by order or customer..."
@@ -4147,7 +4148,7 @@ function App() {
                     onClick={() => window.print()}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
                   >
-                    🖨️ Print Table
+                    {getSafeEmoji('🖨️')} Print Table
                   </button>
                   <button
                     type="button"
@@ -4156,7 +4157,7 @@ function App() {
                     disabled={exportingPDF}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
                   >
-                    {exportingPDF ? '⌛ Generating PDF...' : '📄 Save as PDF'}
+                    {exportingPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('📄')} Save as PDF`}
                   </button>
                   <button
                     type="button"
@@ -4164,7 +4165,7 @@ function App() {
                     onClick={exportToCSV}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
                   >
-                    📊 Export Excel (CSV)
+                    {getSafeEmoji('📊')} Export Excel (CSV)
                   </button>
                 </div>
               </div>
@@ -4680,7 +4681,7 @@ function App() {
                       gap: '6px'
                     }}
                   >
-                    <span>➕</span> Add Request
+                    <span>{getSafeEmoji('➕')}</span> Add Request
                   </button>
                 </div>
 
@@ -4695,7 +4696,7 @@ function App() {
                   <div className="table-search" style={{ flex: 1, minWidth: '200px' }}>
                     <input
                       type="text"
-                      placeholder="🔍 Search name, phone number, school or item..."
+                      placeholder={`${getSafeEmoji('🔍')} Search name, phone number, school or item...`}
                       value={waitlistSearch}
                       onChange={(e) => setWaitlistSearch(e.target.value)}
                     />
@@ -4860,7 +4861,7 @@ function App() {
                                               color: '#64748B'
                                             }}
                                           >
-                                            {item.status === 'Pending' ? '✅' : '⏳'}
+                                            {item.status === 'Pending' ? getSafeEmoji('✅') : getSafeEmoji('⏳')}
                                           </button>
                                         </div>
                                       </li>
@@ -4935,7 +4936,7 @@ function App() {
                                     handleOpenEditWaitlistModal(request);
                                   }}
                                 >
-                                  ✏️
+                                  {getSafeEmoji('✏️')}
                                 </button>
                                 <button
                                   type="button"
@@ -4946,7 +4947,7 @@ function App() {
                                     handleDeleteWaitlistRequest(request._id, request.customerName);
                                   }}
                                 >
-                                  🗑️
+                                  {getSafeEmoji('🗑️')}
                                 </button>
                               </div>
                             </td>
@@ -4974,7 +4975,7 @@ function App() {
                   <div className="settings-left-col">
                     {/* Account management */}
                     <div className="settings-box">
-                      <p className="settings-box-title">🔒 Administrator Account</p>
+                      <p className="settings-box-title">{getSafeEmoji('🔒')} Administrator Account</p>
                       <p className="settings-box-desc">Update your secure administrator credentials for accessing the Liberty Uniform Order Book.</p>
                       <button
                         type="button"
@@ -4988,14 +4989,14 @@ function App() {
 
                     {/* Production Categories & Pricing Rates */}
                     <div className="settings-box" style={{ gridColumn: 'span 2' }}>
-                      <p className="settings-box-title">💵 Production Categories & Pricing Rates ({productionCategories.length} Categories)</p>
+                      <p className="settings-box-title">{getSafeEmoji('💵')} Production Categories & Pricing Rates ({productionCategories.length} Categories)</p>
                       <p className="settings-box-desc">Add new categories, edit unit rates (₹), or remove categories used inside the Production Queue Cost Calculator.</p>
 
                       {/* Add New Category Form */}
                       <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '12px', marginBottom: '16px', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #E2E8F0' }}>
                         <div style={{ flex: 2, minWidth: '180px' }}>
                           <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '6px' }}>
-                            ➕ New Category Name
+                            {getSafeEmoji('➕')} New Category Name
                           </label>
                           <input
                             type="text"
@@ -5083,7 +5084,7 @@ function App() {
                                   }}
                                   title={`Delete ${cat.name}`}
                                 >
-                                  🗑️
+                                  {getSafeEmoji('🗑️')}
                                 </button>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -5119,7 +5120,7 @@ function App() {
 
                     {/* WhatsApp Notification Message Templates */}
                     <div className="settings-box">
-                      <p className="settings-box-title">💬 WhatsApp Notification Message Templates</p>
+                      <p className="settings-box-title">{getSafeEmoji('💬')} WhatsApp Notification Message Templates</p>
                       <p className="settings-box-desc">Customize automated WhatsApp message templates for Stock Waitlist restocks and Order Ready alerts. Use variables in curly braces like <code>{"{customerName}"}</code>.</p>
 
                       <form onSubmit={handleUpdateWhatsAppTemplates} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -5214,7 +5215,7 @@ function App() {
 
                     {/* Backup & restore management */}
                     <div className="settings-box">
-                      <p className="settings-box-title">💾 Database Backups & Recovery</p>
+                      <p className="settings-box-title">{getSafeEmoji('💾')} Database Backups & Recovery</p>
                       <p className="settings-box-desc">Create and restore backups to safeguard against accidental data deletion or hardware failures.</p>
 
                       <div className="backups-list">
@@ -5238,7 +5239,7 @@ function App() {
                                   onClick={() => handleDownloadBackup(backup.filename)}
                                   style={{ padding: '4px 8px', fontSize: '11px', minWidth: 'auto' }}
                                 >
-                                  ⬇️ Download
+                                  {getSafeEmoji('⬇️')} Download
                                 </button>
                               </div>
                             </div>
@@ -5269,7 +5270,7 @@ function App() {
 
                      {/* WhatsApp integration configuration card */}
                     <div className="settings-box">
-                      <p className="settings-box-title">💬 WhatsApp Integration Mode</p>
+                      <p className="settings-box-title">{getSafeEmoji('💬')} WhatsApp Integration Mode</p>
                       <p className="settings-box-desc">Choose whether customer alerts launch the native WhatsApp app (supporting drafts stack-to-top) or load WhatsApp Web in browser tabs.</p>
                       <div style={{ marginTop: 'auto' }}>
                         <label style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '6px' }}>Integration Type</label>
@@ -5286,7 +5287,7 @@ function App() {
 
                     {/* Active Logged-In Devices card */}
                     <div className="settings-box">
-                      <p className="settings-box-title">📱 Active Logged-In Devices</p>
+                      <p className="settings-box-title">{getSafeEmoji('📱')} Active Logged-In Devices</p>
                       <p className="settings-box-desc">Manage other devices that are currently logged in to your account.</p>
 
                       <div className="backups-list" style={{ maxHeight: '200px' }}>
@@ -5300,7 +5301,7 @@ function App() {
                               <div className="backup-details" style={{ flex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                                   <span style={{ fontSize: '14px' }}>
-                                    {s.userAgent.toLowerCase().includes('iphone') || s.userAgent.toLowerCase().includes('android') || s.userAgent.toLowerCase().includes('ios') ? '📱' : '💻'}
+                                    {s.userAgent.toLowerCase().includes('iphone') || s.userAgent.toLowerCase().includes('android') || s.userAgent.toLowerCase().includes('ios') ? getSafeEmoji('📱') : getSafeEmoji('💻')}
                                   </span>
                                   <span style={{ fontWeight: '600', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
                                     {s.userAgent}
@@ -5339,7 +5340,7 @@ function App() {
                           onClick={handleRevokeOthers}
                           style={{ marginTop: 'auto', width: '100%', borderRadius: '12px', height: '38px', fontSize: '12px', fontWeight: 'bold' }}
                         >
-                          🚪 Log Out All Other Devices
+                          {getSafeEmoji('🚪')} Log Out All Other Devices
                         </button>
                       )}
                     </div>
@@ -5348,7 +5349,7 @@ function App() {
                   <div className="settings-right-col">
                     {/* Timeline Audit Logs */}
                     <div className="settings-box" style={{ height: '100%' }}>
-                      <p className="settings-box-title">📋 System Audit Logs</p>
+                      <p className="settings-box-title">{getSafeEmoji('📋')} System Audit Logs</p>
                       <p className="settings-box-desc">Real-time trail of edits, creations, deletions, and status changes made to your data.</p>
 
                       {/* Search and Filters Controls */}
@@ -5364,7 +5365,7 @@ function App() {
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <input
                             type="search"
-                            placeholder="🔍 Search log messages..."
+                            placeholder={`${getSafeEmoji('🔍')} Search log messages...`}
                             value={logSearch}
                             onChange={(e) => setLogSearch(e.target.value)}
                             style={{
@@ -5404,7 +5405,7 @@ function App() {
                           </select>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>📅 View Specific Day:</span>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>{getSafeEmoji('📅')} View Specific Day:</span>
                           <input
                             type="date"
                             value={logDateFilter}
@@ -5482,7 +5483,7 @@ function App() {
           <div className="pdf-modal-card">
             <div className="pdf-modal-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>📄 PDF Export & Live Preview</h3>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} PDF Export & Live Preview</h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
                   Configure paper format, orientation, margins, and density with a live sheet preview.
                 </p>
@@ -5493,7 +5494,7 @@ function App() {
                 onClick={() => setShowPDFModal(false)}
                 style={{ position: 'static', fontSize: '20px' }}
               >
-                ✕
+                {getSafeEmoji('✕')}
               </button>
             </div>
 
@@ -5574,7 +5575,7 @@ function App() {
                     disabled={exportingPDF}
                     style={{ padding: '12px', fontSize: '14px', fontWeight: '700', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
-                    {exportingPDF ? '⌛ Generating PDF...' : '⬇️ Download PDF'}
+                    {exportingPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('⬇️')} Download PDF`}
                   </button>
                   <button
                     type="button"
@@ -5893,10 +5894,10 @@ function App() {
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '500px' }}>
             <button type="button" className="manage-modal-close" onClick={handleCloseWaitlistModal}>
-              ✕
+              {getSafeEmoji('✕')}
             </button>
             <p className="manage-modal-title">
-              {selectedWaitlistRequest ? '✏️ Edit Waitlist Request' : '➕ Add Waitlist Request'}
+              {selectedWaitlistRequest ? `${getSafeEmoji('✏️')} Edit Waitlist Request` : `${getSafeEmoji('➕')} Add Waitlist Request`}
             </p>
             <p className="manage-modal-subtitle">
               Enter customer and product details for waitlist notification.
@@ -5945,7 +5946,7 @@ function App() {
                       padding: 0
                     }}
                   >
-                    {showSchoolManager ? '✕ Hide Directory' : '⚙️ Manage Directory'}
+                    {showSchoolManager ? `${getSafeEmoji('✕')} Hide Directory` : `${getSafeEmoji('⚙️')} Manage Directory`}
                   </button>
                 </div>
                 
@@ -6079,7 +6080,7 @@ function App() {
                                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
                                   title="Save Rename"
                                 >
-                                  💾
+                                  {getSafeEmoji('💾')}
                                 </button>
                                 <button
                                   type="button"
@@ -6087,7 +6088,7 @@ function App() {
                                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
                                   title="Cancel"
                                 >
-                                  ❌
+                                  {getSafeEmoji('❌')}
                                 </button>
                               </div>
                             ) : (
@@ -6100,7 +6101,7 @@ function App() {
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
                                     title="Rename School"
                                   >
-                                    ✏️
+                                    {getSafeEmoji('✏️')}
                                   </button>
                                   <button
                                     type="button"
@@ -6108,7 +6109,7 @@ function App() {
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
                                     title="Delete School"
                                   >
-                                    🗑️
+                                    {getSafeEmoji('🗑️')}
                                   </button>
                                 </div>
                               </>
@@ -6157,7 +6158,7 @@ function App() {
                       }}
                       title="Remove Item"
                     >
-                      🗑️
+                      {getSafeEmoji('🗑️')}
                     </button>
                   </div>
                 ))}
@@ -6179,7 +6180,7 @@ function App() {
                     marginTop: '4px'
                   }}
                 >
-                  ➕ Add Item
+                  {getSafeEmoji('➕')} Add Item
                 </button>
               </div>
 
@@ -6236,7 +6237,7 @@ function App() {
               &times;
             </button>
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <div style={{ fontSize: '38px', marginBottom: '8px' }}>⚠️</div>
+              <div style={{ fontSize: '38px', marginBottom: '8px' }}>{getSafeEmoji('⚠️')}</div>
               <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '800', color: '#B45309' }}>
                 Cycle Cleanup Warning
               </h3>
@@ -6245,7 +6246,7 @@ function App() {
                 This will automatically purge <strong>{cleanupPreviewData.deliveredCount} delivered order(s)</strong> in range <strong>#{cleanupPreviewData.startNum} - #{cleanupPreviewData.endNum}</strong> to free space for the next cycle.
               </p>
               <div style={{ background: '#FEF3C7', padding: '10px 14px', borderRadius: '8px', border: '1px solid #FCD34D', fontSize: '12px', color: '#92400E', textAlign: 'left', marginBottom: '20px' }}>
-                ℹ️ <strong>Safety Note:</strong> Any active (Pending or Ready) orders in this range will remain completely safe.
+                {getSafeEmoji('ℹ️')} <strong>Safety Note:</strong> Any active (Pending or Ready) orders in this range will remain completely safe.
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
