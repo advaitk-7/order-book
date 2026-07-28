@@ -3284,7 +3284,7 @@ function App() {
               'Dashboard': '📊',
               'New Order': '➕',
               'Orders': '📋',
-              'Production Queue': '✂️',
+              'Production Queue': '🧵',
               'Stock Waitlist': '🔔',
               'Settings': '⚙️'
             };
