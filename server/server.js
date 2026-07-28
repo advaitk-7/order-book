@@ -463,7 +463,8 @@ app.post("/api/auth/reset-password", async (req, res) => {
       const hashedPassword = bcrypt.hashSync(cleanPassword, 10);
       currentAdminPassword = hashedPassword;
       await Admin.findOneAndUpdate({}, { password: hashedPassword }, { upsert: true });
-      await logAudit(null, "System", "Password Reset", "Admin password reset successfully via Telegram OTP");
+      await Session.deleteMany({});
+      await logAudit(null, "System", "Password Reset", "Admin password reset successfully via Telegram OTP and all sessions invalidated");
       return res.json({ message: "Password updated successfully" });
     }
     return res.status(403).json({ message: "Reset permission denied." });
@@ -506,7 +507,8 @@ app.post("/api/auth/update-credentials", authenticateJWT, async (req, res) => {
       ADMIN_USERNAME = cleanUsername;
       currentAdminPassword = hashedPassword;
       await Admin.findOneAndUpdate({}, { username: cleanUsername, password: hashedPassword }, { upsert: true });
-      await logAudit(null, "System", "Credentials Update", `Admin username updated to '${cleanUsername}'`);
+      await Session.deleteMany({});
+      await logAudit(null, "System", "Credentials Update", `Admin username updated to '${cleanUsername}' and all sessions invalidated`);
       return res.json({ message: "Credentials updated successfully" });
     }
     return res.status(403).json({ message: "Permission denied." });
