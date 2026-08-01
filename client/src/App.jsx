@@ -6033,12 +6033,6 @@ function App() {
                                 </div>
                               </div>
                             )}
-
-                            {order.notes && (
-                              <div style={{ marginTop: '8px', fontSize: '11px', color: '#64748B', fontStyle: 'italic' }}>
-                                Notes: {order.notes}
-                              </div>
-                            )}
                           </div>
                         )
                       })}
