@@ -5681,49 +5681,52 @@ function App() {
                 {/* Filter Controls */}
                 <div style={{ margin: '20px 24px 16px' }}>
                   {/* Search Bar */}
-                  <div className="table-search" style={{ marginBottom: '12px' }}>
+                  <div className="table-search" style={{ marginBottom: '14px' }}>
                     <input
                       type="text"
-                      placeholder={`${getSafeEmoji('🔍')} Search PO#, Supplier, Product, School / Firm or Challan...`}
+                      placeholder="Search PO number, Supplier, Product, School / Firm or Challan..."
                       value={vendorOrderSearch}
                       onChange={(e) => setVendorOrderSearch(e.target.value)}
                     />
                   </div>
                   {/* Filter Dropdowns Row */}
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B', letterSpacing: '0.04em', textTransform: 'uppercase', marginRight: '2px' }}>Filter:</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>Supplier</span>
+                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filter</span>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Supplier</span>
                       <select
                         value={vendorOrderPartyFilter}
                         onChange={(e) => setVendorOrderPartyFilter(e.target.value)}
-                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
+                        style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
                       >
                         <option value="All">All Suppliers ({parties.length})</option>
                         {parties.map(p => (
                           <option key={p._id} value={p.name}>{p.name}</option>
                         ))}
                       </select>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>School / Firm</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>School / Firm</span>
                       <select
                         value={vendorOrderSchoolFilter}
                         onChange={(e) => setVendorOrderSchoolFilter(e.target.value)}
-                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
+                        style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
                       >
                         <option value="All">All Schools / Firms</option>
                         {Array.from(new Set(vendorOrders.flatMap(o => getNormalizedProducts(o).map(p => p.school)).filter(Boolean))).sort().map(school => (
                           <option key={school} value={school}>{school}</option>
                         ))}
                       </select>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>Status</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Status</span>
                       <select
                         value={vendorOrderStatusFilter}
                         onChange={(e) => setVendorOrderStatusFilter(e.target.value)}
-                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
+                        style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
                       >
                         <option value="All">All Statuses</option>
                         <option value="Pending">Pending</option>
@@ -5731,7 +5734,7 @@ function App() {
                         <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>
                       </select>
-                    </div>
+                    </label>
                   </div>
                 </div>
 
@@ -5824,7 +5827,7 @@ function App() {
                               </div>
 
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <span className={`status-badge ${order.status === 'Completed' ? 'ready' : order.status === 'Partial' ? 'contacted' : 'pending'}`}>
+                                <span className={`status-badge ${order.status === 'Completed' ? 'ready' : order.status === 'Partial' ? 'partial' : order.status === 'Cancelled' ? 'delivered' : 'pending'}`}>
                                   {order.status === 'Completed' ? 'Completed (100%)' : order.status === 'Partial' ? `Partial (${progressPct}%)` : order.status}
                                 </span>
 
@@ -5927,7 +5930,7 @@ function App() {
                                   style={{
                                     height: '100%',
                                     width: `${progressPct}%`,
-                                    background: progressPct === 100 ? '#10B981' : progressPct > 0 ? '#3B82F6' : '#94A3B8',
+                                    background: progressPct === 100 ? '#10B981' : progressPct > 0 ? '#EAB308' : '#94A3B8',
                                     borderRadius: '4px',
                                     transition: 'width 0.3s ease'
                                   }}
@@ -5938,27 +5941,15 @@ function App() {
                             {/* Size Breakdown Tables Per Product */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                               {prods.map((prod, pIdx) => (
-                                <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '12px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                                    <span style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7' }}>
-                                      Product #{pIdx + 1}: {prod.productName}
-                                    </span>
+                                <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
+                                  <div style={{ marginBottom: '12px' }}>
+                                    <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '4px' }}>
+                                      Product {pIdx + 1} &mdash; {prod.productName}
+                                    </div>
                                     {prod.school && (
-                                      <span style={{
-                                        fontSize: '11px',
-                                        fontWeight: '700',
-                                        padding: '3px 10px',
-                                        borderRadius: '20px',
-                                        background: theme === 'dark' ? '#0F172A' : '#EFF6FF',
-                                        color: theme === 'dark' ? '#38BDF8' : '#0284C7',
-                                        border: theme === 'dark' ? '1px solid #0284C7' : '1px solid #BAE6FD',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px',
-                                        whiteSpace: 'nowrap'
-                                      }}>
-                                        {getSafeEmoji('🏫')} {prod.school}
-                                      </span>
+                                      <div style={{ fontSize: '12px', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>
+                                        School / Firm: <strong style={{ color: theme === 'dark' ? '#F1F5F9' : '#0F172A', fontWeight: '700' }}>{prod.school}</strong>
+                                      </div>
                                     )}
                                   </div>
                                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>

@@ -965,6 +965,11 @@ tbody tr:hover {
   color: #FFFFFF;
 }
 
+.status-badge.partial {
+  background: #D97706;
+  color: #FFFFFF;
+}
+
 .status-badge.delivered {
   background: #2563EB;
   color: #FFFFFF;
