@@ -5776,6 +5776,9 @@ function App() {
                           expiryDateStr = new Date(expiryTime).toLocaleDateString()
                         }
 
+                        const schoolsList = Array.from(new Set(prods.map(p => p.school).filter(Boolean)))
+                        const schoolsDisplayStr = schoolsList.length > 0 ? schoolsList.join(', ') : (order.school || 'General')
+
                         return (
                           <div
                             key={order._id}
@@ -5792,6 +5795,22 @@ function App() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                   <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.poNumber}</span>
                                   <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Supplier: {order.partyName}</span>
+                                  <span
+                                    style={{
+                                      fontSize: '12px',
+                                      fontWeight: '700',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      background: theme === 'dark' ? '#0F172A' : '#EFF6FF',
+                                      color: theme === 'dark' ? '#38BDF8' : '#0284C7',
+                                      border: theme === 'dark' ? '1px solid #0284C7' : '1px solid #BAE6FD',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    {getSafeEmoji('🏫')} {schoolsList.length > 1 ? 'Schools / Firms:' : 'School / Firm:'} {schoolsDisplayStr}
+                                  </span>
                                 </div>
                                 <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                                   <span>Products: <strong>{prods.length}</strong></span>
