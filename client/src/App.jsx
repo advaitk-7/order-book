@@ -5433,7 +5433,10 @@ function App() {
                                 <button
                                   type="button"
                                   className="icon-btn danger"
-                                  handleDeleteWaitlistRequest(request._id, request.customerName);
+                                  title="Delete entry"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteWaitlistRequest(request._id, request.customerName);
                                   }}
                                 >
                                   {getSafeEmoji('🗑️')}
