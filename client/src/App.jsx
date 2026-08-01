@@ -7120,16 +7120,16 @@ function App() {
               <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <label style={{ fontWeight: '700', fontSize: '13px', margin: 0 }}>
-                    Size-wise Ordered Quantity * (Lower sizes top → Higher sizes bottom)
+                    Size-wise Ordered Quantity *
                   </label>
                   <button
                     type="button"
                     className="secondary-btn"
                     onClick={() => {
-                      setVendorOrderFormData(prev => {
-                        const updated = sortSizesAscending([...(prev.sizeBreakdown || []), { size: '', orderedQty: '' }])
-                        return { ...prev, sizeBreakdown: updated }
-                      })
+                      setVendorOrderFormData(prev => ({
+                        ...prev,
+                        sizeBreakdown: [...(prev.sizeBreakdown || []), { size: '', orderedQty: '' }]
+                      }))
                     }}
                     style={{ fontSize: '11px', padding: '4px 10px' }}
                   >
@@ -7137,7 +7137,7 @@ function App() {
                   </button>
                 </div>
 
-                {sortSizesAscending(vendorOrderFormData.sizeBreakdown || []).map((sb, idx) => (
+                {(vendorOrderFormData.sizeBreakdown || []).map((sb, idx) => (
                   <div key={idx} style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center' }}>
                     <div style={{ flex: 1 }}>
                       <input
@@ -7145,9 +7145,9 @@ function App() {
                         placeholder="Size (e.g. 28, 30, 32 or M, L)"
                         value={sb.size}
                         onChange={(e) => {
-                          const rawBreakdown = [...(vendorOrderFormData.sizeBreakdown || [])]
-                          rawBreakdown[idx] = { ...rawBreakdown[idx], size: e.target.value }
-                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: rawBreakdown })
+                          const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
+                          updated[idx] = { ...updated[idx], size: e.target.value }
+                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
                         }}
                         required
                         style={{ padding: '6px 10px', fontSize: '13px' }}
@@ -7160,9 +7160,9 @@ function App() {
                         placeholder="Ordered Pcs Qty"
                         value={sb.orderedQty}
                         onChange={(e) => {
-                          const rawBreakdown = [...(vendorOrderFormData.sizeBreakdown || [])]
-                          rawBreakdown[idx] = { ...rawBreakdown[idx], orderedQty: e.target.value }
-                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: rawBreakdown })
+                          const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
+                          updated[idx] = { ...updated[idx], orderedQty: e.target.value }
+                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
                         }}
                         required
                         style={{ padding: '6px 10px', fontSize: '13px' }}
@@ -7245,7 +7245,7 @@ function App() {
                   Quantities Received in this Batch (Per Size):
                 </label>
 
-                {sortSizesAscending(installmentFormData.items || []).map((item, idx) => (
+                {(installmentFormData.items || []).map((item, idx) => (
                   <div key={item.size} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '13px' }}>
                     <div style={{ flex: 1 }}>
                       <strong>Size {item.size}</strong>
