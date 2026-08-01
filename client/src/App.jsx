@@ -5558,6 +5558,170 @@ function App() {
                   </div>
                 </div>
 
+                {/* Supplier Directory Hub Bar (Subsections Selector) */}
+                <div style={{ margin: '16px 24px 0 24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>
+                      Select Supplier Sub-section:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPartyManagerModal(true)}
+                      style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                    >
+                      {getSafeEmoji('⚙️')} Manage Supplier Profiles
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+                    {/* All Suppliers Tab/Card */}
+                    <div
+                      onClick={() => setVendorOrderPartyFilter('All')}
+                      style={{
+                        minWidth: '160px',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        border: vendorOrderPartyFilter === 'All' ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                        background: vendorOrderPartyFilter === 'All' ? (theme === 'dark' ? '#1E293B' : '#EFF6FF') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
+                        boxShadow: vendorOrderPartyFilter === 'All' ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ fontWeight: '800', fontSize: '13px', color: vendorOrderPartyFilter === 'All' ? '#2563EB' : 'inherit' }}>
+                        {getSafeEmoji('🏬')} All Suppliers
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                        {parties.length} Registered Suppliers
+                      </div>
+                    </div>
+
+                    {/* Individual Supplier Sub-section Cards */}
+                    {parties.map(p => {
+                      const isSelected = vendorOrderPartyFilter === p.name
+                      const partyOrders = vendorOrders.filter(o => o.partyName === p.name)
+                      let partyPendingPcs = 0
+                      partyOrders.forEach(o => {
+                        const prods = getNormalizedProducts(o)
+                        prods.forEach(pr => {
+                          (pr.sizeBreakdown || []).forEach(sb => {
+                            partyPendingPcs += Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
+                          })
+                        })
+                      })
+
+                      return (
+                        <div
+                          key={p._id}
+                          onClick={() => setVendorOrderPartyFilter(p.name)}
+                          style={{
+                            minWidth: '180px',
+                            padding: '12px 14px',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                            background: isSelected ? (theme === 'dark' ? '#1E293B' : '#EFF6FF') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
+                            boxShadow: isSelected ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <div style={{ fontWeight: '800', fontSize: '13px', color: isSelected ? '#2563EB' : 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>{getSafeEmoji('🏭')} {p.name}</span>
+                            {isSelected && <span style={{ fontSize: '10px', background: '#2563EB', color: '#FFF', padding: '2px 6px', borderRadius: '10px' }}>Active</span>}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                            {p.contactNumber ? `📞 ${p.contactNumber}` : 'No phone logged'}
+                          </div>
+                          <div style={{ fontSize: '11px', fontWeight: '700', marginTop: '6px', color: partyPendingPcs > 0 ? '#D97706' : '#10B981' }}>
+                            {partyPendingPcs > 0 ? `Pending: ${partyPendingPcs} pcs` : 'No Pending Stock'}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Dedicated Supplier Profile Subsection Banner */}
+                {vendorOrderPartyFilter !== 'All' && (
+                  <div
+                    style={{
+                      margin: '16px 24px 0 24px',
+                      padding: '16px 20px',
+                      borderRadius: '12px',
+                      background: theme === 'dark' ? '#0F172A' : '#F0F9FF',
+                      border: '1px solid #BAE6FD'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '20px' }}>{getSafeEmoji('🏭')}</span>
+                          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0369A1' }}>
+                            {vendorOrderPartyFilter} — Dedicated Supplier Sub-section
+                          </h3>
+                        </div>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#0284C7' }}>
+                          {parties.find(p => p.name === vendorOrderPartyFilter)?.contactNumber ? `Phone: ${parties.find(p => p.name === vendorOrderPartyFilter)?.contactNumber}` : 'Supplier Profile Active'}
+                          {parties.find(p => p.name === vendorOrderPartyFilter)?.notes ? ` • ${parties.find(p => p.name === vendorOrderPartyFilter)?.notes}` : ''}
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          onClick={() => {
+                            setSelectedVendorOrder(null)
+                            setVendorOrderFormData({
+                              partyName: vendorOrderPartyFilter,
+                              targetDate: '',
+                              notes: '',
+                              products: [
+                                {
+                                  productName: '',
+                                  school: '',
+                                  sizeBreakdown: [
+                                    { size: '28', orderedQty: '' },
+                                    { size: '30', orderedQty: '' },
+                                    { size: '32', orderedQty: '' }
+                                  ]
+                                }
+                              ]
+                            })
+                            setShowVendorOrderModal(true)
+                          }}
+                          style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '8px' }}
+                        >
+                          {getSafeEmoji('➕')} Place New PO for {vendorOrderPartyFilter}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => {
+                            const partyObj = parties.find(p => p.name === vendorOrderPartyFilter)
+                            if (partyObj) {
+                              setEditingSupplierId(partyObj._id)
+                              setPartyFormData({ name: partyObj.name, contactNumber: partyObj.contactNumber || '', notes: partyObj.notes || '' })
+                            }
+                            setShowPartyManagerModal(true)
+                          }}
+                          style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '8px' }}
+                        >
+                          {getSafeEmoji('✏️')} Edit Supplier Details
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => setVendorOrderPartyFilter('All')}
+                          style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '8px' }}
+                        >
+                          {getSafeEmoji('⬅️')} View All Suppliers
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Filter Controls */}
                 <div style={{ display: 'flex', gap: '12px', margin: '20px 24px 16px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <div className="table-search" style={{ flex: 1, minWidth: '200px' }}>
@@ -5569,7 +5733,7 @@ function App() {
                     />
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>Supplier:</span>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>Filter Supplier:</span>
                     <select
                       value={vendorOrderPartyFilter}
                       onChange={(e) => setVendorOrderPartyFilter(e.target.value)}
