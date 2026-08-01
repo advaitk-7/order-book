@@ -1571,26 +1571,62 @@ function App() {
     }
   }
 
+  const getNormalizedProducts = (order) => {
+    if (!order) return []
+    if (Array.isArray(order.products) && order.products.length > 0) {
+      return order.products
+    }
+    if (order.itemType && Array.isArray(order.sizeBreakdown)) {
+      return [{
+        productName: order.itemType,
+        school: order.school || 'General',
+        sizeBreakdown: order.sizeBreakdown
+      }]
+    }
+    return []
+  }
+
   const handleSaveVendorOrder = async (e) => {
     e.preventDefault()
-    if (!vendorOrderFormData.partyName || !vendorOrderFormData.itemType) {
-      setMessage('Supplier Name and Item Category are required.')
-      return
-    }
-    if (!vendorOrderFormData.school || !vendorOrderFormData.school.trim()) {
-      setMessage('School / Institution / Firm Name is required.')
+    if (!vendorOrderFormData.partyName || !vendorOrderFormData.partyName.trim()) {
+      setMessage('Supplier Name is required.')
       return
     }
 
-    const cleanBreakdown = sortSizesAscending(
-      (vendorOrderFormData.sizeBreakdown || [])
-        .map(sb => ({ size: (sb.size || '').trim(), orderedQty: Number(sb.orderedQty || 0) }))
-        .filter(sb => sb.size && sb.orderedQty > 0)
-    )
-
-    if (cleanBreakdown.length === 0) {
-      setMessage('At least one size with ordered quantity > 0 is required.')
+    if (!Array.isArray(vendorOrderFormData.products) || vendorOrderFormData.products.length === 0) {
+      setMessage('At least one product is required.')
       return
+    }
+
+    const cleanProducts = []
+    for (const p of vendorOrderFormData.products) {
+      const productName = (p.productName || '').trim()
+      const school = (p.school || '').trim()
+      if (!productName) {
+        setMessage('Product Category / Name is required for all products.')
+        return
+      }
+      if (!school) {
+        setMessage('School / Institution / Firm Name is required for all products.')
+        return
+      }
+
+      const cleanBreakdown = sortSizesAscending(
+        (p.sizeBreakdown || [])
+          .map(sb => ({ size: (sb.size || '').trim(), orderedQty: Number(sb.orderedQty || 0) }))
+          .filter(sb => sb.size && sb.orderedQty > 0)
+      )
+
+      if (cleanBreakdown.length === 0) {
+        setMessage(`Product '${productName}' must have at least one size with ordered quantity > 0.`)
+        return
+      }
+
+      cleanProducts.push({
+        productName,
+        school,
+        sizeBreakdown: cleanBreakdown
+      })
     }
 
     const isEditing = Boolean(selectedVendorOrder)
@@ -1606,10 +1642,8 @@ function App() {
         },
         body: JSON.stringify({
           partyName: vendorOrderFormData.partyName,
-          itemType: vendorOrderFormData.itemType,
-          school: vendorOrderFormData.school,
+          products: cleanProducts,
           targetDate: vendorOrderFormData.targetDate,
-          sizeBreakdown: cleanBreakdown,
           notes: vendorOrderFormData.notes
         })
       })
@@ -1645,13 +1679,23 @@ function App() {
 
   const handleOpenInstallmentModal = (order) => {
     setSelectedOrderForInstallment(order)
-    const initialItems = sortSizesAscending(order.sizeBreakdown || []).map(sb => ({
-      size: sb.size,
-      orderedQty: sb.orderedQty,
-      receivedQty: sb.receivedQty || 0,
-      remainingQty: Math.max(0, sb.orderedQty - (sb.receivedQty || 0)),
-      newQty: ''
-    }))
+    const prods = getNormalizedProducts(order)
+    const initialItems = []
+    prods.forEach(p => {
+      sortSizesAscending(p.sizeBreakdown || []).forEach(sb => {
+        const remainingQty = Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
+        initialItems.push({
+          productName: p.productName,
+          school: p.school,
+          size: sb.size,
+          orderedQty: sb.orderedQty,
+          receivedQty: sb.receivedQty || 0,
+          remainingQty,
+          newQty: ''
+        })
+      })
+    })
+
     setInstallmentFormData({
       challanNumber: '',
       notes: '',
@@ -1665,12 +1709,21 @@ function App() {
     if (!selectedOrderForInstallment) return
 
     const itemsToSubmit = (installmentFormData.items || [])
-      .map(i => ({ size: i.size, qty: Number(i.newQty || 0) }))
+      .map(i => ({ productName: i.productName, size: i.size, qty: Number(i.newQty || 0) }))
       .filter(i => i.size && i.qty > 0)
 
     if (itemsToSubmit.length === 0) {
-      setMessage('Please enter quantity > 0 for at least one size.')
+      setMessage('Please enter quantity > 0 for at least one product size.')
       return
+    }
+
+    // Boundary check: cannot exceed remaining pending quantity
+    for (const item of installmentFormData.items || []) {
+      const val = Number(item.newQty || 0)
+      if (val > item.remainingQty) {
+        setMessage(`Quantity received for '${item.productName}' (Size ${item.size}) [${val} pcs] cannot exceed remaining pending quantity (${item.remainingQty} pcs).`)
+        return
+      }
     }
 
     try {
@@ -1702,10 +1755,34 @@ function App() {
 
   const handleOpenEditInstallment = (order, installment) => {
     setSelectedOrderForInstallment(order)
-    const items = sortSizesAscending(installment.items || []).map(i => ({
-      size: i.size,
-      qty: String(i.qty || 0)
-    }))
+    const prods = getNormalizedProducts(order)
+    const items = []
+    prods.forEach(p => {
+      sortSizesAscending(p.sizeBreakdown || []).forEach(sb => {
+        const instItem = (installment.items || []).find(i => (!i.productName || i.productName === p.productName) && i.size === sb.size)
+        // Calculate received from all OTHER installments
+        let otherReceived = 0
+        ;(order.installments || []).forEach(otherInst => {
+          if (String(otherInst._id) !== String(installment._id)) {
+            ;(otherInst.items || []).forEach(oi => {
+              if ((!oi.productName || oi.productName === p.productName) && oi.size === sb.size) {
+                otherReceived += (oi.qty || 0)
+              }
+            })
+          }
+        })
+        const remainingQty = Math.max(0, (sb.orderedQty || 0) - otherReceived)
+        items.push({
+          productName: p.productName,
+          school: p.school,
+          size: sb.size,
+          orderedQty: sb.orderedQty,
+          remainingQty,
+          qty: instItem ? String(instItem.qty || 0) : '0'
+        })
+      })
+    })
+
     setEditingInstallment({
       orderId: order._id,
       installmentId: installment._id,
@@ -1721,8 +1798,17 @@ function App() {
     if (!editingInstallment) return
 
     const itemsToSubmit = (editingInstallment.items || [])
-      .map(i => ({ size: i.size, qty: Number(i.qty || 0) }))
+      .map(i => ({ productName: i.productName, size: i.size, qty: Number(i.qty || 0) }))
       .filter(i => i.size && i.qty >= 0)
+
+    // Boundary check
+    for (const item of editingInstallment.items || []) {
+      const val = Number(item.qty || 0)
+      if (val > item.remainingQty) {
+        setMessage(`Quantity received for '${item.productName}' (Size ${item.size}) [${val} pcs] cannot exceed remaining pending quantity (${item.remainingQty} pcs).`)
+        return
+      }
+    }
 
     try {
       const response = await fetch(`${API_BASE}/api/vendor-orders/${editingInstallment.orderId}/installments/${editingInstallment.installmentId}`, {
@@ -1773,16 +1859,23 @@ function App() {
       return
     }
 
-    const headers = ['PO Number', 'Supplier Name', 'Item Category', 'School', 'Target Date', 'Status', 'Total Ordered', 'Total Received', 'Pending Balance', 'Notes']
+    const headers = ['PO Number', 'Supplier Name', 'Products & Schools Summary', 'Target Date', 'Status', 'Total Ordered', 'Total Received', 'Pending Balance', 'Notes']
     const rows = vendorOrders.map(vo => {
-      const totalOrdered = (vo.sizeBreakdown || []).reduce((sum, s) => sum + (s.orderedQty || 0), 0)
-      const totalReceived = (vo.sizeBreakdown || []).reduce((sum, s) => sum + (s.receivedQty || 0), 0)
+      const prods = getNormalizedProducts(vo)
+      const prodsSummary = prods.map(p => `${p.productName} (${p.school})`).join(' | ')
+      let totalOrdered = 0
+      let totalReceived = 0
+      prods.forEach(p => {
+        (p.sizeBreakdown || []).forEach(s => {
+          totalOrdered += (s.orderedQty || 0)
+          totalReceived += (s.receivedQty || 0)
+        })
+      })
       const pendingBalance = Math.max(0, totalOrdered - totalReceived)
       return [
         vo.poNumber,
         `"${(vo.partyName || '').replace(/"/g, '""')}"`,
-        `"${(vo.itemType || '').replace(/"/g, '""')}"`,
-        `"${(vo.school || '').replace(/"/g, '""')}"`,
+        `"${prodsSummary.replace(/"/g, '""')}"`,
         vo.targetDate || '-',
         vo.status || 'Pending',
         totalOrdered,
@@ -5424,16 +5517,20 @@ function App() {
                         setSelectedVendorOrder(null)
                         setVendorOrderFormData({
                           partyName: parties.length > 0 ? parties[0].name : '',
-                          itemType: '',
-                          school: '',
                           targetDate: '',
                           notes: '',
-                          sizeBreakdown: [
-                            { size: '28', orderedQty: '' },
-                            { size: '30', orderedQty: '' },
-                            { size: '32', orderedQty: '' },
-                            { size: '34', orderedQty: '' },
-                            { size: '36', orderedQty: '' }
+                          products: [
+                            {
+                              productName: '',
+                              school: '',
+                              sizeBreakdown: [
+                                { size: '28', orderedQty: '' },
+                                { size: '30', orderedQty: '' },
+                                { size: '32', orderedQty: '' },
+                                { size: '34', orderedQty: '' },
+                                { size: '36', orderedQty: '' }
+                              ]
+                            }
                           ]
                         })
                         setShowVendorOrderModal(true)
@@ -5466,7 +5563,7 @@ function App() {
                   <div className="table-search" style={{ flex: 1, minWidth: '200px' }}>
                     <input
                       type="text"
-                      placeholder={`${getSafeEmoji('🔍')} Search PO#, Supplier, Item, School or Challan...`}
+                      placeholder={`${getSafeEmoji('🔍')} Search PO#, Supplier, Product, School or Challan...`}
                       value={vendorOrderSearch}
                       onChange={(e) => setVendorOrderSearch(e.target.value)}
                     />
@@ -5511,8 +5608,15 @@ function App() {
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       {vendorOrders.map((order) => {
-                        const totalOrdered = (order.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.orderedQty || 0), 0)
-                        const totalReceived = (order.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
+                        const prods = getNormalizedProducts(order)
+                        let totalOrdered = 0
+                        let totalReceived = 0
+                        prods.forEach(p => {
+                          (p.sizeBreakdown || []).forEach(sb => {
+                            totalOrdered += (sb.orderedQty || 0)
+                            totalReceived += (sb.receivedQty || 0)
+                          })
+                        })
                         const pendingBalance = Math.max(0, totalOrdered - totalReceived)
                         const progressPct = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0
 
@@ -5534,8 +5638,7 @@ function App() {
                                   <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Supplier: {order.partyName}</span>
                                 </div>
                                 <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                                  <span>Category: <strong>{order.itemType}</strong></span>
-                                  {order.school && <span>School: <strong>{order.school}</strong></span>}
+                                  <span>Products: <strong>{prods.length}</strong></span>
                                   {order.targetDate && <span>Target Date: <strong>{order.targetDate}</strong></span>}
                                   <span>Created: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></span>
                                 </div>
@@ -5563,11 +5666,13 @@ function App() {
                                     setSelectedVendorOrder(order)
                                     setVendorOrderFormData({
                                       partyName: order.partyName,
-                                      itemType: order.itemType,
-                                      school: order.school || '',
                                       targetDate: order.targetDate || '',
                                       notes: order.notes || '',
-                                      sizeBreakdown: order.sizeBreakdown || []
+                                      products: prods.map(p => ({
+                                        productName: p.productName,
+                                        school: p.school,
+                                        sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({ size: sb.size, orderedQty: sb.orderedQty }))
+                                      }))
                                     })
                                     setShowVendorOrderModal(true)
                                   }}
@@ -5606,46 +5711,55 @@ function App() {
                               </div>
                             </div>
 
-                            {/* Size Breakdown Grid Table */}
-                            <div style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '12px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
-                              <p style={{ fontSize: '12px', fontWeight: '700', margin: '0 0 8px 0', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>
-                                Size-wise Quantity Breakdown & Balances:
-                              </p>
-                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                                <thead>
-                                  <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
-                                    <th style={{ padding: '6px 8px' }}>Size</th>
-                                    <th style={{ padding: '6px 8px' }}>Ordered</th>
-                                    <th style={{ padding: '6px 8px' }}>Received</th>
-                                    <th style={{ padding: '6px 8px' }}>Pending Balance</th>
-                                    <th style={{ padding: '6px 8px' }}>Fulfillment</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {sortSizesAscending(order.sizeBreakdown || []).map((sb) => {
-                                    const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
-                                    const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
-                                    return (
-                                      <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
-                                        <td style={{ padding: '6px 8px', fontWeight: '700' }}>Size {sb.size}</td>
-                                        <td style={{ padding: '6px 8px' }}>{sb.orderedQty} pcs</td>
-                                        <td style={{ padding: '6px 8px', color: '#10B981', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
-                                        <td style={{ padding: '6px 8px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600' }}>
-                                          {pending > 0 ? `${pending} pcs` : 'Done'}
-                                        </td>
-                                        <td style={{ padding: '6px 8px' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
-                                              <div style={{ height: '100%', width: `${sizePct}%`, background: sizePct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
-                                            </div>
-                                            <span style={{ fontSize: '10px', width: '32px', textAlign: 'right' }}>{sizePct}%</span>
-                                          </div>
-                                        </td>
+                            {/* Size Breakdown Tables Per Product */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              {prods.map((prod, pIdx) => (
+                                <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '12px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7' }}>
+                                      Product #{pIdx + 1}: {prod.productName}
+                                    </span>
+                                    <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748B' }}>
+                                      School / Firm: <strong>{prod.school}</strong>
+                                    </span>
+                                  </div>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                    <thead>
+                                      <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
+                                        <th style={{ padding: '6px 8px' }}>Size</th>
+                                        <th style={{ padding: '6px 8px' }}>Ordered</th>
+                                        <th style={{ padding: '6px 8px' }}>Received</th>
+                                        <th style={{ padding: '6px 8px' }}>Pending Balance</th>
+                                        <th style={{ padding: '6px 8px' }}>Fulfillment</th>
                                       </tr>
-                                    )
-                                  })}
-                                </tbody>
-                              </table>
+                                    </thead>
+                                    <tbody>
+                                      {sortSizesAscending(prod.sizeBreakdown || []).map((sb) => {
+                                        const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
+                                        const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
+                                        return (
+                                          <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
+                                            <td style={{ padding: '6px 8px', fontWeight: '700' }}>Size {sb.size}</td>
+                                            <td style={{ padding: '6px 8px' }}>{sb.orderedQty} pcs</td>
+                                            <td style={{ padding: '6px 8px', color: '#10B981', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
+                                            <td style={{ padding: '6px 8px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600' }}>
+                                              {pending > 0 ? `${pending} pcs` : 'Done'}
+                                            </td>
+                                            <td style={{ padding: '6px 8px' }}>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                  <div style={{ height: '100%', width: `${sizePct}%`, background: sizePct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
+                                                </div>
+                                                <span style={{ fontSize: '10px', width: '32px', textAlign: 'right' }}>{sizePct}%</span>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ))}
                             </div>
 
                             {/* Received Installment History Log Timeline */}
@@ -5667,31 +5781,23 @@ function App() {
                                           borderRadius: '6px',
                                           border: '1px solid var(--border-color, #E2E8F0)',
                                           display: 'flex',
-                                          justify: 'space-between',
-                                          alignItems: 'center',
-                                          flexWrap: 'wrap',
-                                          gap: '6px'
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center'
                                         }}
                                       >
                                         <div>
-                                          <span style={{ fontWeight: '700', color: '#2563EB' }}>
-                                            Batch #{idx + 1} ({new Date(inst.receivedAt).toLocaleDateString()})
+                                          <span style={{ fontWeight: '700' }}>Batch #{idx + 1} ({new Date(inst.receivedAt).toLocaleDateString()}): </span>
+                                          {inst.challanNumber && <span>Challan: <strong>{inst.challanNumber}</strong> | </span>}
+                                          <span style={{ color: '#10B981', fontWeight: '700' }}>Received {batchTotal} pcs </span>
+                                          <span style={{ color: '#64748B' }}>
+                                            [{(inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')}]
                                           </span>
-                                          {inst.challanNumber && (
-                                            <span style={{ marginLeft: '8px', color: '#64748B' }}>Challan: {inst.challanNumber}</span>
-                                          )}
-                                          <div style={{ color: theme === 'dark' ? '#CBD5E1' : '#475569', marginTop: '2px' }}>
-                                            Items: {sortSizesAscending(inst.items || []).map(i => `Size ${i.size}: ${i.qty} pcs`).join(' | ')}
-                                          </div>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                          <span style={{ fontWeight: '700', color: '#10B981', marginRight: '4px' }}>
-                                            +{batchTotal} pcs
-                                          </span>
+                                        <div style={{ display: 'flex', gap: '4px' }}>
                                           <button
                                             type="button"
                                             className="icon-btn"
-                                            style={{ padding: '2px 6px', fontSize: '11px' }}
+                                            style={{ padding: '2px 4px', fontSize: '11px' }}
                                             title="Edit Installment Batch"
                                             onClick={() => handleOpenEditInstallment(order, inst)}
                                           >
@@ -5700,7 +5806,7 @@ function App() {
                                           <button
                                             type="button"
                                             className="icon-btn danger"
-                                            style={{ padding: '2px 6px', fontSize: '11px' }}
+                                            style={{ padding: '2px 4px', fontSize: '11px' }}
                                             title="Delete Installment Batch"
                                             onClick={() => handleDeleteInstallment(order, inst._id)}
                                           >
@@ -7051,7 +7157,7 @@ function App() {
       {/* Vendor Order (Restock PO) Modal */}
       {showVendorOrderModal && (
         <div className="manage-modal-backdrop">
-          <div className="manage-modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => setShowVendorOrderModal(false)}>
               {getSafeEmoji('✕')}
             </button>
@@ -7059,7 +7165,7 @@ function App() {
               {selectedVendorOrder ? `${getSafeEmoji('✏️')} Edit Restock PO ${selectedVendorOrder.poNumber}` : `${getSafeEmoji('➕')} Create New Restock PO`}
             </p>
             <p className="manage-modal-subtitle">
-              Issue a bulk manufacturing order to a supplier with size-wise quantity targets.
+              Issue a bulk manufacturing order to a supplier with products, schools, and size-wise target quantities.
             </p>
 
             <form onSubmit={handleSaveVendorOrder}>
@@ -7081,33 +7187,7 @@ function App() {
 
               <div className="manage-input-group">
                 <label>
-                  Item Category / Garment Type *
-                  <input
-                    type="text"
-                    placeholder="e.g. T-Shirt, Jeans, Track Suit, Pinafore, Shirt, Pant"
-                    value={vendorOrderFormData.itemType}
-                    onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, itemType: e.target.value })}
-                    required
-                  />
-                </label>
-              </div>
-
-              <div className="manage-input-group">
-                <label>
-                  School / Institution / Firm Name *
-                  <input
-                    type="text"
-                    placeholder="e.g. DPS School, St. Xavier, Reliance Corp, Liberty Retail"
-                    value={vendorOrderFormData.school}
-                    onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, school: e.target.value })}
-                    required
-                  />
-                </label>
-              </div>
-
-              <div className="manage-input-group">
-                <label>
-                  Expected Target Delivery Date
+                  Expected Target Delivery Date (Optional)
                   <input
                     type="date"
                     value={vendorOrderFormData.targetDate}
@@ -7116,11 +7196,11 @@ function App() {
                 </label>
               </div>
 
-              {/* Dynamic Size Breakdown Input Matrix */}
-              <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <label style={{ fontWeight: '700', fontSize: '13px', margin: 0 }}>
-                    Size-wise Ordered Quantity *
+              {/* Multi-Product Entry Section */}
+              <div style={{ margin: '16px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <label style={{ fontWeight: '800', fontSize: '14px', margin: 0, color: '#2563EB' }}>
+                    Products & Size Quantities *
                   </label>
                   <button
                     type="button"
@@ -7128,74 +7208,177 @@ function App() {
                     onClick={() => {
                       setVendorOrderFormData(prev => ({
                         ...prev,
-                        sizeBreakdown: [...(prev.sizeBreakdown || []), { size: '', orderedQty: '' }]
+                        products: [
+                          ...(prev.products || []),
+                          {
+                            productName: '',
+                            school: '',
+                            sizeBreakdown: [
+                              { size: '28', orderedQty: '' },
+                              { size: '30', orderedQty: '' },
+                              { size: '32', orderedQty: '' }
+                            ]
+                          }
+                        ]
                       }))
                     }}
-                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                    style={{ fontSize: '12px', padding: '6px 12px' }}
                   >
-                    + Add Size Row
+                    {getSafeEmoji('➕')} Add Another Product to Order
                   </button>
                 </div>
 
-                {(vendorOrderFormData.sizeBreakdown || []).map((sb, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center' }}>
-                    <div style={{ flex: 1 }}>
-                      <input
-                        type="text"
-                        placeholder="Size (e.g. 28, 30, 32 or M, L)"
-                        value={sb.size}
-                        onChange={(e) => {
-                          const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
-                          updated[idx] = { ...updated[idx], size: e.target.value }
-                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
-                        }}
-                        required
-                        style={{ padding: '6px 10px', fontSize: '13px' }}
-                      />
+                {(vendorOrderFormData.products || []).map((prod, pIdx) => (
+                  <div
+                    key={pIdx}
+                    style={{
+                      background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
+                      padding: '14px',
+                      borderRadius: '10px',
+                      marginBottom: '16px',
+                      border: '1px solid var(--border-color, #E2E8F0)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontWeight: '700', fontSize: '13px', color: theme === 'dark' ? '#38BDF8' : '#0284C7' }}>
+                        Product #{pIdx + 1}
+                      </span>
+                      {(vendorOrderFormData.products || []).length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedProds = [...(vendorOrderFormData.products || [])]
+                            updatedProds.splice(pIdx, 1)
+                            setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
+                          }}
+                          style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                        >
+                          {getSafeEmoji('🗑️')} Remove Product
+                        </button>
+                      )}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="Ordered Pcs Qty"
-                        value={sb.orderedQty}
-                        onChange={(e) => {
-                          const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
-                          updated[idx] = { ...updated[idx], orderedQty: e.target.value }
-                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
-                        }}
-                        required
-                        style={{ padding: '6px 10px', fontSize: '13px' }}
-                      />
+
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                      <div style={{ flex: 1, minWidth: '180px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Product Category / Type *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. T-Shirt, Jeans, Track Suit, Pant"
+                          value={prod.productName}
+                          onChange={(e) => {
+                            const updatedProds = [...(vendorOrderFormData.products || [])]
+                            updatedProds[pIdx] = { ...updatedProds[pIdx], productName: e.target.value }
+                            setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
+                          }}
+                          required
+                          style={{ padding: '6px 10px', fontSize: '13px', width: '100%' }}
+                        />
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: '180px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>School / Institution / Firm Name *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. DPS School, St. Xavier, Reliance Corp"
+                          value={prod.school}
+                          onChange={(e) => {
+                            const updatedProds = [...(vendorOrderFormData.products || [])]
+                            updatedProds[pIdx] = { ...updatedProds[pIdx], school: e.target.value }
+                            setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
+                          }}
+                          required
+                          style={{ padding: '6px 10px', fontSize: '13px', width: '100%' }}
+                        />
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
-                        updated.splice(idx, 1)
-                        setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
-                      }}
-                      disabled={(vendorOrderFormData.sizeBreakdown || []).length <= 1}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', opacity: (vendorOrderFormData.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
-                      title="Remove Row"
-                    >
-                      {getSafeEmoji('🗑️')}
-                    </button>
+
+                    {/* Size Breakdown per Product */}
+                    <div style={{ background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <label style={{ fontWeight: '700', fontSize: '12px', margin: 0 }}>
+                          Size-wise Ordered Quantity *
+                        </label>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => {
+                            const updatedProds = [...(vendorOrderFormData.products || [])]
+                            const currentBreakdown = [...(updatedProds[pIdx].sizeBreakdown || [])]
+                            currentBreakdown.push({ size: '', orderedQty: '' })
+                            updatedProds[pIdx] = { ...updatedProds[pIdx], sizeBreakdown: currentBreakdown }
+                            setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
+                          }}
+                          style={{ fontSize: '10px', padding: '2px 8px' }}
+                        >
+                          + Add Size Row
+                        </button>
+                      </div>
+
+                      {(prod.sizeBreakdown || []).map((sb, sIdx) => (
+                        <div key={sIdx} style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
+                          <div style={{ flex: 1 }}>
+                            <input
+                              type="text"
+                              placeholder="Size (e.g. 28, 30, 32 or M, L)"
+                              value={sb.size}
+                              onChange={(e) => {
+                                const updatedProds = [...(vendorOrderFormData.products || [])]
+                                const updatedBreakdown = [...(updatedProds[pIdx].sizeBreakdown || [])]
+                                updatedBreakdown[sIdx] = { ...updatedBreakdown[sIdx], size: e.target.value }
+                                updatedProds[pIdx] = { ...updatedProds[pIdx], sizeBreakdown: updatedBreakdown }
+                                setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
+                              }}
+                              required
+                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                            />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <input
+                              type="number"
+                              min="1"
+                              placeholder="Ordered Pcs Qty"
+                              value={sb.orderedQty}
+                              onChange={(e) => {
+                                const updatedProds = [...(vendorOrderFormData.products || [])]
+                                const updatedBreakdown = [...(updatedProds[pIdx].sizeBreakdown || [])]
+                                updatedBreakdown[sIdx] = { ...updatedBreakdown[sIdx], orderedQty: e.target.value }
+                                updatedProds[pIdx] = { ...updatedProds[pIdx], sizeBreakdown: updatedBreakdown }
+                                setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
+                              }}
+                              required
+                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedProds = [...(vendorOrderFormData.products || [])]
+                              const updatedBreakdown = [...(updatedProds[pIdx].sizeBreakdown || [])]
+                              updatedBreakdown.splice(sIdx, 1)
+                              updatedProds[pIdx] = { ...updatedProds[pIdx], sizeBreakdown: updatedBreakdown }
+                              setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
+                            }}
+                            disabled={(prod.sizeBreakdown || []).length <= 1}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', opacity: (prod.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
+                            title="Remove Row"
+                          >
+                            {getSafeEmoji('🗑️')}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
-                <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: '700', marginTop: '6px', color: '#2563EB' }}>
-                  Total Order Target: {(vendorOrderFormData.sizeBreakdown || []).reduce((s, i) => s + Number(i.orderedQty || 0), 0)} pcs
-                </div>
               </div>
 
               <div className="manage-input-group">
                 <label>
-                  Notes / Instructions
-                  <textarea
-                    rows={2}
+                  PO Order Notes (Optional)
+                  <input
+                    type="text"
                     value={vendorOrderFormData.notes}
                     onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, notes: e.target.value })}
-                    placeholder="Specific fabric, color code, or delivery instructions..."
+                    placeholder="e.g. Urgent shipment, special fabric code"
                   />
                 </label>
               </div>
@@ -7205,7 +7388,7 @@ function App() {
                   Cancel
                 </button>
                 <button type="submit" className="primary-btn">
-                  {selectedVendorOrder ? 'Save Order Changes' : 'Issue Restock PO'}
+                  {selectedVendorOrder ? 'Save Order Changes' : 'Place Restock PO'}
                 </button>
               </div>
             </form>
@@ -7216,7 +7399,7 @@ function App() {
       {/* Log Stock Installment Modal */}
       {showInstallmentModal && selectedOrderForInstallment && (
         <div className="manage-modal-backdrop">
-          <div className="manage-modal-card" style={{ maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="manage-modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => setShowInstallmentModal(false)}>
               {getSafeEmoji('✕')}
             </button>
@@ -7224,7 +7407,7 @@ function App() {
               {getSafeEmoji('➕')} Receive Stock Installment for {selectedOrderForInstallment.poNumber}
             </p>
             <p className="manage-modal-subtitle">
-              Log incoming stock shipment from <strong>{selectedOrderForInstallment.partyName}</strong> ({selectedOrderForInstallment.itemType} - {selectedOrderForInstallment.school}).
+              Log incoming stock shipment from <strong>{selectedOrderForInstallment.partyName}</strong>.
             </p>
 
             <form onSubmit={handleLogInstallment}>
@@ -7242,21 +7425,22 @@ function App() {
 
               <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
                 <label style={{ fontWeight: '700', fontSize: '13px', display: 'block', marginBottom: '10px' }}>
-                  Quantities Received in this Batch (Per Size):
+                  Quantities Received in this Batch (Per Product & Size):
                 </label>
 
                 {(installmentFormData.items || []).map((item, idx) => (
-                  <div key={item.size} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '13px' }}>
+                  <div key={`${item.productName}-${item.size}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '10px', fontSize: '13px' }}>
                     <div style={{ flex: 1 }}>
-                      <strong>Size {item.size}</strong>
+                      <strong>{item.productName} ({item.school}) - Size {item.size}</strong>
                       <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>
-                        (Ordered: {item.orderedQty} | Rec'd so far: {item.receivedQty} | Pending: {item.remainingQty})
+                        (Ordered: {item.orderedQty} | Rec'd so far: {item.receivedQty} | Pending: <strong style={{ color: item.remainingQty > 0 ? '#D97706' : '#10B981' }}>{item.remainingQty} pcs</strong>)
                       </span>
                     </div>
-                    <div style={{ width: '110px' }}>
+                    <div style={{ width: '120px' }}>
                       <input
                         type="number"
                         min="0"
+                        max={item.remainingQty}
                         placeholder="Qty received"
                         value={item.newQty}
                         onChange={(e) => {
@@ -7264,8 +7448,18 @@ function App() {
                           updated[idx] = { ...updated[idx], newQty: e.target.value }
                           setInstallmentFormData({ ...installmentFormData, items: updated })
                         }}
-                        style={{ padding: '6px 10px', fontSize: '13px', textAlign: 'right' }}
+                        style={{
+                          padding: '6px 10px',
+                          fontSize: '13px',
+                          textAlign: 'right',
+                          borderColor: Number(item.newQty || 0) > item.remainingQty ? '#EF4444' : undefined
+                        }}
                       />
+                      {Number(item.newQty || 0) > item.remainingQty && (
+                        <span style={{ color: '#EF4444', fontSize: '10px', display: 'block', textAlign: 'right' }}>
+                          Exceeds pending ({item.remainingQty})!
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -7302,7 +7496,7 @@ function App() {
       {/* Edit Stock Installment Modal */}
       {showEditInstallmentModal && editingInstallment && (
         <div className="manage-modal-backdrop">
-          <div className="manage-modal-card" style={{ maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="manage-modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => setShowEditInstallmentModal(false)}>
               {getSafeEmoji('✕')}
             </button>
@@ -7328,18 +7522,22 @@ function App() {
 
               <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
                 <label style={{ fontWeight: '700', fontSize: '13px', display: 'block', marginBottom: '10px' }}>
-                  Adjust Received Quantities (Per Size):
+                  Adjust Received Quantities (Per Product & Size):
                 </label>
 
                 {(editingInstallment.items || []).map((item, idx) => (
-                  <div key={item.size} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '13px' }}>
+                  <div key={`${item.productName}-${item.size}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '10px', fontSize: '13px' }}>
                     <div style={{ flex: 1 }}>
-                      <strong>Size {item.size}</strong>
+                      <strong>{item.productName} ({item.school}) - Size {item.size}</strong>
+                      <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>
+                        (Max allowed pending limit for this batch: <strong>{item.remainingQty} pcs</strong>)
+                      </span>
                     </div>
-                    <div style={{ width: '110px' }}>
+                    <div style={{ width: '120px' }}>
                       <input
                         type="number"
                         min="0"
+                        max={item.remainingQty}
                         placeholder="Qty"
                         value={item.qty}
                         onChange={(e) => {
@@ -7347,8 +7545,18 @@ function App() {
                           updated[idx] = { ...updated[idx], qty: e.target.value }
                           setEditingInstallment({ ...editingInstallment, items: updated })
                         }}
-                        style={{ padding: '6px 10px', fontSize: '13px', textAlign: 'right' }}
+                        style={{
+                          padding: '6px 10px',
+                          fontSize: '13px',
+                          textAlign: 'right',
+                          borderColor: Number(item.qty || 0) > item.remainingQty ? '#EF4444' : undefined
+                        }}
                       />
+                      {Number(item.qty || 0) > item.remainingQty && (
+                        <span style={{ color: '#EF4444', fontSize: '10px', display: 'block', textAlign: 'right' }}>
+                          Exceeds max ({item.remainingQty})!
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}

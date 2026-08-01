@@ -340,8 +340,21 @@ const vendorOrderSchema = new mongoose.Schema(
   {
     poNumber: { type: String, required: true, unique: true, trim: true },
     partyName: { type: String, required: true, trim: true },
-    itemType: { type: String, required: true, trim: true },
+    itemType: { type: String, default: "", trim: true },
     school: { type: String, default: "", trim: true },
+    products: [
+      {
+        productName: { type: String, required: true, trim: true },
+        school: { type: String, required: true, trim: true },
+        sizeBreakdown: [
+          {
+            size: { type: String, required: true, trim: true },
+            orderedQty: { type: Number, required: true, default: 0 },
+            receivedQty: { type: Number, required: true, default: 0 }
+          }
+        ]
+      }
+    ],
     targetDate: { type: String, default: "" },
     status: { type: String, enum: ["Pending", "Partial", "Completed", "Cancelled"], default: "Pending" },
     sizeBreakdown: [
@@ -357,6 +370,7 @@ const vendorOrderSchema = new mongoose.Schema(
         challanNumber: { type: String, default: "", trim: true },
         items: [
           {
+            productName: { type: String, default: "", trim: true },
             size: { type: String, required: true, trim: true },
             qty: { type: Number, required: true, default: 0 }
           }
@@ -1431,33 +1445,72 @@ function sortSizeBreakdown(sizeBreakdown) {
 
 // Helper to recalculate received quantities and order status from installments
 function recalculateOrderQuantities(order) {
-  (order.sizeBreakdown || []).forEach(sb => {
-    sb.receivedQty = 0;
+  // Normalize legacy POs if products array is empty
+  if (!Array.isArray(order.products) || order.products.length === 0) {
+    if (order.itemType && Array.isArray(order.sizeBreakdown) && order.sizeBreakdown.length > 0) {
+      order.products = [
+        {
+          productName: order.itemType,
+          school: order.school || 'General',
+          sizeBreakdown: order.sizeBreakdown
+        }
+      ];
+    }
+  }
+
+  let grandTotalOrdered = 0;
+  let grandTotalReceived = 0;
+
+  // Reset receivedQty for all sizeBreakdowns across products
+  (order.products || []).forEach(p => {
+    (p.sizeBreakdown || []).forEach(sb => {
+      sb.receivedQty = 0;
+    });
   });
 
+  // Re-sum received quantities from all active installments
   (order.installments || []).forEach(inst => {
     (inst.items || []).forEach(item => {
-      let sb = order.sizeBreakdown.find(s => s.size === item.size);
-      if (sb) {
-        sb.receivedQty = (sb.receivedQty || 0) + (item.qty || 0);
-      } else {
-        order.sizeBreakdown.push({
-          size: item.size,
-          orderedQty: item.qty || 0,
-          receivedQty: item.qty || 0
-        });
+      const prodName = String(item.productName || '').trim();
+      let matchedProd = (order.products || []).find(p => p.productName === prodName);
+      if (!matchedProd && (order.products || []).length > 0) {
+        matchedProd = order.products[0];
+      }
+
+      if (matchedProd) {
+        let sb = (matchedProd.sizeBreakdown || []).find(s => s.size === item.size);
+        if (sb) {
+          sb.receivedQty = (sb.receivedQty || 0) + (item.qty || 0);
+        } else {
+          matchedProd.sizeBreakdown.push({
+            size: item.size,
+            orderedQty: item.qty || 0,
+            receivedQty: item.qty || 0
+          });
+        }
       }
     });
   });
 
-  sortSizeBreakdown(order.sizeBreakdown);
+  // Calculate totals and sort size breakdowns
+  (order.products || []).forEach(p => {
+    sortSizeBreakdown(p.sizeBreakdown || []);
+    (p.sizeBreakdown || []).forEach(sb => {
+      grandTotalOrdered += (sb.orderedQty || 0);
+      grandTotalReceived += (sb.receivedQty || 0);
+    });
+  });
 
-  const totalOrdered = (order.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.orderedQty || 0), 0);
-  const totalReceived = (order.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.receivedQty || 0), 0);
+  // Sync top-level fields for backwards compatibility
+  if ((order.products || []).length > 0) {
+    order.itemType = order.products.map(p => p.productName).join(', ');
+    order.school = order.products.map(p => p.school).filter(Boolean).join(', ');
+  }
 
-  if (totalReceived >= totalOrdered && totalOrdered > 0) {
+  // Recalculate status
+  if (grandTotalReceived >= grandTotalOrdered && grandTotalOrdered > 0) {
     order.status = "Completed";
-  } else if (totalReceived > 0) {
+  } else if (grandTotalReceived > 0) {
     order.status = "Partial";
   } else {
     order.status = "Pending";
@@ -1516,7 +1569,6 @@ app.patch("/api/parties/:id", authenticateJWT, async (req, res) => {
         return res.status(400).json({ message: "A supplier with this new name already exists." });
       }
       party.name = newName;
-      // Update all vendor orders matching old name
       await VendorOrder.updateMany({ partyName: oldName }, { partyName: newName });
     }
 
@@ -1569,6 +1621,8 @@ app.get("/api/vendor-orders", authenticateJWT, async (req, res) => {
           o.itemType,
           o.school,
           o.notes,
+          ...(o.products || []).map(p => p.productName),
+          ...(o.products || []).map(p => p.school),
           ...(o.installments || []).map(i => i.challanNumber)
         ];
         return checkFuzzyMatch(search, fields);
@@ -1583,48 +1637,64 @@ app.get("/api/vendor-orders", authenticateJWT, async (req, res) => {
 
 app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
   try {
-    const { partyName, itemType, school, targetDate, sizeBreakdown, notes } = req.body;
+    const { partyName, products, targetDate, notes } = req.body;
     if (!partyName || !partyName.trim()) {
       return res.status(400).json({ message: "Supplier name is required." });
     }
-    if (!itemType || !itemType.trim()) {
-      return res.status(400).json({ message: "Item category/type is required." });
+
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ message: "At least one product is required." });
     }
-    if (!school || !school.trim()) {
-      return res.status(400).json({ message: "School / Firm Name is required." });
+
+    const cleanProducts = [];
+    for (const p of products) {
+      const productName = String(p.productName || '').trim();
+      const school = String(p.school || '').trim();
+      if (!productName) {
+        return res.status(400).json({ message: "Product category / name is required for all products." });
+      }
+      if (!school) {
+        return res.status(400).json({ message: "School / Institution / Firm name is required for all products." });
+      }
+
+      const formattedBreakdown = Array.isArray(p.sizeBreakdown)
+        ? p.sizeBreakdown.map(sb => ({
+            size: String(sb.size || '').trim(),
+            orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
+            receivedQty: 0
+          })).filter(sb => sb.size && sb.orderedQty > 0)
+        : [];
+
+      if (formattedBreakdown.length === 0) {
+        return res.status(400).json({ message: `Product '${productName}' must have at least one size with ordered quantity > 0.` });
+      }
+
+      sortSizeBreakdown(formattedBreakdown);
+
+      cleanProducts.push({
+        productName,
+        school,
+        sizeBreakdown: formattedBreakdown
+      });
     }
 
     const count = await VendorOrder.countDocuments();
     const poNumber = `PO-${String(count + 1001).padStart(4, '0')}`;
 
-    let formattedBreakdown = Array.isArray(sizeBreakdown)
-      ? sizeBreakdown.map(sb => ({
-          size: String(sb.size || '').trim(),
-          orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
-          receivedQty: 0
-        })).filter(sb => sb.size && sb.orderedQty > 0)
-      : [];
-
-    if (formattedBreakdown.length === 0) {
-      return res.status(400).json({ message: "At least one size with quantity > 0 is required." });
-    }
-
-    sortSizeBreakdown(formattedBreakdown);
-
-    const newOrder = await VendorOrder.create({
+    const newOrder = new VendorOrder({
       poNumber,
       partyName: partyName.trim(),
-      itemType: itemType.trim(),
-      school: school.trim(),
+      products: cleanProducts,
       targetDate: (targetDate || "").trim(),
       status: "Pending",
-      sizeBreakdown: formattedBreakdown,
       installments: [],
       notes: (notes || "").trim()
     });
 
-    const totalOrdered = formattedBreakdown.reduce((sum, i) => sum + i.orderedQty, 0);
-    await logAudit(null, "System", "Vendor Order Created", `Order ${poNumber} placed with '${partyName.trim()}' for ${totalOrdered} pcs of ${itemType.trim()}`);
+    recalculateOrderQuantities(newOrder);
+    await newOrder.save();
+
+    await logAudit(null, "System", "Supplier Restock PO Created", `Order ${poNumber} placed with '${partyName.trim()}' with ${cleanProducts.length} product(s)`);
     res.status(201).json(newOrder);
   } catch (error) {
     res.status(500).json({ message: "Failed to create supplier order", error: error.message });
@@ -1633,37 +1703,47 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
 
 app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
   try {
-    const { partyName, itemType, school, targetDate, sizeBreakdown, notes, status } = req.body;
+    const { partyName, products, targetDate, notes, status } = req.body;
     const order = await VendorOrder.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ message: "Supplier order not found" });
     }
 
     if (partyName) order.partyName = partyName.trim();
-    if (itemType) order.itemType = itemType.trim();
-    if (school !== undefined) {
-      if (!school.trim()) {
-        return res.status(400).json({ message: "School / Firm Name is required." });
-      }
-      order.school = school.trim();
-    }
     if (targetDate !== undefined) order.targetDate = targetDate.trim();
     if (notes !== undefined) order.notes = notes.trim();
 
-    if (Array.isArray(sizeBreakdown) && sizeBreakdown.length > 0) {
-      // Merge/update size breakdown while preserving existing received quantities
-      const updatedBreakdown = sizeBreakdown.map(sb => {
-        const cleanSize = String(sb.size || '').trim();
-        const existing = (order.sizeBreakdown || []).find(e => e.size === cleanSize);
-        return {
-          size: cleanSize,
-          orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
-          receivedQty: existing ? (existing.receivedQty || 0) : 0
-        };
-      }).filter(sb => sb.size && sb.orderedQty > 0);
+    if (Array.isArray(products) && products.length > 0) {
+      const cleanProducts = [];
+      for (const p of products) {
+        const productName = String(p.productName || '').trim();
+        const school = String(p.school || '').trim();
+        if (!productName || !school) continue;
 
-      if (updatedBreakdown.length > 0) {
-        order.sizeBreakdown = updatedBreakdown;
+        // Find existing sizeBreakdown for received quantities
+        const existingProd = (order.products || []).find(ep => ep.productName === productName);
+
+        const updatedBreakdown = (p.sizeBreakdown || []).map(sb => {
+          const cleanSize = String(sb.size || '').trim();
+          const existingSb = existingProd ? (existingProd.sizeBreakdown || []).find(e => e.size === cleanSize) : null;
+          return {
+            size: cleanSize,
+            orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
+            receivedQty: existingSb ? (existingSb.receivedQty || 0) : 0
+          };
+        }).filter(sb => sb.size && sb.orderedQty > 0);
+
+        if (updatedBreakdown.length > 0) {
+          cleanProducts.push({
+            productName,
+            school,
+            sizeBreakdown: updatedBreakdown
+          });
+        }
+      }
+
+      if (cleanProducts.length > 0) {
+        order.products = cleanProducts;
       }
     }
 
@@ -1674,7 +1754,7 @@ app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
     }
 
     await order.save();
-    await logAudit(null, "System", "Vendor Order Updated", `Order ${order.poNumber} updated`);
+    await logAudit(null, "System", "Supplier Restock PO Updated", `Order ${order.poNumber} updated`);
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: "Failed to update supplier order", error: error.message });
@@ -1707,12 +1787,34 @@ app.post("/api/vendor-orders/:id/installments", authenticateJWT, async (req, res
     }
 
     const cleanItems = items.map(i => ({
+      productName: String(i.productName || '').trim(),
       size: String(i.size || '').trim(),
       qty: Math.max(0, Number(i.qty || 0))
     })).filter(i => i.size && i.qty > 0);
 
     if (cleanItems.length === 0) {
       return res.status(400).json({ message: "At least one size received quantity must be greater than 0." });
+    }
+
+    // Remaining quantity validation: received quantity cannot exceed pending remaining quantity
+    recalculateOrderQuantities(order);
+    for (const item of cleanItems) {
+      let matchedProd = (order.products || []).find(p => p.productName === item.productName);
+      if (!matchedProd && (order.products || []).length > 0) {
+        matchedProd = order.products[0];
+      }
+      if (matchedProd) {
+        const sizeObj = (matchedProd.sizeBreakdown || []).find(sb => sb.size === item.size);
+        const orderedQty = sizeObj ? sizeObj.orderedQty : 0;
+        const currentReceived = sizeObj ? sizeObj.receivedQty : 0;
+        const remainingQty = Math.max(0, orderedQty - currentReceived);
+
+        if (item.qty > remainingQty) {
+          return res.status(400).json({
+            message: `Quantity received for Product '${item.productName || matchedProd.productName}' (Size ${item.size}) [${item.qty} pcs] cannot exceed remaining pending quantity (${remainingQty} pcs).`
+          });
+        }
+      }
     }
 
     const newInstallment = {
@@ -1753,9 +1855,43 @@ app.patch("/api/vendor-orders/:id/installments/:installmentId", authenticateJWT,
 
     if (Array.isArray(items)) {
       const cleanItems = items.map(i => ({
+        productName: String(i.productName || '').trim(),
         size: String(i.size || '').trim(),
         qty: Math.max(0, Number(i.qty || 0))
-      })).filter(i => i.size && i.qty > 0);
+      })).filter(i => i.size && i.qty >= 0);
+
+      // Validate bounds against remaining quantity
+      recalculateOrderQuantities(order);
+      for (const item of cleanItems) {
+        let matchedProd = (order.products || []).find(p => p.productName === item.productName);
+        if (!matchedProd && (order.products || []).length > 0) {
+          matchedProd = order.products[0];
+        }
+        if (matchedProd) {
+          const sizeObj = (matchedProd.sizeBreakdown || []).find(sb => sb.size === item.size);
+          const orderedQty = sizeObj ? sizeObj.orderedQty : 0;
+          
+          // Calculate received from all other batches except this one
+          let otherReceived = 0;
+          (order.installments || []).forEach(otherInst => {
+            if (String(otherInst._id) !== String(req.params.installmentId)) {
+              (otherInst.items || []).forEach(otherItem => {
+                if ((!otherItem.productName || otherItem.productName === item.productName) && otherItem.size === item.size) {
+                  otherReceived += (otherItem.qty || 0);
+                }
+              });
+            }
+          });
+
+          const remainingQty = Math.max(0, orderedQty - otherReceived);
+          if (item.qty > remainingQty) {
+            return res.status(400).json({
+              message: `Quantity received for Product '${item.productName || matchedProd.productName}' (Size ${item.size}) [${item.qty} pcs] cannot exceed remaining pending quantity (${remainingQty} pcs).`
+            });
+          }
+        }
+      }
+
       inst.items = cleanItems;
     }
 
