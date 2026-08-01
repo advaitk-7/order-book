@@ -748,11 +748,15 @@ function App() {
       Promise.all([
         fetchOrders(''),
         fetchPricingRates(),
-        fetchCurrentUser()
+        fetchCurrentUser(),
+        fetchWaitlist('', 'All', 'All', true),
+        fetchWaitlistSchools()
       ]).catch(() => {})
     } else {
       setOrders([])
       setSelectedOrder(null)
+      setWaitlist([])
+      setWaitlistSchools([])
     }
   }, [token])
 
@@ -1050,7 +1054,7 @@ function App() {
 
   const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter, school = waitlistSchoolFilter, silent = false) => {
     if (!token) return
-    if (!silent) setLoadingWaitlist(true)
+    if (!silent && waitlist.length === 0) setLoadingWaitlist(true)
     try {
       const response = await fetch(`${API_BASE}/api/waitlist?search=${encodeURIComponent(search)}&status=${status}&school=${school}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -1415,7 +1419,7 @@ function App() {
 
   useEffect(() => {
     if (activePage === 'Stock Waitlist' && token) {
-      fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter)
+      fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, waitlist.length > 0)
     }
   }, [waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, activePage, token])
 

@@ -315,6 +315,8 @@ const waitlistSchema = new mongoose.Schema(
   { timestamps: true }
 );
 waitlistSchema.index({ notifiedAt: 1 }, { expireAfterSeconds: 604800 });
+waitlistSchema.index({ createdAt: -1 });
+waitlistSchema.index({ schools: 1 });
 
 const Waitlist = mongoose.model("Waitlist", waitlistSchema);
 
