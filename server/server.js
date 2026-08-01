@@ -346,6 +346,7 @@ const vendorOrderSchema = new mongoose.Schema(
       {
         productName: { type: String, required: true, trim: true },
         school: { type: String, required: true, trim: true },
+        unitPrice: { type: Number, default: 0 },
         sizeBreakdown: [
           {
             size: { type: String, required: true, trim: true },
@@ -1718,6 +1719,7 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
       cleanProducts.push({
         productName,
         school,
+        unitPrice: Math.max(0, Number(p.unitPrice || 0)),
         sizeBreakdown: formattedBreakdown
       });
     }
@@ -1795,6 +1797,7 @@ app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
           cleanProducts.push({
             productName,
             school,
+            unitPrice: Math.max(0, Number(p.unitPrice !== undefined ? p.unitPrice : (existingProd ? existingProd.unitPrice : 0))),
             sizeBreakdown: updatedBreakdown
           });
         }

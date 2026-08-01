@@ -1667,6 +1667,7 @@ function App() {
       cleanProducts.push({
         productName,
         school,
+        unitPrice: Math.max(0, Number(p.unitPrice || 0)),
         sizeBreakdown: cleanBreakdown
       })
     }
@@ -5858,6 +5859,14 @@ function App() {
                       return true
                     })
 
+                    // Sort POs ascending (lower PO numbers above, increasing as we go down)
+                    filteredOrders.sort((a, b) => {
+                      const numA = parseInt(String(a.poNumber || '').replace(/\D/g, ''), 10) || 0
+                      const numB = parseInt(String(b.poNumber || '').replace(/\D/g, ''), 10) || 0
+                      if (numA !== numB) return numA - numB
+                      return String(a.poNumber || '').localeCompare(String(b.poNumber || ''), undefined, { numeric: true, sensitivity: 'base' })
+                    })
+
                     if (loadingVendorOrders) {
                       return <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading supplier restock orders...</div>
                     }
@@ -5876,7 +5885,16 @@ function App() {
                         const prods = getNormalizedProducts(order)
                         let totalOrdered = 0
                         let totalReceived = 0
+                        let poTotalCost = 0
+                        let poHasAnyPrices = false
+
                         prods.forEach(p => {
+                          const pOrderedPcs = (p.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.orderedQty || 0), 0)
+                          const pUnitPrice = Number(p.unitPrice || 0)
+                          if (pUnitPrice > 0) {
+                            poTotalCost += pOrderedPcs * pUnitPrice
+                            poHasAnyPrices = true
+                          }
                           (p.sizeBreakdown || []).forEach(sb => {
                             totalOrdered += (sb.orderedQty || 0)
                             totalReceived += (sb.receivedQty || 0)
@@ -5914,10 +5932,13 @@ function App() {
                                   <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.poNumber}</span>
                                   <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Supplier: {order.partyName}</span>
                                 </div>
-                                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                                   <span>Products: <strong>{prods.length}</strong></span>
                                   {order.targetDate && <span>Target Date: <strong>{order.targetDate}</strong></span>}
                                   <span>Created: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></span>
+                                  <span style={{ fontWeight: '700', color: poHasAnyPrices ? (theme === 'dark' ? '#34D399' : '#059669') : '#64748B' }}>
+                                    Total PO Value: <strong>{poHasAnyPrices ? `₹${poTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
+                                  </span>
                                 </div>
                               </div>
 
@@ -5962,12 +5983,14 @@ function App() {
                                   onClick={() => {
                                     setSelectedVendorOrder(order)
                                     setVendorOrderFormData({
+                                      poNumber: order.poNumber ? String(order.poNumber).replace(/^PO-0*/i, '') : '',
                                       partyName: order.partyName,
                                       targetDate: order.targetDate || '',
                                       notes: order.notes || '',
                                       products: prods.map(p => ({
                                         productName: p.productName,
                                         school: p.school,
+                                        unitPrice: p.unitPrice !== undefined && p.unitPrice !== null && p.unitPrice > 0 ? String(p.unitPrice) : '',
                                         sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({ size: sb.size, orderedQty: sb.orderedQty }))
                                       }))
                                     })
@@ -6035,18 +6058,34 @@ function App() {
 
                             {/* Size Breakdown Tables Per Product */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                              {prods.map((prod, pIdx) => (
-                                <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
-                                  <div style={{ marginBottom: '12px' }}>
-                                    <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '4px' }}>
-                                      Product {pIdx + 1} &mdash; {prod.productName}
-                                    </div>
-                                    {prod.school && (
-                                      <div style={{ fontSize: '12px', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>
-                                        School / Firm: <strong style={{ color: theme === 'dark' ? '#F1F5F9' : '#0F172A', fontWeight: '700' }}>{prod.school}</strong>
+                              {prods.map((prod, pIdx) => {
+                                const prodOrderedPcs = (prod.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.orderedQty || 0), 0)
+                                const prodUnitPrice = Number(prod.unitPrice || 0)
+                                const prodTotalCost = prodUnitPrice > 0 ? prodOrderedPcs * prodUnitPrice : 0
+
+                                return (
+                                  <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                                      <div>
+                                        <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '4px' }}>
+                                          Product {pIdx + 1} &mdash; {prod.productName}
+                                        </div>
+                                        {prod.school && (
+                                          <div style={{ fontSize: '12px', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>
+                                            School / Firm: <strong style={{ color: theme === 'dark' ? '#F1F5F9' : '#0F172A', fontWeight: '700' }}>{prod.school}</strong>
+                                          </div>
+                                        )}
                                       </div>
-                                    )}
-                                  </div>
+
+                                      <div style={{ fontSize: '12px', textAlign: 'right' }}>
+                                        <div style={{ color: theme === 'dark' ? '#CBD5E1' : '#475569', fontWeight: '600' }}>
+                                          Price / Pc: <strong style={{ color: prodUnitPrice > 0 ? (theme === 'dark' ? '#34D399' : '#059669') : '#94A3B8' }}>{prodUnitPrice > 0 ? `₹${prodUnitPrice.toLocaleString('en-IN')}` : '-'}</strong>
+                                        </div>
+                                        <div style={{ fontSize: '12px', fontWeight: '700', color: prodUnitPrice > 0 ? (theme === 'dark' ? '#34D399' : '#059669') : '#94A3B8', marginTop: '2px' }}>
+                                          Total Product Cost: {prodUnitPrice > 0 ? `₹${prodTotalCost.toLocaleString('en-IN')}` : '-'}
+                                        </div>
+                                      </div>
+                                    </div>
                                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                     <thead>
                                       <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
@@ -6083,7 +6122,7 @@ function App() {
                                     </tbody>
                                   </table>
                                 </div>
-                              ))}
+                              )})}
                             </div>
 
                             {/* Received Installment History Log Timeline */}
@@ -7627,7 +7666,7 @@ function App() {
                         />
                       </div>
 
-                      <div style={{ flex: 1, minWidth: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                      <div style={{ flex: 1, minWidth: '160px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                         <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap' }}>
                           School / Firm Name *
                         </label>
@@ -7641,6 +7680,25 @@ function App() {
                             setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                           }}
                           required
+                          style={{ padding: '8px 12px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
+                        />
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: '140px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap' }}>
+                          Price / Pc (₹) (Optional)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="e.g. 250"
+                          value={prod.unitPrice || ''}
+                          onChange={(e) => {
+                            const updatedProds = [...(vendorOrderFormData.products || [])]
+                            updatedProds[pIdx] = { ...updatedProds[pIdx], unitPrice: e.target.value }
+                            setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
+                          }}
                           style={{ padding: '8px 12px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
                         />
                       </div>
