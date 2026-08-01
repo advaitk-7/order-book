@@ -222,6 +222,18 @@ const getNextOrderNumber = (orders) => {
   return String(maxNum + 1)
 }
 
+const getNextPoNumber = (vendorOrders) => {
+  if (!vendorOrders || vendorOrders.length === 0) return 1
+  const nums = vendorOrders
+    .map(o => {
+      const m = String(o.poNumber || '').match(/(\d+)$/)
+      return m ? parseInt(m[1], 10) : 0
+    })
+    .filter(n => !isNaN(n) && n > 0)
+  if (nums.length === 0) return 1
+  return Math.max(...nums) + 1
+}
+
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('token') || '')
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
@@ -583,12 +595,11 @@ function App() {
   const [showVendorOrderModal, setShowVendorOrderModal] = useState(false)
   const [selectedVendorOrder, setSelectedVendorOrder] = useState(null)
   const [vendorOrderFormData, setVendorOrderFormData] = useState({
+    poNumber: '',
     partyName: '',
-    itemType: '',
-    school: '',
     targetDate: '',
     notes: '',
-    sizeBreakdown: [{ size: '', orderedQty: '' }]
+    products: [{ productName: '', school: '', sizeBreakdown: [{ size: '28', orderedQty: '' }] }]
   })
 
   // Installment Modal
@@ -1642,6 +1653,7 @@ function App() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          poNumber: !selectedVendorOrder ? `PO-${String(Number(vendorOrderFormData.poNumber) || getNextPoNumber(vendorOrders)).padStart(4, '0')}` : undefined,
           partyName: vendorOrderFormData.partyName,
           products: cleanProducts,
           targetDate: vendorOrderFormData.targetDate,
@@ -1902,7 +1914,7 @@ function App() {
       fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, vendorOrders.length > 0)
       fetchParties()
     }
-  }, [vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, activePage, token])
+  }, [vendorOrderPartyFilter, vendorOrderStatusFilter, activePage, token])
 
   useEffect(() => {
     if (activePage === 'Stock Waitlist' && token) {
@@ -5552,7 +5564,9 @@ function App() {
                       className="primary-btn"
                       onClick={() => {
                         setSelectedVendorOrder(null)
+                        const nextNum = getNextPoNumber(vendorOrders)
                         setVendorOrderFormData({
+                          poNumber: String(nextNum),
                           partyName: '',
                           targetDate: '',
                           notes: '',
@@ -5732,7 +5746,6 @@ function App() {
                         <option value="Pending">Pending</option>
                         <option value="Partial">Partial</option>
                         <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
                       </select>
                     </label>
                   </div>
@@ -7397,6 +7410,33 @@ function App() {
             </p>
 
             <form onSubmit={handleSaveVendorOrder}>
+              {/* PO Number Row */}
+              <div className="manage-input-group">
+                <label>
+                  PO Number
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '800', color: '#2563EB', letterSpacing: '0.02em' }}>
+                      PO-
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="9999"
+                      value={vendorOrderFormData.poNumber}
+                      onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, poNumber: e.target.value })}
+                      disabled={Boolean(selectedVendorOrder)}
+                      style={{ width: '100px', fontWeight: '700', fontSize: '14px' }}
+                      placeholder="e.g. 1"
+                    />
+                    {!selectedVendorOrder && (
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>
+                        → Will be saved as <strong>PO-{String(Number(vendorOrderFormData.poNumber) || getNextPoNumber(vendorOrders)).padStart(4, '0')}</strong>
+                      </span>
+                    )}
+                  </div>
+                </label>
+              </div>
+
               <div className="manage-input-group">
                 <label>
                   Supplier Name *

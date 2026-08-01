@@ -1722,18 +1722,22 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
       });
     }
 
-    // Generate next sequential PO number based on highest existing number
-    const lastPO = await VendorOrder.findOne({}, { poNumber: 1 }).sort({ createdAt: 1 }).lean();
-    let nextNum = 1;
-    if (lastPO && lastPO.poNumber) {
+    // Use client-provided PO number if given, else compute max+1 server-side
+    let poNumber = String(req.body.poNumber || '').trim();
+    if (!poNumber) {
       const allPOs = await VendorOrder.find({}, { poNumber: 1 }).lean();
       const nums = allPOs.map(o => {
         const m = String(o.poNumber || '').match(/(\d+)$/);
         return m ? parseInt(m[1], 10) : 0;
       }).filter(n => !isNaN(n));
-      if (nums.length > 0) nextNum = Math.max(...nums) + 1;
+      const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+      poNumber = `PO-${String(nextNum).padStart(4, '0')}`;
     }
-    const poNumber = `PO-${String(nextNum).padStart(4, '0')}`;
+    // Reject if poNumber already exists
+    const existing = await VendorOrder.findOne({ poNumber });
+    if (existing) {
+      return res.status(409).json({ message: `PO number ${poNumber} already exists. Please use a different number.` });
+    }
 
     const newOrder = new VendorOrder({
       poNumber,
