@@ -5889,10 +5889,10 @@ function App() {
                         let poHasAnyPrices = false
 
                         prods.forEach(p => {
-                          const pOrderedPcs = (p.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.orderedQty || 0), 0)
+                          const pReceivedPcs = (p.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
                           const pUnitPrice = Number(p.unitPrice || 0)
                           if (pUnitPrice > 0) {
-                            poTotalCost += pOrderedPcs * pUnitPrice
+                            poTotalCost += pReceivedPcs * pUnitPrice
                             poHasAnyPrices = true
                           }
                           (p.sizeBreakdown || []).forEach(sb => {
@@ -6066,7 +6066,7 @@ function App() {
                                 const totalProdPct = totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdReceived / totalProdOrdered) * 100)) : 0
 
                                 const prodUnitPrice = Number(prod.unitPrice || 0)
-                                const prodTotalCost = prodUnitPrice > 0 ? totalProdOrdered * prodUnitPrice : 0
+                                const prodTotalCost = prodUnitPrice > 0 ? totalProdReceived * prodUnitPrice : 0
 
                                 return (
                                   <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
