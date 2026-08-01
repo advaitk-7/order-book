@@ -234,6 +234,36 @@ const getNextPoNumber = (vendorOrders) => {
   return Math.max(...nums) + 1
 }
 
+// Gold-Standard Universal Search Matcher (Safe against null/undefined, supports Array, Object, String)
+const checkFuzzyMatch = (searchQuery, target) => {
+  if (!searchQuery || !String(searchQuery).trim()) return true
+  const rawQuery = String(searchQuery).trim().toLowerCase()
+  const cleanQuery = rawQuery.replace(/^#/, '').trim()
+  const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
+  if (queryTokens.length === 0) return true
+
+  let textToSearch = ''
+  if (Array.isArray(target)) {
+    textToSearch = target.filter(Boolean).map(item => String(item).toLowerCase()).join(' ')
+  } else if (typeof target === 'object' && target !== null) {
+    textToSearch = Object.values(target).filter(Boolean).map(val => {
+      if (typeof val === 'object') return JSON.stringify(val).toLowerCase()
+      return String(val).toLowerCase()
+    }).join(' ')
+  } else {
+    textToSearch = String(target || '').toLowerCase()
+  }
+
+  for (const token of queryTokens) {
+    const cleanToken = token.replace(/^#/, '')
+    if (!textToSearch.includes(token) && !textToSearch.includes(cleanToken)) {
+      return false
+    }
+  }
+
+  return true
+}
+
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('token') || '')
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
@@ -5694,15 +5724,67 @@ function App() {
 
                 {/* Filter Controls */}
                 <div style={{ margin: '20px 24px 16px' }}>
-                  {/* Search Bar */}
-                  <div className="table-search" style={{ marginBottom: '14px' }}>
-                    <input
-                      type="text"
-                      placeholder="Search PO number, Supplier, Product, School / Firm or Challan..."
-                      value={vendorOrderSearch}
-                      onChange={(e) => setVendorOrderSearch(e.target.value)}
-                    />
-                  </div>
+                  {/* Premium Gold-Standard Search Bar */}
+                  <form onSubmit={(e) => e.preventDefault()} style={{ marginBottom: '14px' }}>
+                    <div
+                      style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                        borderRadius: '10px',
+                        border: `1px solid ${theme === 'dark' ? '#334155' : '#CBD5E1'}`,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <span style={{ position: 'absolute', left: '14px', color: '#94A3B8', fontSize: '15px', pointerEvents: 'none' }}>
+                        {getSafeEmoji('🔍')}
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Search PO number, Supplier, Product, School / Firm or Challan..."
+                        value={vendorOrderSearch}
+                        onChange={(e) => setVendorOrderSearch(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 38px 10px 38px',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          border: 'none',
+                          outline: 'none',
+                          background: 'transparent',
+                          color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
+                          borderRadius: '10px'
+                        }}
+                      />
+                      {vendorOrderSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setVendorOrderSearch('')}
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            background: 'none',
+                            border: 'none',
+                            color: '#94A3B8',
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Clear search"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </form>
                   {/* Filter Dropdowns Row */}
                   <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filter</span>
