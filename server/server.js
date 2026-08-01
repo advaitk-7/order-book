@@ -1428,28 +1428,27 @@ app.get("/api/parties", authenticateJWT, async (req, res) => {
 
 app.post("/api/parties", authenticateJWT, async (req, res) => {
   try {
-    const { name, contactNumber, specialties, notes } = req.body;
+    const { name, contactNumber, notes } = req.body;
     if (!name || !name.trim()) {
-      return res.status(400).json({ message: "Party name is required." });
+      return res.status(400).json({ message: "Supplier name is required." });
     }
 
     const cleanName = name.trim();
     const existing = await Party.findOne({ name: cleanName });
     if (existing) {
-      return res.status(400).json({ message: "A party with this name already exists." });
+      return res.status(400).json({ message: "A supplier with this name already exists." });
     }
 
     const party = await Party.create({
       name: cleanName,
       contactNumber: (contactNumber || "").trim(),
-      specialties: Array.isArray(specialties) ? specialties.map(s => String(s).trim()).filter(Boolean) : [],
       notes: (notes || "").trim()
     });
 
-    await logAudit(null, "System", "Party Created", `Party '${cleanName}' created with specialties: ${party.specialties.join(", ") || "None"}`);
+    await logAudit(null, "System", "Supplier Created", `Supplier '${cleanName}' added`);
     res.status(201).json(party);
   } catch (error) {
-    res.status(500).json({ message: "Failed to create party", error: error.message });
+    res.status(500).json({ message: "Failed to create supplier", error: error.message });
   }
 });
 
@@ -1457,12 +1456,12 @@ app.delete("/api/parties/:id", authenticateJWT, async (req, res) => {
   try {
     const party = await Party.findByIdAndDelete(req.params.id);
     if (!party) {
-      return res.status(404).json({ message: "Party not found" });
+      return res.status(404).json({ message: "Supplier not found" });
     }
-    await logAudit(null, "System", "Party Deleted", `Party '${party.name}' deleted`);
-    res.json({ message: "Party deleted successfully" });
+    await logAudit(null, "System", "Supplier Deleted", `Supplier '${party.name}' deleted`);
+    res.json({ message: "Supplier deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete party", error: error.message });
+    res.status(500).json({ message: "Failed to delete supplier", error: error.message });
   }
 });
 
@@ -1507,7 +1506,7 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
   try {
     const { partyName, itemType, school, targetDate, sizeBreakdown, notes } = req.body;
     if (!partyName || !partyName.trim()) {
-      return res.status(400).json({ message: "Party name is required." });
+      return res.status(400).json({ message: "Supplier name is required." });
     }
     if (!itemType || !itemType.trim()) {
       return res.status(400).json({ message: "Item type/category is required." });

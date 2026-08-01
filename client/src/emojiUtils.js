@@ -73,8 +73,8 @@ export const EMOJI_REGISTRY = {
   '📋': ['📝', '☰'],          // Orders
   '🧵': ['✂️', '⚙️'],         // Production Queue
   '🔔': ['📢', '!'],           // Stock Waitlist
-  '🏬': ['🏭', 'B'],          // Party Restock
-  '🏭': ['🏬', 'F'],          // Vendor Factory
+  '🏬': ['🏭', 'B'],          // Supplier Restock
+  '🏭': ['🏬', 'F'],          // Supplier Factory
   '⚙️': ['☰', '*'],           // Settings
 
   // ── Login page ──────────────────────────────────────────────────

@@ -1503,7 +1503,7 @@ function App() {
   const handleSaveParty = async (e) => {
     e.preventDefault()
     if (!partyFormData.name || !partyFormData.name.trim()) {
-      setMessage('Party name is required.')
+      setMessage('Supplier name is required.')
       return
     }
 
@@ -1517,43 +1517,42 @@ function App() {
         body: JSON.stringify({
           name: partyFormData.name,
           contactNumber: partyFormData.contactNumber,
-          specialties: partyFormData.specialties ? partyFormData.specialties.split(',').map(s => s.trim()) : [],
           notes: partyFormData.notes
         })
       })
       const data = await response.json()
       if (response.ok) {
-        setMessage(`Party '${data.name}' added successfully.`)
-        setPartyFormData({ name: '', contactNumber: '', specialties: '', notes: '' })
+        setMessage(`Supplier '${data.name}' added successfully.`)
+        setPartyFormData({ name: '', contactNumber: '', notes: '' })
         fetchParties()
       } else {
-        setMessage(data.message || 'Failed to add party.')
+        setMessage(data.message || 'Failed to add supplier.')
       }
     } catch (err) {
-      setMessage('Network error adding party.')
+      setMessage('Network error adding supplier.')
     }
   }
 
   const handleDeleteParty = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete party "${name}"?`)) return
+    if (!window.confirm(`Are you sure you want to delete supplier "${name}"?`)) return
     try {
       const response = await fetch(`${API_BASE}/api/parties/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
-        setMessage(`Party '${name}' deleted.`)
+        setMessage(`Supplier '${name}' deleted.`)
         fetchParties()
       }
     } catch (err) {
-      console.error('Failed to delete party', err)
+      console.error('Failed to delete supplier', err)
     }
   }
 
   const handleSaveVendorOrder = async (e) => {
     e.preventDefault()
     if (!vendorOrderFormData.partyName || !vendorOrderFormData.itemType) {
-      setMessage('Party Name and Item Type are required.')
+      setMessage('Supplier Name and Item Type are required.')
       return
     }
 
@@ -1588,31 +1587,31 @@ function App() {
       })
       const data = await response.json()
       if (response.ok) {
-        setMessage(isEditing ? `Order ${data.poNumber} updated.` : `Order ${data.poNumber} placed with '${data.partyName}'.`)
+        setMessage(isEditing ? `Order ${data.poNumber} updated.` : `Order ${data.poNumber} placed with supplier '${data.partyName}'.`)
         setShowVendorOrderModal(false)
         setSelectedVendorOrder(null)
         fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
       } else {
-        setMessage(data.message || 'Failed to save vendor order.')
+        setMessage(data.message || 'Failed to save supplier order.')
       }
     } catch (err) {
-      setMessage('Network error saving vendor order.')
+      setMessage('Network error saving supplier order.')
     }
   }
 
   const handleDeleteVendorOrder = async (id, poNumber) => {
-    if (!window.confirm(`Delete Vendor Order ${poNumber}? This cannot be undone.`)) return
+    if (!window.confirm(`Delete Supplier Order ${poNumber}? This cannot be undone.`)) return
     try {
       const response = await fetch(`${API_BASE}/api/vendor-orders/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
-        setMessage(`Vendor Order ${poNumber} deleted.`)
+        setMessage(`Supplier Order ${poNumber} deleted.`)
         fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
       }
     } catch (err) {
-      console.error('Failed to delete vendor order', err)
+      console.error('Failed to delete supplier order', err)
     }
   }
 
@@ -1675,11 +1674,11 @@ function App() {
 
   const exportVendorOrdersCSV = () => {
     if (vendorOrders.length === 0) {
-      alert('No vendor restock orders available to export.')
+      alert('No supplier restock orders available to export.')
       return
     }
 
-    const headers = ['PO Number', 'Party Name', 'Item Category', 'School', 'Target Date', 'Status', 'Total Ordered', 'Total Received', 'Pending Balance', 'Notes']
+    const headers = ['PO Number', 'Supplier Name', 'Item Category', 'School', 'Target Date', 'Status', 'Total Ordered', 'Total Received', 'Pending Balance', 'Notes']
     const rows = vendorOrders.map(vo => {
       const totalOrdered = (vo.sizeBreakdown || []).reduce((sum, s) => sum + (s.orderedQty || 0), 0)
       const totalReceived = (vo.sizeBreakdown || []).reduce((sum, s) => sum + (s.receivedQty || 0), 0)
@@ -1703,14 +1702,14 @@ function App() {
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
     const today = new Date().toISOString().split('T')[0]
-    link.setAttribute('download', `Party_Restock_Orders_${today}.csv`)
+    link.setAttribute('download', `Supplier_Restock_Orders_${today}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
   useEffect(() => {
-    if (activePage === 'Party Restock' && token) {
+    if (activePage === 'Supplier Restock' && token) {
       fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, vendorOrders.length > 0)
       fetchParties()
     }
@@ -2341,7 +2340,7 @@ function App() {
     Orders: 'Search, filter and manage existing orders',
     'Production Queue': 'Garment-level measurements, deadlines and notes for tailors',
     'Stock Waitlist': 'Manage out-of-stock items and customer notification list',
-    'Party Restock': 'Track bulk manufacturing orders, party specialties, and size-wise partial stock installments',
+    'Supplier Restock': 'Track bulk manufacturing orders, supplier details, and size-wise partial stock installments',
     Reports: 'Business performance and delivery trends',
     Settings: 'System preferences and administrative settings',
   }
@@ -3584,14 +3583,14 @@ function App() {
         </div>
 
         <nav className="sidebar-nav">
-          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Party Restock', 'Settings'].map((page) => {
+          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Supplier Restock', 'Settings'].map((page) => {
             const emojis = {
               'Dashboard': getSafeEmoji('📊'),
               'New Order': getSafeEmoji('➕'),
               'Orders': getSafeEmoji('📋'),
               'Production Queue': getSafeEmoji('🧵'),
               'Stock Waitlist': getSafeEmoji('🔔'),
-              'Party Restock': getSafeEmoji('🏬'),
+              'Supplier Restock': getSafeEmoji('🏬'),
               'Settings': getSafeEmoji('⚙️')
             };
             return (
@@ -5266,7 +5265,7 @@ function App() {
             </section>
           )}
 
-          {activePage === 'Party Restock' && (
+          {activePage === 'Supplier Restock' && (
             <section className="page-panel">
               {/* Summary Metric Cards */}
               <div className="stats-grid" style={{ marginBottom: '24px' }}>
@@ -5275,7 +5274,7 @@ function App() {
                   <div className="stat-info">
                     <p className="stat-label">Active Restock POs</p>
                     <p className="stat-value">{vendorOrders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
-                    <p className="stat-desc">In-progress vendor orders</p>
+                    <p className="stat-desc">In-progress supplier orders</p>
                   </div>
                 </div>
                 <div className="stat-card">
@@ -5285,7 +5284,7 @@ function App() {
                     <p className="stat-value">
                       {vendorOrders.reduce((acc, o) => acc + (o.sizeBreakdown || []).reduce((s, i) => s + (i.orderedQty || 0), 0), 0)}
                     </p>
-                    <p className="stat-desc">Across all party orders</p>
+                    <p className="stat-desc">Across all supplier orders</p>
                   </div>
                 </div>
                 <div className="stat-card">
@@ -5299,7 +5298,7 @@ function App() {
                         return acc + Math.max(0, ord - rec)
                       }, 0)}
                     </p>
-                    <p className="stat-desc">Awaiting arrival from parties</p>
+                    <p className="stat-desc">Awaiting arrival from suppliers</p>
                   </div>
                 </div>
                 <div className="stat-card">
@@ -5318,8 +5317,8 @@ function App() {
               <div className="card card-panel">
                 <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                   <div>
-                    <h2 className="card-title">{getSafeEmoji('🏬')} Party Restock & Vendor Tracker</h2>
-                    <p className="card-subtitle">Track bulk manufacturing orders, vendor specialties, and size-wise partial stock installments.</p>
+                    <h2 className="card-title">{getSafeEmoji('🏬')} Supplier Restock & Orders</h2>
+                    <p className="card-subtitle">Track bulk manufacturing orders, supplier details, and size-wise partial stock installments.</p>
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -5354,7 +5353,7 @@ function App() {
                       onClick={() => setShowPartyManagerModal(true)}
                       style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                      {getSafeEmoji('🏭')} Manage Parties ({parties.length})
+                      {getSafeEmoji('🏭')} Manage Suppliers ({parties.length})
                     </button>
                     <button
                       type="button"
@@ -5372,19 +5371,19 @@ function App() {
                   <div className="table-search" style={{ flex: 1, minWidth: '200px' }}>
                     <input
                       type="text"
-                      placeholder={`${getSafeEmoji('🔍')} Search PO#, Party, Item, School or Challan...`}
+                      placeholder={`${getSafeEmoji('🔍')} Search PO#, Supplier, Item, School or Challan...`}
                       value={vendorOrderSearch}
                       onChange={(e) => setVendorOrderSearch(e.target.value)}
                     />
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>Party:</span>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>Supplier:</span>
                     <select
                       value={vendorOrderPartyFilter}
                       onChange={(e) => setVendorOrderPartyFilter(e.target.value)}
                       style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
                     >
-                      <option value="All">All Parties ({parties.length})</option>
+                      <option value="All">All Suppliers ({parties.length})</option>
                       {parties.map(p => (
                         <option key={p._id} value={p.name}>{p.name}</option>
                       ))}
@@ -5409,10 +5408,10 @@ function App() {
                 {/* Orders List View */}
                 <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
                   {loadingVendorOrders ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading vendor restock orders...</div>
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading supplier restock orders...</div>
                   ) : vendorOrders.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-                      No party restock orders found. Click "+ New Restock PO" above to place your first bulk order with a party!
+                      No supplier restock orders found. Click "+ New Restock PO" above to place your first bulk order with a supplier!
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -5421,9 +5420,6 @@ function App() {
                         const totalReceived = (order.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
                         const pendingBalance = Math.max(0, totalOrdered - totalReceived)
                         const progressPct = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0
-
-                        const partyObj = parties.find(p => p.name === order.partyName)
-                        const partySpecialties = partyObj && partyObj.specialties ? partyObj.specialties : []
 
                         return (
                           <div
@@ -5440,12 +5436,7 @@ function App() {
                               <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                   <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.poNumber}</span>
-                                  <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{order.partyName}</span>
-                                  {partySpecialties.map(spec => (
-                                    <span key={spec} style={{ fontSize: '10px', background: 'rgba(37, 99, 235, 0.1)', color: '#2563EB', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>
-                                      {spec}
-                                    </span>
-                                  ))}
+                                  <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Supplier: {order.partyName}</span>
                                 </div>
                                 <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                                   <span>Category: <strong>{order.itemType}</strong></span>
@@ -6953,21 +6944,21 @@ function App() {
               {selectedVendorOrder ? `${getSafeEmoji('✏️')} Edit Restock PO ${selectedVendorOrder.poNumber}` : `${getSafeEmoji('➕')} Create New Restock PO`}
             </p>
             <p className="manage-modal-subtitle">
-              Issue a bulk manufacturing order to a party with size-wise quantity targets.
+              Issue a bulk manufacturing order to a supplier with size-wise quantity targets.
             </p>
 
             <form onSubmit={handleSaveVendorOrder}>
               <div className="manage-input-group">
                 <label>
-                  Party / Vendor Name *
+                  Supplier Name *
                   <select
                     value={vendorOrderFormData.partyName}
                     onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, partyName: e.target.value })}
                     required
                   >
-                    <option value="">-- Select Party --</option>
+                    <option value="">-- Select Supplier --</option>
                     {parties.map(p => (
-                      <option key={p._id} value={p.name}>{p.name} {p.specialties && p.specialties.length ? `(${p.specialties.join(', ')})` : ''}</option>
+                      <option key={p._id} value={p.name}>{p.name}</option>
                     ))}
                   </select>
                 </label>
@@ -7193,7 +7184,7 @@ function App() {
         </div>
       )}
 
-      {/* Party Manager Directory Modal */}
+      {/* Supplier Manager Directory Modal */}
       {showPartyManagerModal && (
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -7201,19 +7192,19 @@ function App() {
               {getSafeEmoji('✕')}
             </button>
             <p className="manage-modal-title">
-              {getSafeEmoji('🏭')} Manage Party Directory ({parties.length})
+              {getSafeEmoji('🏭')} Manage Supplier Directory ({parties.length})
             </p>
             <p className="manage-modal-subtitle">
-              Add vendor profiles and tag their specific garment manufacturing specialties.
+              Add supplier profiles to issue bulk restock orders.
             </p>
 
-            {/* Add Party Form */}
+            {/* Add Supplier Form */}
             <form onSubmit={handleSaveParty} style={{ background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--border-color, #E2E8F0)' }}>
-              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 10px 0' }}>Add New Vendor / Party:</p>
+              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 10px 0' }}>Add New Supplier:</p>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
                 <input
                   type="text"
-                  placeholder="Party Name * (e.g. Ramsons)"
+                  placeholder="Supplier Name * (e.g. Ramsons)"
                   value={partyFormData.name}
                   onChange={(e) => setPartyFormData({ ...partyFormData, name: e.target.value })}
                   required
@@ -7221,31 +7212,22 @@ function App() {
                 />
                 <input
                   type="text"
-                  placeholder="Contact Number"
+                  placeholder="Contact Number (Optional)"
                   value={partyFormData.contactNumber}
                   onChange={(e) => setPartyFormData({ ...partyFormData, contactNumber: e.target.value })}
                   style={{ flex: 1, minWidth: '140px', padding: '6px 10px', fontSize: '13px' }}
                 />
               </div>
-              <div style={{ marginBottom: '8px' }}>
-                <input
-                  type="text"
-                  placeholder="Specialties (comma separated: e.g. T-Shirts, Jeans, Track)"
-                  value={partyFormData.specialties}
-                  onChange={(e) => setPartyFormData({ ...partyFormData, specialties: e.target.value })}
-                  style={{ width: '100%', padding: '6px 10px', fontSize: '13px' }}
-                />
-              </div>
-              <button type="submit" className="primary-btn" style={{ width: '100%', padding: '8px', fontSize: '13px' }}>
-                + Add Party to Directory
+              <button type="submit" className="primary-btn" style={{ width: '100%', padding: '8px', fontSize: '13px', marginTop: '4px' }}>
+                + Add Supplier to Directory
               </button>
             </form>
 
-            {/* Party List */}
+            {/* Supplier List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 4px 0' }}>Existing Parties ({parties.length}):</p>
+              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 4px 0' }}>Existing Suppliers ({parties.length}):</p>
               {parties.length === 0 ? (
-                <p style={{ fontSize: '12px', color: '#64748B' }}>No parties added yet.</p>
+                <p style={{ fontSize: '12px', color: '#64748B' }}>No suppliers added yet.</p>
               ) : (
                 parties.map(p => (
                   <div
@@ -7264,21 +7246,12 @@ function App() {
                       <div style={{ fontWeight: '700', fontSize: '13px' }}>
                         {p.name} {p.contactNumber && <span style={{ fontWeight: 'normal', color: '#64748B', fontSize: '11px' }}>({p.contactNumber})</span>}
                       </div>
-                      {p.specialties && p.specialties.length > 0 && (
-                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
-                          {p.specialties.map(spec => (
-                            <span key={spec} style={{ fontSize: '10px', background: 'rgba(37, 99, 235, 0.1)', color: '#2563EB', padding: '1px 6px', borderRadius: '8px', fontWeight: '600' }}>
-                              {spec}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <button
                       type="button"
                       className="icon-btn danger"
                       onClick={() => handleDeleteParty(p._id, p.name)}
-                      title="Delete Party"
+                      title="Delete Supplier"
                     >
                       {getSafeEmoji('🗑️')}
                     </button>
