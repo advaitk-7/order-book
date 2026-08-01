@@ -5790,7 +5790,7 @@ function App() {
                             }}
                           >
                             {/* Card Top Header */}
-                            <div className="space-between" style={{ flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
                               <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                   <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.poNumber}</span>
