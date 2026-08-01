@@ -1661,6 +1661,24 @@ app.get("/api/vendor-orders", authenticateJWT, async (req, res) => {
   }
 });
 
+// One-time migration: renumber all existing POs sequentially from PO-0001 by creation date
+app.post("/api/vendor-orders/renumber-pos", authenticateJWT, async (req, res) => {
+  try {
+    const orders = await VendorOrder.find({}).sort({ createdAt: 1 }).lean();
+    let changed = 0;
+    for (let i = 0; i < orders.length; i++) {
+      const newPoNumber = `PO-${String(i + 1).padStart(4, '0')}`;
+      if (orders[i].poNumber !== newPoNumber) {
+        await VendorOrder.updateOne({ _id: orders[i]._id }, { $set: { poNumber: newPoNumber } });
+        changed++;
+      }
+    }
+    res.json({ message: `PO renumbering complete. ${changed} orders updated out of ${orders.length} total.`, total: orders.length, updated: changed });
+  } catch (error) {
+    res.status(500).json({ message: "PO renumbering failed", error: error.message });
+  }
+});
+
 app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
   try {
     const { partyName, products, targetDate, notes } = req.body;
@@ -1704,8 +1722,18 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
       });
     }
 
-    const count = await VendorOrder.countDocuments();
-    const poNumber = `PO-${String(count + 1001).padStart(4, '0')}`;
+    // Generate next sequential PO number based on highest existing number
+    const lastPO = await VendorOrder.findOne({}, { poNumber: 1 }).sort({ createdAt: 1 }).lean();
+    let nextNum = 1;
+    if (lastPO && lastPO.poNumber) {
+      const allPOs = await VendorOrder.find({}, { poNumber: 1 }).lean();
+      const nums = allPOs.map(o => {
+        const m = String(o.poNumber || '').match(/(\d+)$/);
+        return m ? parseInt(m[1], 10) : 0;
+      }).filter(n => !isNaN(n));
+      if (nums.length > 0) nextNum = Math.max(...nums) + 1;
+    }
+    const poNumber = `PO-${String(nextNum).padStart(4, '0')}`;
 
     const newOrder = new VendorOrder({
       poNumber,
