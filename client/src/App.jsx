@@ -5552,7 +5552,7 @@ function App() {
                       onClick={() => {
                         setSelectedVendorOrder(null)
                         setVendorOrderFormData({
-                          partyName: parties.length > 0 ? parties[0].name : '',
+                          partyName: '',
                           targetDate: '',
                           notes: '',
                           products: [
@@ -5676,87 +5676,6 @@ function App() {
                     })}
                   </div>
                 </div>
-
-                {/* Dedicated Supplier Profile Subsection Banner */}
-                {vendorOrderPartyFilter !== 'All' && (
-                  <div
-                    style={{
-                      margin: '16px 24px 0 24px',
-                      padding: '16px 20px',
-                      borderRadius: '12px',
-                      background: theme === 'dark' ? '#0F172A' : '#F0F9FF',
-                      border: '1px solid #BAE6FD'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '20px' }}>{getSafeEmoji('🏭')}</span>
-                          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0369A1' }}>
-                            {vendorOrderPartyFilter} — Dedicated Supplier Sub-section
-                          </h3>
-                        </div>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#0284C7' }}>
-                          {parties.find(p => p.name === vendorOrderPartyFilter)?.contactNumber ? `Phone: ${parties.find(p => p.name === vendorOrderPartyFilter)?.contactNumber}` : 'Supplier Profile Active'}
-                          {parties.find(p => p.name === vendorOrderPartyFilter)?.notes ? ` • ${parties.find(p => p.name === vendorOrderPartyFilter)?.notes}` : ''}
-                        </p>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          className="primary-btn"
-                          onClick={() => {
-                            setSelectedVendorOrder(null)
-                            setVendorOrderFormData({
-                              partyName: vendorOrderPartyFilter,
-                              targetDate: '',
-                              notes: '',
-                              products: [
-                                {
-                                  productName: '',
-                                  school: '',
-                                  sizeBreakdown: [
-                                    { size: '28', orderedQty: '' },
-                                    { size: '30', orderedQty: '' },
-                                    { size: '32', orderedQty: '' }
-                                  ]
-                                }
-                              ]
-                            })
-                            setShowVendorOrderModal(true)
-                          }}
-                          style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '8px' }}
-                        >
-                          {getSafeEmoji('➕')} Place New PO for {vendorOrderPartyFilter}
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => {
-                            const partyObj = parties.find(p => p.name === vendorOrderPartyFilter)
-                            if (partyObj) {
-                              setEditingSupplierId(partyObj._id)
-                              setPartyFormData({ name: partyObj.name, contactNumber: partyObj.contactNumber || '', notes: partyObj.notes || '' })
-                            }
-                            setShowPartyManagerModal(true)
-                          }}
-                          style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '8px' }}
-                        >
-                          {getSafeEmoji('✏️')} Edit Supplier Details
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => setVendorOrderPartyFilter('All')}
-                          style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '8px' }}
-                        >
-                          {getSafeEmoji('⬅️')} View All Suppliers
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Filter Controls */}
                 <div style={{ display: 'flex', gap: '12px', margin: '20px 24px 16px', flexWrap: 'wrap', alignItems: 'center' }}>
