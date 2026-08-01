@@ -5433,10 +5433,7 @@ function App() {
                                 <button
                                   type="button"
                                   className="icon-btn danger"
-                                  title="Delete entry"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteWaitlistRequest(request._id, request.customerName);
+                                  handleDeleteWaitlistRequest(request._id, request.customerName);
                                   }}
                                 >
                                   {getSafeEmoji('🗑️')}
@@ -5456,70 +5453,86 @@ function App() {
           {activePage === 'Supplier Restock' && (
             <section className="page-panel">
               {/* Summary Metric Cards */}
-              <div className="stats-grid" style={{ marginBottom: '24px' }}>
-                <div className="stat-card">
-                  <span className="stat-icon">{getSafeEmoji('🏬')}</span>
-                  <div className="stat-info">
-                    <p className="stat-label">Active Restock POs</p>
-                    <p className="stat-value">{vendorOrders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
-                    <p className="stat-desc">In-progress supplier orders</p>
+              {(() => {
+                const ordersForStats = vendorOrderPartyFilter === 'All'
+                  ? vendorOrders
+                  : vendorOrders.filter(o => o.partyName === vendorOrderPartyFilter)
+
+                return (
+                  <div className="stats-grid grid-4" style={{ marginBottom: '24px' }}>
+                    <div className="stat-card">
+                      <span className="stat-icon">{getSafeEmoji('🏬')}</span>
+                      <div className="stat-info">
+                        <p className="stat-label">Active Restock POs</p>
+                        <p className="stat-value">{ordersForStats.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
+                        <p className="stat-desc">
+                          {vendorOrderPartyFilter === 'All' ? 'In-progress supplier orders' : `Active orders for ${vendorOrderPartyFilter}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <span className="stat-icon">{getSafeEmoji('📦')}</span>
+                      <div className="stat-info">
+                        <p className="stat-label">Total Ordered Pcs</p>
+                        <p className="stat-value">
+                          {ordersForStats.reduce((acc, o) => {
+                            const prods = getNormalizedProducts(o)
+                            let ord = 0
+                            prods.forEach(p => {
+                              (p.sizeBreakdown || []).forEach(sb => { ord += (sb.orderedQty || 0) })
+                            })
+                            return acc + ord
+                          }, 0)}
+                        </p>
+                        <p className="stat-desc">
+                          {vendorOrderPartyFilter === 'All' ? 'Across all supplier orders' : `Total ordered from ${vendorOrderPartyFilter}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <span className="stat-icon">{getSafeEmoji('⏳')}</span>
+                      <div className="stat-info">
+                        <p className="stat-label">Pending Balance Pcs</p>
+                        <p className="stat-value" style={{ color: '#EAB308' }}>
+                          {ordersForStats.reduce((acc, o) => {
+                            const prods = getNormalizedProducts(o)
+                            let ord = 0, rec = 0
+                            prods.forEach(p => {
+                              (p.sizeBreakdown || []).forEach(sb => {
+                                ord += (sb.orderedQty || 0)
+                                rec += (sb.receivedQty || 0)
+                              })
+                            })
+                            return acc + Math.max(0, ord - rec)
+                          }, 0)}
+                        </p>
+                        <p className="stat-desc">
+                          {vendorOrderPartyFilter === 'All' ? 'Awaiting arrival from suppliers' : `Pending arrival from ${vendorOrderPartyFilter}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <span className="stat-icon">{getSafeEmoji('✅')}</span>
+                      <div className="stat-info">
+                        <p className="stat-label">Received Stock Pcs</p>
+                        <p className="stat-value" style={{ color: '#10B981' }}>
+                          {ordersForStats.reduce((acc, o) => {
+                            const prods = getNormalizedProducts(o)
+                            let rec = 0
+                            prods.forEach(p => {
+                              (p.sizeBreakdown || []).forEach(sb => { rec += (sb.receivedQty || 0) })
+                            })
+                            return acc + rec
+                          }, 0)}
+                        </p>
+                        <p className="stat-desc">
+                          {vendorOrderPartyFilter === 'All' ? 'Total stock arrived in shop' : `Stock received from ${vendorOrderPartyFilter}`}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="stat-card">
-                  <span className="stat-icon">{getSafeEmoji('📦')}</span>
-                  <div className="stat-info">
-                    <p className="stat-label">Total Ordered Pcs</p>
-                    <p className="stat-value">
-                      {vendorOrders.reduce((acc, o) => {
-                        const prods = getNormalizedProducts(o)
-                        let ord = 0
-                        prods.forEach(p => {
-                          (p.sizeBreakdown || []).forEach(sb => { ord += (sb.orderedQty || 0) })
-                        })
-                        return acc + ord
-                      }, 0)}
-                    </p>
-                    <p className="stat-desc">Across all supplier orders</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <span className="stat-icon">{getSafeEmoji('⏳')}</span>
-                  <div className="stat-info">
-                    <p className="stat-label">Pending Balance Pcs</p>
-                    <p className="stat-value" style={{ color: '#EAB308' }}>
-                      {vendorOrders.reduce((acc, o) => {
-                        const prods = getNormalizedProducts(o)
-                        let ord = 0, rec = 0
-                        prods.forEach(p => {
-                          (p.sizeBreakdown || []).forEach(sb => {
-                            ord += (sb.orderedQty || 0)
-                            rec += (sb.receivedQty || 0)
-                          })
-                        })
-                        return acc + Math.max(0, ord - rec)
-                      }, 0)}
-                    </p>
-                    <p className="stat-desc">Awaiting arrival from suppliers</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <span className="stat-icon">{getSafeEmoji('✅')}</span>
-                  <div className="stat-info">
-                    <p className="stat-label">Received Stock Pcs</p>
-                    <p className="stat-value" style={{ color: '#10B981' }}>
-                      {vendorOrders.reduce((acc, o) => {
-                        const prods = getNormalizedProducts(o)
-                        let rec = 0
-                        prods.forEach(p => {
-                          (p.sizeBreakdown || []).forEach(sb => { rec += (sb.receivedQty || 0) })
-                        })
-                        return acc + rec
-                      }, 0)}
-                    </p>
-                    <p className="stat-desc">Total stock arrived in shop</p>
-                  </div>
-                </div>
-              </div>
+                )
+              })()}
 
               {/* Main Panel Card */}
               <div className="card card-panel">
