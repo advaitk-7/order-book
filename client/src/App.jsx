@@ -1486,7 +1486,7 @@ function App() {
     if (!token) return
     if (!silent && vendorOrders.length === 0) setLoadingVendorOrders(true)
     try {
-      const response = await fetch(`${API_BASE}/api/vendor-orders?search=${encodeURIComponent(search)}&party=${encodeURIComponent(party)}&status=${status}`, {
+      const response = await fetch(`${API_BASE}/api/vendor-orders`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.status === 401 || response.status === 403) {
@@ -5783,15 +5783,40 @@ function App() {
 
                 {/* Orders List View */}
                 <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
-                  {loadingVendorOrders ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading supplier restock orders...</div>
-                  ) : vendorOrders.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-                      No supplier restock orders found. Click "+ New Restock PO" above to place your first bulk order with a supplier!
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {vendorOrders.map((order) => {
+                  {(() => {
+                    const filteredOrders = vendorOrders.filter(o => {
+                      if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
+                      if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
+                      if (vendorOrderSearch && vendorOrderSearch.trim()) {
+                        const prods = getNormalizedProducts(o)
+                        const fields = [
+                          o.poNumber,
+                          o.partyName,
+                          o.notes,
+                          ...(prods.map(p => p.productName)),
+                          ...(prods.map(p => p.school)),
+                          ...(o.installments || []).map(i => i.challanNumber)
+                        ]
+                        return checkFuzzyMatch(vendorOrderSearch, fields)
+                      }
+                      return true
+                    })
+
+                    if (loadingVendorOrders) {
+                      return <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading supplier restock orders...</div>
+                    }
+
+                    if (filteredOrders.length === 0) {
+                      return (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                          No supplier restock orders found for this view. Click "+ New Restock PO" above to place a new order!
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {filteredOrders.map((order) => {
                         const prods = getNormalizedProducts(order)
                         let totalOrdered = 0
                         let totalReceived = 0
@@ -6037,7 +6062,7 @@ function App() {
                         )
                       })}
                     </div>
-                  )}
+                  )})()}
                 </div>
               </div>
             </section>
