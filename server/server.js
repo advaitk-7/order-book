@@ -378,7 +378,8 @@ const vendorOrderSchema = new mongoose.Schema(
         notes: { type: String, default: "" }
       }
     ],
-    notes: { type: String, default: "" }
+    notes: { type: String, default: "" },
+    completedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
@@ -1507,15 +1508,40 @@ function recalculateOrderQuantities(order) {
     order.school = order.products.map(p => p.school).filter(Boolean).join(', ');
   }
 
-  // Recalculate status
+  // Recalculate status & completion timestamp
   if (grandTotalReceived >= grandTotalOrdered && grandTotalOrdered > 0) {
     order.status = "Completed";
+    if (!order.completedAt) {
+      order.completedAt = new Date();
+    }
   } else if (grandTotalReceived > 0) {
     order.status = "Partial";
+    order.completedAt = null;
   } else {
     order.status = "Pending";
+    order.completedAt = null;
   }
 }
+
+// Automatic daily cleanup for Vendor Restock Orders completed more than 90 days ago
+async function autoCleanupExpiredVendorOrders() {
+  try {
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const result = await VendorOrder.deleteMany({
+      status: "Completed",
+      completedAt: { $lte: ninetyDaysAgo }
+    });
+    if (result.deletedCount > 0) {
+      console.log(`[Auto-Cleanup] Permanently deleted ${result.deletedCount} completed restock POs older than 90 days.`);
+    }
+  } catch (err) {
+    console.error("[Auto-Cleanup] Error executing 90-day completed PO cleanup:", err);
+  }
+}
+
+// Run cleanup job every 24 hours & 5 seconds after server start
+setInterval(autoCleanupExpiredVendorOrders, 24 * 60 * 60 * 1000);
+setTimeout(autoCleanupExpiredVendorOrders, 5000);
 
 // Party (Supplier) Endpoints
 app.get("/api/parties", authenticateJWT, async (req, res) => {

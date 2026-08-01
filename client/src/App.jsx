@@ -5764,6 +5764,18 @@ function App() {
                         const pendingBalance = Math.max(0, totalOrdered - totalReceived)
                         const progressPct = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0
 
+                        let daysLeftForDeletion = null
+                        let completedDateStr = ''
+                        let expiryDateStr = ''
+                        if (order.status === 'Completed') {
+                          const completedTime = order.completedAt ? new Date(order.completedAt).getTime() : new Date(order.updatedAt || order.createdAt).getTime()
+                          const expiryTime = completedTime + (90 * 24 * 60 * 60 * 1000)
+                          const msDiff = expiryTime - Date.now()
+                          daysLeftForDeletion = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)))
+                          completedDateStr = new Date(completedTime).toLocaleDateString()
+                          expiryDateStr = new Date(expiryTime).toLocaleDateString()
+                        }
+
                         return (
                           <div
                             key={order._id}
@@ -5775,7 +5787,7 @@ function App() {
                             }}
                           >
                             {/* Card Top Header */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                            <div className="space-between" style={{ flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
                               <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                   <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.poNumber}</span>
@@ -5788,10 +5800,30 @@ function App() {
                                 </div>
                               </div>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <span className={`status-badge ${order.status === 'Completed' ? 'ready' : order.status === 'Partial' ? 'contacted' : 'pending'}`}>
                                   {order.status === 'Completed' ? 'Completed (100%)' : order.status === 'Partial' ? `Partial (${progressPct}%)` : order.status}
                                 </span>
+
+                                {order.status === 'Completed' && (
+                                  <span
+                                    title={`Completed on ${completedDateStr}. Scheduled for auto-deletion on ${expiryDateStr}`}
+                                    style={{
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      padding: '4px 10px',
+                                      borderRadius: '20px',
+                                      background: theme === 'dark' ? '#312E81' : '#F3E8FF',
+                                      color: theme === 'dark' ? '#C084FC' : '#7E22CE',
+                                      border: theme === 'dark' ? '1px solid #6B21A8' : '1px solid #E9D5FF',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    {getSafeEmoji('⏱️')} Auto-deletes in {daysLeftForDeletion} {daysLeftForDeletion === 1 ? 'day' : 'days'}
+                                  </span>
+                                )}
 
                                 <button
                                   type="button"
