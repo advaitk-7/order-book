@@ -5470,7 +5470,14 @@ function App() {
                   <div className="stat-info">
                     <p className="stat-label">Total Ordered Pcs</p>
                     <p className="stat-value">
-                      {vendorOrders.reduce((acc, o) => acc + (o.sizeBreakdown || []).reduce((s, i) => s + (i.orderedQty || 0), 0), 0)}
+                      {vendorOrders.reduce((acc, o) => {
+                        const prods = getNormalizedProducts(o)
+                        let ord = 0
+                        prods.forEach(p => {
+                          (p.sizeBreakdown || []).forEach(sb => { ord += (sb.orderedQty || 0) })
+                        })
+                        return acc + ord
+                      }, 0)}
                     </p>
                     <p className="stat-desc">Across all supplier orders</p>
                   </div>
@@ -5481,8 +5488,14 @@ function App() {
                     <p className="stat-label">Pending Balance Pcs</p>
                     <p className="stat-value" style={{ color: '#EAB308' }}>
                       {vendorOrders.reduce((acc, o) => {
-                        const ord = (o.sizeBreakdown || []).reduce((s, i) => s + (i.orderedQty || 0), 0)
-                        const rec = (o.sizeBreakdown || []).reduce((s, i) => s + (i.receivedQty || 0), 0)
+                        const prods = getNormalizedProducts(o)
+                        let ord = 0, rec = 0
+                        prods.forEach(p => {
+                          (p.sizeBreakdown || []).forEach(sb => {
+                            ord += (sb.orderedQty || 0)
+                            rec += (sb.receivedQty || 0)
+                          })
+                        })
                         return acc + Math.max(0, ord - rec)
                       }, 0)}
                     </p>
@@ -5494,7 +5507,14 @@ function App() {
                   <div className="stat-info">
                     <p className="stat-label">Received Stock Pcs</p>
                     <p className="stat-value" style={{ color: '#10B981' }}>
-                      {vendorOrders.reduce((acc, o) => acc + (o.sizeBreakdown || []).reduce((s, i) => s + (i.receivedQty || 0), 0), 0)}
+                      {vendorOrders.reduce((acc, o) => {
+                        const prods = getNormalizedProducts(o)
+                        let rec = 0
+                        prods.forEach(p => {
+                          (p.sizeBreakdown || []).forEach(sb => { rec += (sb.receivedQty || 0) })
+                        })
+                        return acc + rec
+                      }, 0)}
                     </p>
                     <p className="stat-desc">Total stock arrived in shop</p>
                   </div>
