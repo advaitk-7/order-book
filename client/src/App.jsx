@@ -7258,9 +7258,11 @@ function App() {
                       )}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                      <div style={{ flex: 1, minWidth: '180px' }}>
-                        <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Product Category / Type *</label>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1, minWidth: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap' }}>
+                          Product / Garment Type *
+                        </label>
                         <input
                           type="text"
                           placeholder="e.g. T-Shirt, Jeans, Track Suit, Pant"
@@ -7271,12 +7273,14 @@ function App() {
                             setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                           }}
                           required
-                          style={{ padding: '6px 10px', fontSize: '13px', width: '100%' }}
+                          style={{ padding: '8px 12px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
                         />
                       </div>
 
-                      <div style={{ flex: 1, minWidth: '180px' }}>
-                        <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>School / Institution / Firm Name *</label>
+                      <div style={{ flex: 1, minWidth: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap' }}>
+                          School / Firm Name *
+                        </label>
                         <input
                           type="text"
                           placeholder="e.g. DPS School, St. Xavier, Reliance Corp"
@@ -7287,7 +7291,7 @@ function App() {
                             setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                           }}
                           required
-                          style={{ padding: '6px 10px', fontSize: '13px', width: '100%' }}
+                          style={{ padding: '8px 12px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
                         />
                       </div>
                     </div>
