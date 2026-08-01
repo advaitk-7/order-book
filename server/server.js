@@ -325,6 +325,57 @@ const waitlistSchoolSchema = new mongoose.Schema({
 });
 const WaitlistSchool = mongoose.model("WaitlistSchool", waitlistSchoolSchema);
 
+const partySchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, unique: true, trim: true },
+    contactNumber: { type: String, default: "", trim: true },
+    specialties: [{ type: String, trim: true }],
+    notes: { type: String, default: "" }
+  },
+  { timestamps: true }
+);
+const Party = mongoose.model("Party", partySchema);
+
+const vendorOrderSchema = new mongoose.Schema(
+  {
+    poNumber: { type: String, required: true, unique: true, trim: true },
+    partyName: { type: String, required: true, trim: true },
+    itemType: { type: String, required: true, trim: true },
+    school: { type: String, default: "", trim: true },
+    targetDate: { type: String, default: "" },
+    status: { type: String, enum: ["Pending", "Partial", "Completed", "Cancelled"], default: "Pending" },
+    sizeBreakdown: [
+      {
+        size: { type: String, required: true, trim: true },
+        orderedQty: { type: Number, required: true, default: 0 },
+        receivedQty: { type: Number, required: true, default: 0 }
+      }
+    ],
+    installments: [
+      {
+        receivedAt: { type: Date, default: Date.now },
+        challanNumber: { type: String, default: "", trim: true },
+        items: [
+          {
+            size: { type: String, required: true, trim: true },
+            qty: { type: Number, required: true, default: 0 }
+          }
+        ],
+        notes: { type: String, default: "" }
+      }
+    ],
+    notes: { type: String, default: "" }
+  },
+  { timestamps: true }
+);
+
+vendorOrderSchema.index({ poNumber: 1 });
+vendorOrderSchema.index({ partyName: 1 });
+vendorOrderSchema.index({ status: 1 });
+vendorOrderSchema.index({ createdAt: -1 });
+
+const VendorOrder = mongoose.model("VendorOrder", vendorOrderSchema);
+
 // 75-day TTL index removed in favor of 100-block rolling cycle cleanup
 
 if (process.env.NODE_ENV !== "production") {
@@ -1362,6 +1413,240 @@ app.delete("/api/waitlist/schools/:id", authenticateJWT, async (req, res) => {
     res.json({ message: "School deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete school entry", error: error.message });
+  }
+});
+
+// Party (Vendor) Endpoints
+app.get("/api/parties", authenticateJWT, async (req, res) => {
+  try {
+    const parties = await Party.find().sort({ name: 1 });
+    res.json(parties);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch parties", error: error.message });
+  }
+});
+
+app.post("/api/parties", authenticateJWT, async (req, res) => {
+  try {
+    const { name, contactNumber, specialties, notes } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: "Party name is required." });
+    }
+
+    const cleanName = name.trim();
+    const existing = await Party.findOne({ name: cleanName });
+    if (existing) {
+      return res.status(400).json({ message: "A party with this name already exists." });
+    }
+
+    const party = await Party.create({
+      name: cleanName,
+      contactNumber: (contactNumber || "").trim(),
+      specialties: Array.isArray(specialties) ? specialties.map(s => String(s).trim()).filter(Boolean) : [],
+      notes: (notes || "").trim()
+    });
+
+    await logAudit(null, "System", "Party Created", `Party '${cleanName}' created with specialties: ${party.specialties.join(", ") || "None"}`);
+    res.status(201).json(party);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create party", error: error.message });
+  }
+});
+
+app.delete("/api/parties/:id", authenticateJWT, async (req, res) => {
+  try {
+    const party = await Party.findByIdAndDelete(req.params.id);
+    if (!party) {
+      return res.status(404).json({ message: "Party not found" });
+    }
+    await logAudit(null, "System", "Party Deleted", `Party '${party.name}' deleted`);
+    res.json({ message: "Party deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete party", error: error.message });
+  }
+});
+
+// Vendor Restock Order Endpoints
+app.get("/api/vendor-orders", authenticateJWT, async (req, res) => {
+  try {
+    const { search, party, status } = req.query;
+    const query = {};
+
+    if (party && party !== "All") {
+      query.partyName = party;
+    }
+
+    if (status && status !== "All") {
+      query.status = status;
+    }
+
+    const orders = await VendorOrder.find(query).sort({ createdAt: -1 });
+
+    let filtered = orders;
+    if (search) {
+      filtered = orders.filter(o => {
+        const fields = [
+          o.poNumber,
+          o.partyName,
+          o.itemType,
+          o.school,
+          o.notes,
+          ...(o.installments || []).map(i => i.challanNumber)
+        ];
+        return checkFuzzyMatch(search, fields);
+      });
+    }
+
+    res.json(filtered);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch vendor orders", error: error.message });
+  }
+});
+
+app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
+  try {
+    const { partyName, itemType, school, targetDate, sizeBreakdown, notes } = req.body;
+    if (!partyName || !partyName.trim()) {
+      return res.status(400).json({ message: "Party name is required." });
+    }
+    if (!itemType || !itemType.trim()) {
+      return res.status(400).json({ message: "Item type/category is required." });
+    }
+
+    // Auto-generate PO Number
+    const count = await VendorOrder.countDocuments();
+    const poNumber = `PO-${String(count + 1001).padStart(4, '0')}`;
+
+    const formattedBreakdown = Array.isArray(sizeBreakdown)
+      ? sizeBreakdown.map(sb => ({
+          size: String(sb.size || '').trim(),
+          orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
+          receivedQty: 0
+        })).filter(sb => sb.size && sb.orderedQty > 0)
+      : [];
+
+    if (formattedBreakdown.length === 0) {
+      return res.status(400).json({ message: "At least one size with quantity > 0 is required." });
+    }
+
+    const newOrder = await VendorOrder.create({
+      poNumber,
+      partyName: partyName.trim(),
+      itemType: itemType.trim(),
+      school: (school || "").trim(),
+      targetDate: (targetDate || "").trim(),
+      status: "Pending",
+      sizeBreakdown: formattedBreakdown,
+      installments: [],
+      notes: (notes || "").trim()
+    });
+
+    const totalOrdered = formattedBreakdown.reduce((sum, i) => sum + i.orderedQty, 0);
+    await logAudit(null, "System", "Vendor Order Created", `Order ${poNumber} placed with '${partyName.trim()}' for ${totalOrdered} pcs of ${itemType.trim()}`);
+    res.status(201).json(newOrder);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create vendor order", error: error.message });
+  }
+});
+
+app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
+  try {
+    const { partyName, itemType, school, targetDate, notes, status } = req.body;
+    const order = await VendorOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Vendor order not found" });
+    }
+
+    if (partyName) order.partyName = partyName.trim();
+    if (itemType) order.itemType = itemType.trim();
+    if (school !== undefined) order.school = school.trim();
+    if (targetDate !== undefined) order.targetDate = targetDate.trim();
+    if (notes !== undefined) order.notes = notes.trim();
+    if (status && ["Pending", "Partial", "Completed", "Cancelled"].includes(status)) {
+      order.status = status;
+    }
+
+    await order.save();
+    await logAudit(null, "System", "Vendor Order Updated", `Order ${order.poNumber} updated`);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update vendor order", error: error.message });
+  }
+});
+
+app.delete("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
+  try {
+    const order = await VendorOrder.findByIdAndDelete(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Vendor order not found" });
+    }
+    await logAudit(null, "System", "Vendor Order Deleted", `Order ${order.poNumber} deleted`);
+    res.json({ message: "Vendor order deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete vendor order", error: error.message });
+  }
+});
+
+app.post("/api/vendor-orders/:id/installments", authenticateJWT, async (req, res) => {
+  try {
+    const { challanNumber, items, notes } = req.body;
+    const order = await VendorOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Vendor order not found" });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Must provide received items." });
+    }
+
+    const cleanItems = items.map(i => ({
+      size: String(i.size || '').trim(),
+      qty: Math.max(0, Number(i.qty || 0))
+    })).filter(i => i.size && i.qty > 0);
+
+    if (cleanItems.length === 0) {
+      return res.status(400).json({ message: "At least one size received quantity must be greater than 0." });
+    }
+
+    // Add installment record
+    const newInstallment = {
+      receivedAt: new Date(),
+      challanNumber: (challanNumber || "").trim(),
+      items: cleanItems,
+      notes: (notes || "").trim()
+    };
+    order.installments.push(newInstallment);
+
+    // Update received quantities in sizeBreakdown
+    cleanItems.forEach(recItem => {
+      const sizeObj = order.sizeBreakdown.find(sb => sb.size === recItem.size);
+      if (sizeObj) {
+        sizeObj.receivedQty = (sizeObj.receivedQty || 0) + recItem.qty;
+      } else {
+        order.sizeBreakdown.push({
+          size: recItem.size,
+          orderedQty: recItem.qty,
+          receivedQty: recItem.qty
+        });
+      }
+    });
+
+    // Calculate total status
+    const totalOrdered = order.sizeBreakdown.reduce((sum, sb) => sum + sb.orderedQty, 0);
+    const totalReceived = order.sizeBreakdown.reduce((sum, sb) => sum + sb.receivedQty, 0);
+
+    if (totalReceived >= totalOrdered && totalOrdered > 0) {
+      order.status = "Completed";
+    } else if (totalReceived > 0) {
+      order.status = "Partial";
+    }
+
+    await order.save();
+    const batchTotal = cleanItems.reduce((sum, i) => sum + i.qty, 0);
+    await logAudit(null, "System", "Stock Installment Received", `Received installment batch of ${batchTotal} pcs for Order ${order.poNumber} from '${order.partyName}' (Challan: ${challanNumber || "N/A"})`);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to record installment", error: error.message });
   }
 });
 

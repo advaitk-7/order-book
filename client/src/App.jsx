@@ -568,6 +568,45 @@ function App() {
   const [showCleanupConfirmModal, setShowCleanupConfirmModal] = useState(false)
   const [cleanupPreviewData, setCleanupPreviewData] = useState(null)
   const [pendingOrderPayload, setPendingOrderPayload] = useState(null)
+
+  // Party Restock State
+  const [parties, setParties] = useState([])
+  const [loadingParties, setLoadingParties] = useState(false)
+  const [vendorOrders, setVendorOrders] = useState([])
+  const [loadingVendorOrders, setLoadingVendorOrders] = useState(false)
+  const [vendorOrderSearch, setVendorOrderSearch] = useState('')
+  const [vendorOrderPartyFilter, setVendorOrderPartyFilter] = useState('All')
+  const [vendorOrderStatusFilter, setVendorOrderStatusFilter] = useState('All')
+
+  // Vendor Order Modals
+  const [showVendorOrderModal, setShowVendorOrderModal] = useState(false)
+  const [selectedVendorOrder, setSelectedVendorOrder] = useState(null)
+  const [vendorOrderFormData, setVendorOrderFormData] = useState({
+    partyName: '',
+    itemType: '',
+    school: '',
+    targetDate: '',
+    notes: '',
+    sizeBreakdown: [{ size: '', orderedQty: '' }]
+  })
+
+  // Installment Modal
+  const [showInstallmentModal, setShowInstallmentModal] = useState(false)
+  const [selectedOrderForInstallment, setSelectedOrderForInstallment] = useState(null)
+  const [installmentFormData, setInstallmentFormData] = useState({
+    challanNumber: '',
+    notes: '',
+    items: []
+  })
+
+  // Party Manager Modal
+  const [showPartyManagerModal, setShowPartyManagerModal] = useState(false)
+  const [partyFormData, setPartyFormData] = useState({
+    name: '',
+    contactNumber: '',
+    specialties: '',
+    notes: ''
+  })
   const [selectedOldCycleOrder, setSelectedOldCycleOrder] = useState(null)
 
   // Tailor Work Page Filters & Selections
@@ -750,13 +789,17 @@ function App() {
         fetchPricingRates(),
         fetchCurrentUser(),
         fetchWaitlist('', 'All', 'All', true),
-        fetchWaitlistSchools()
+        fetchWaitlistSchools(),
+        fetchParties(),
+        fetchVendorOrders('', 'All', 'All', true)
       ]).catch(() => {})
     } else {
       setOrders([])
       setSelectedOrder(null)
       setWaitlist([])
       setWaitlistSchools([])
+      setParties([])
+      setVendorOrders([])
     }
   }, [token])
 
@@ -1417,6 +1460,262 @@ function App() {
     window.open(link, '_blank')
   }
 
+  const fetchParties = async () => {
+    if (!token) return
+    setLoadingParties(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/parties`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setParties(data)
+      }
+    } catch (err) {
+      console.error('Failed to load parties', err)
+    } finally {
+      setLoadingParties(false)
+    }
+  }
+
+  const fetchVendorOrders = async (search = vendorOrderSearch, party = vendorOrderPartyFilter, status = vendorOrderStatusFilter, silent = false) => {
+    if (!token) return
+    if (!silent && vendorOrders.length === 0) setLoadingVendorOrders(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/vendor-orders?search=${encodeURIComponent(search)}&party=${encodeURIComponent(party)}&status=${status}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.status === 401 || response.status === 403) {
+        handleLogout()
+        return
+      }
+      if (response.ok) {
+        const data = await response.json()
+        setVendorOrders(data)
+      }
+    } catch (err) {
+      console.error('Failed to load vendor orders', err)
+    } finally {
+      setLoadingVendorOrders(false)
+    }
+  }
+
+  const handleSaveParty = async (e) => {
+    e.preventDefault()
+    if (!partyFormData.name || !partyFormData.name.trim()) {
+      setMessage('Party name is required.')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/parties`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: partyFormData.name,
+          contactNumber: partyFormData.contactNumber,
+          specialties: partyFormData.specialties ? partyFormData.specialties.split(',').map(s => s.trim()) : [],
+          notes: partyFormData.notes
+        })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(`Party '${data.name}' added successfully.`)
+        setPartyFormData({ name: '', contactNumber: '', specialties: '', notes: '' })
+        fetchParties()
+      } else {
+        setMessage(data.message || 'Failed to add party.')
+      }
+    } catch (err) {
+      setMessage('Network error adding party.')
+    }
+  }
+
+  const handleDeleteParty = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete party "${name}"?`)) return
+    try {
+      const response = await fetch(`${API_BASE}/api/parties/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        setMessage(`Party '${name}' deleted.`)
+        fetchParties()
+      }
+    } catch (err) {
+      console.error('Failed to delete party', err)
+    }
+  }
+
+  const handleSaveVendorOrder = async (e) => {
+    e.preventDefault()
+    if (!vendorOrderFormData.partyName || !vendorOrderFormData.itemType) {
+      setMessage('Party Name and Item Type are required.')
+      return
+    }
+
+    const cleanBreakdown = (vendorOrderFormData.sizeBreakdown || [])
+      .map(sb => ({ size: (sb.size || '').trim(), orderedQty: Number(sb.orderedQty || 0) }))
+      .filter(sb => sb.size && sb.orderedQty > 0)
+
+    if (cleanBreakdown.length === 0) {
+      setMessage('At least one size with ordered quantity > 0 is required.')
+      return
+    }
+
+    const isEditing = Boolean(selectedVendorOrder)
+    const url = isEditing ? `${API_BASE}/api/vendor-orders/${selectedVendorOrder._id}` : `${API_BASE}/api/vendor-orders`
+    const method = isEditing ? 'PATCH' : 'POST'
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          partyName: vendorOrderFormData.partyName,
+          itemType: vendorOrderFormData.itemType,
+          school: vendorOrderFormData.school,
+          targetDate: vendorOrderFormData.targetDate,
+          sizeBreakdown: cleanBreakdown,
+          notes: vendorOrderFormData.notes
+        })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(isEditing ? `Order ${data.poNumber} updated.` : `Order ${data.poNumber} placed with '${data.partyName}'.`)
+        setShowVendorOrderModal(false)
+        setSelectedVendorOrder(null)
+        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
+      } else {
+        setMessage(data.message || 'Failed to save vendor order.')
+      }
+    } catch (err) {
+      setMessage('Network error saving vendor order.')
+    }
+  }
+
+  const handleDeleteVendorOrder = async (id, poNumber) => {
+    if (!window.confirm(`Delete Vendor Order ${poNumber}? This cannot be undone.`)) return
+    try {
+      const response = await fetch(`${API_BASE}/api/vendor-orders/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        setMessage(`Vendor Order ${poNumber} deleted.`)
+        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
+      }
+    } catch (err) {
+      console.error('Failed to delete vendor order', err)
+    }
+  }
+
+  const handleOpenInstallmentModal = (order) => {
+    setSelectedOrderForInstallment(order)
+    const initialItems = (order.sizeBreakdown || []).map(sb => ({
+      size: sb.size,
+      orderedQty: sb.orderedQty,
+      receivedQty: sb.receivedQty || 0,
+      remainingQty: Math.max(0, sb.orderedQty - (sb.receivedQty || 0)),
+      newQty: ''
+    }))
+    setInstallmentFormData({
+      challanNumber: '',
+      notes: '',
+      items: initialItems
+    })
+    setShowInstallmentModal(true)
+  }
+
+  const handleLogInstallment = async (e) => {
+    e.preventDefault()
+    if (!selectedOrderForInstallment) return
+
+    const itemsToSubmit = (installmentFormData.items || [])
+      .map(i => ({ size: i.size, qty: Number(i.newQty || 0) }))
+      .filter(i => i.size && i.qty > 0)
+
+    if (itemsToSubmit.length === 0) {
+      setMessage('Please enter quantity > 0 for at least one size.')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/vendor-orders/${selectedOrderForInstallment._id}/installments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          challanNumber: installmentFormData.challanNumber,
+          items: itemsToSubmit,
+          notes: installmentFormData.notes
+        })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(`Stock installment logged for Order ${data.poNumber}.`)
+        setShowInstallmentModal(false)
+        setSelectedOrderForInstallment(null)
+        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
+      } else {
+        setMessage(data.message || 'Failed to log installment.')
+      }
+    } catch (err) {
+      setMessage('Network error logging installment.')
+    }
+  }
+
+  const exportVendorOrdersCSV = () => {
+    if (vendorOrders.length === 0) {
+      alert('No vendor restock orders available to export.')
+      return
+    }
+
+    const headers = ['PO Number', 'Party Name', 'Item Category', 'School', 'Target Date', 'Status', 'Total Ordered', 'Total Received', 'Pending Balance', 'Notes']
+    const rows = vendorOrders.map(vo => {
+      const totalOrdered = (vo.sizeBreakdown || []).reduce((sum, s) => sum + (s.orderedQty || 0), 0)
+      const totalReceived = (vo.sizeBreakdown || []).reduce((sum, s) => sum + (s.receivedQty || 0), 0)
+      const pendingBalance = Math.max(0, totalOrdered - totalReceived)
+      return [
+        vo.poNumber,
+        `"${(vo.partyName || '').replace(/"/g, '""')}"`,
+        `"${(vo.itemType || '').replace(/"/g, '""')}"`,
+        `"${(vo.school || '').replace(/"/g, '""')}"`,
+        vo.targetDate || '-',
+        vo.status || 'Pending',
+        totalOrdered,
+        totalReceived,
+        pendingBalance,
+        `"${(vo.notes || '').replace(/"/g, '""')}"`
+      ]
+    })
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    const today = new Date().toISOString().split('T')[0]
+    link.setAttribute('download', `Party_Restock_Orders_${today}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  useEffect(() => {
+    if (activePage === 'Party Restock' && token) {
+      fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, vendorOrders.length > 0)
+      fetchParties()
+    }
+  }, [vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, activePage, token])
+
   useEffect(() => {
     if (activePage === 'Stock Waitlist' && token) {
       fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, waitlist.length > 0)
@@ -2042,6 +2341,7 @@ function App() {
     Orders: 'Search, filter and manage existing orders',
     'Production Queue': 'Garment-level measurements, deadlines and notes for tailors',
     'Stock Waitlist': 'Manage out-of-stock items and customer notification list',
+    'Party Restock': 'Track bulk manufacturing orders, party specialties, and size-wise partial stock installments',
     Reports: 'Business performance and delivery trends',
     Settings: 'System preferences and administrative settings',
   }
@@ -3284,13 +3584,14 @@ function App() {
         </div>
 
         <nav className="sidebar-nav">
-          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Settings'].map((page) => {
+          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Party Restock', 'Settings'].map((page) => {
             const emojis = {
               'Dashboard': getSafeEmoji('📊'),
               'New Order': getSafeEmoji('➕'),
               'Orders': getSafeEmoji('📋'),
               'Production Queue': getSafeEmoji('🧵'),
               'Stock Waitlist': getSafeEmoji('🔔'),
+              'Party Restock': getSafeEmoji('🏬'),
               'Settings': getSafeEmoji('⚙️')
             };
             return (
@@ -4965,6 +5266,363 @@ function App() {
             </section>
           )}
 
+          {activePage === 'Party Restock' && (
+            <section className="page-panel">
+              {/* Summary Metric Cards */}
+              <div className="stats-grid" style={{ marginBottom: '24px' }}>
+                <div className="stat-card">
+                  <span className="stat-icon">{getSafeEmoji('🏬')}</span>
+                  <div className="stat-info">
+                    <p className="stat-label">Active Restock POs</p>
+                    <p className="stat-value">{vendorOrders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
+                    <p className="stat-desc">In-progress vendor orders</p>
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-icon">{getSafeEmoji('📦')}</span>
+                  <div className="stat-info">
+                    <p className="stat-label">Total Ordered Pcs</p>
+                    <p className="stat-value">
+                      {vendorOrders.reduce((acc, o) => acc + (o.sizeBreakdown || []).reduce((s, i) => s + (i.orderedQty || 0), 0), 0)}
+                    </p>
+                    <p className="stat-desc">Across all party orders</p>
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-icon">{getSafeEmoji('⏳')}</span>
+                  <div className="stat-info">
+                    <p className="stat-label">Pending Balance Pcs</p>
+                    <p className="stat-value" style={{ color: '#EAB308' }}>
+                      {vendorOrders.reduce((acc, o) => {
+                        const ord = (o.sizeBreakdown || []).reduce((s, i) => s + (i.orderedQty || 0), 0)
+                        const rec = (o.sizeBreakdown || []).reduce((s, i) => s + (i.receivedQty || 0), 0)
+                        return acc + Math.max(0, ord - rec)
+                      }, 0)}
+                    </p>
+                    <p className="stat-desc">Awaiting arrival from parties</p>
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-icon">{getSafeEmoji('✅')}</span>
+                  <div className="stat-info">
+                    <p className="stat-label">Received Stock Pcs</p>
+                    <p className="stat-value" style={{ color: '#10B981' }}>
+                      {vendorOrders.reduce((acc, o) => acc + (o.sizeBreakdown || []).reduce((s, i) => s + (i.receivedQty || 0), 0), 0)}
+                    </p>
+                    <p className="stat-desc">Total stock arrived in shop</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Panel Card */}
+              <div className="card card-panel">
+                <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h2 className="card-title">{getSafeEmoji('🏬')} Party Restock & Vendor Tracker</h2>
+                    <p className="card-subtitle">Track bulk manufacturing orders, vendor specialties, and size-wise partial stock installments.</p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      onClick={() => {
+                        setSelectedVendorOrder(null)
+                        setVendorOrderFormData({
+                          partyName: parties.length > 0 ? parties[0].name : '',
+                          itemType: '',
+                          school: '',
+                          targetDate: '',
+                          notes: '',
+                          sizeBreakdown: [
+                            { size: '28', orderedQty: '' },
+                            { size: '30', orderedQty: '' },
+                            { size: '32', orderedQty: '' },
+                            { size: '34', orderedQty: '' },
+                            { size: '36', orderedQty: '' }
+                          ]
+                        })
+                        setShowVendorOrderModal(true)
+                      }}
+                      style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <span>{getSafeEmoji('➕')}</span> New Restock PO
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setShowPartyManagerModal(true)}
+                      style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      {getSafeEmoji('🏭')} Manage Parties ({parties.length})
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={exportVendorOrdersCSV}
+                      style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      {getSafeEmoji('📊')} Export CSV
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter Controls */}
+                <div style={{ display: 'flex', gap: '12px', margin: '20px 24px 16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div className="table-search" style={{ flex: 1, minWidth: '200px' }}>
+                    <input
+                      type="text"
+                      placeholder={`${getSafeEmoji('🔍')} Search PO#, Party, Item, School or Challan...`}
+                      value={vendorOrderSearch}
+                      onChange={(e) => setVendorOrderSearch(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>Party:</span>
+                    <select
+                      value={vendorOrderPartyFilter}
+                      onChange={(e) => setVendorOrderPartyFilter(e.target.value)}
+                      style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
+                    >
+                      <option value="All">All Parties ({parties.length})</option>
+                      {parties.map(p => (
+                        <option key={p._id} value={p.name}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>Status:</span>
+                    <select
+                      value={vendorOrderStatusFilter}
+                      onChange={(e) => setVendorOrderStatusFilter(e.target.value)}
+                      style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="Pending">Pending (0% received)</option>
+                      <option value="Partial">Partial (In progress)</option>
+                      <option value="Completed">Completed (100% received)</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Orders List View */}
+                <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
+                  {loadingVendorOrders ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading vendor restock orders...</div>
+                  ) : vendorOrders.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                      No party restock orders found. Click "+ New Restock PO" above to place your first bulk order with a party!
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {vendorOrders.map((order) => {
+                        const totalOrdered = (order.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.orderedQty || 0), 0)
+                        const totalReceived = (order.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
+                        const pendingBalance = Math.max(0, totalOrdered - totalReceived)
+                        const progressPct = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0
+
+                        const partyObj = parties.find(p => p.name === order.partyName)
+                        const partySpecialties = partyObj && partyObj.specialties ? partyObj.specialties : []
+
+                        return (
+                          <div
+                            key={order._id}
+                            style={{
+                              border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0',
+                              borderRadius: '12px',
+                              padding: '16px',
+                              background: theme === 'dark' ? '#1E293B' : '#F8FAFC'
+                            }}
+                          >
+                            {/* Card Top Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.poNumber}</span>
+                                  <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{order.partyName}</span>
+                                  {partySpecialties.map(spec => (
+                                    <span key={spec} style={{ fontSize: '10px', background: 'rgba(37, 99, 235, 0.1)', color: '#2563EB', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>
+                                      {spec}
+                                    </span>
+                                  ))}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                  <span>Category: <strong>{order.itemType}</strong></span>
+                                  {order.school && <span>School: <strong>{order.school}</strong></span>}
+                                  {order.targetDate && <span>Target Date: <strong>{order.targetDate}</strong></span>}
+                                  <span>Created: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></span>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span className={`status-badge ${order.status === 'Completed' ? 'ready' : order.status === 'Partial' ? 'contacted' : 'pending'}`}>
+                                  {order.status === 'Completed' ? 'Completed (100%)' : order.status === 'Partial' ? `Partial (${progressPct}%)` : order.status}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  className="primary-btn"
+                                  onClick={() => handleOpenInstallmentModal(order)}
+                                  disabled={order.status === 'Completed' || order.status === 'Cancelled'}
+                                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  {getSafeEmoji('➕')} Receive Stock
+                                </button>
+                                <button
+                                  type="button"
+                                  className="icon-btn"
+                                  title="Edit PO details"
+                                  onClick={() => {
+                                    setSelectedVendorOrder(order)
+                                    setVendorOrderFormData({
+                                      partyName: order.partyName,
+                                      itemType: order.itemType,
+                                      school: order.school || '',
+                                      targetDate: order.targetDate || '',
+                                      notes: order.notes || '',
+                                      sizeBreakdown: order.sizeBreakdown || []
+                                    })
+                                    setShowVendorOrderModal(true)
+                                  }}
+                                >
+                                  {getSafeEmoji('✏️')}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="icon-btn danger"
+                                  title="Delete PO"
+                                  onClick={() => handleDeleteVendorOrder(order._id, order.poNumber)}
+                                >
+                                  {getSafeEmoji('🗑️')}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Overall Progress Bar */}
+                            <div style={{ margin: '12px 0 16px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                                <span>Stock Received Progress: {totalReceived} / {totalOrdered} pcs ({progressPct}%)</span>
+                                <span style={{ color: pendingBalance > 0 ? '#EAB308' : '#10B981' }}>
+                                  {pendingBalance > 0 ? `Pending: ${pendingBalance} pcs` : 'All Stock Received'}
+                                </span>
+                              </div>
+                              <div style={{ height: '8px', width: '100%', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div
+                                  style={{
+                                    height: '100%',
+                                    width: `${progressPct}%`,
+                                    background: progressPct === 100 ? '#10B981' : progressPct > 0 ? '#3B82F6' : '#94A3B8',
+                                    borderRadius: '4px',
+                                    transition: 'width 0.3s ease'
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Size Breakdown Grid Table */}
+                            <div style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '12px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
+                              <p style={{ fontSize: '12px', fontWeight: '700', margin: '0 0 8px 0', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>
+                                Size-wise Quantity Breakdown & Balances:
+                              </p>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
+                                    <th style={{ padding: '6px 8px' }}>Size</th>
+                                    <th style={{ padding: '6px 8px' }}>Ordered</th>
+                                    <th style={{ padding: '6px 8px' }}>Received</th>
+                                    <th style={{ padding: '6px 8px' }}>Pending Balance</th>
+                                    <th style={{ padding: '6px 8px' }}>Fulfillment</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(order.sizeBreakdown || []).map((sb) => {
+                                    const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
+                                    const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
+                                    return (
+                                      <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
+                                        <td style={{ padding: '6px 8px', fontWeight: '700' }}>Size {sb.size}</td>
+                                        <td style={{ padding: '6px 8px' }}>{sb.orderedQty} pcs</td>
+                                        <td style={{ padding: '6px 8px', color: '#10B981', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
+                                        <td style={{ padding: '6px 8px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600' }}>
+                                          {pending > 0 ? `${pending} pcs` : 'Done'}
+                                        </td>
+                                        <td style={{ padding: '6px 8px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                              <div style={{ height: '100%', width: `${sizePct}%`, background: sizePct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
+                                            </div>
+                                            <span style={{ fontSize: '10px', width: '32px', textAlign: 'right' }}>{sizePct}%</span>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Received Installment History Log Timeline */}
+                            {order.installments && order.installments.length > 0 && (
+                              <div style={{ marginTop: '12px', borderTop: '1px dashed var(--border-color, #E2E8F0)', paddingTop: '10px' }}>
+                                <p style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', margin: '0 0 6px 0' }}>
+                                  📦 Received Installment History ({order.installments.length} Batches):
+                                </p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {order.installments.map((inst, idx) => {
+                                    const batchTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+                                    return (
+                                      <div
+                                        key={idx}
+                                        style={{
+                                          fontSize: '11px',
+                                          background: theme === 'dark' ? '#0F172A' : '#FFFFFF',
+                                          padding: '8px 12px',
+                                          borderRadius: '6px',
+                                          border: '1px solid var(--border-color, #E2E8F0)',
+                                          display: 'flex',
+                                          justify: 'space-between',
+                                          alignItems: 'center',
+                                          flexWrap: 'wrap',
+                                          gap: '6px'
+                                        }}
+                                      >
+                                        <div>
+                                          <span style={{ fontWeight: '700', color: '#2563EB' }}>
+                                            Batch #{idx + 1} ({new Date(inst.receivedAt).toLocaleDateString()})
+                                          </span>
+                                          {inst.challanNumber && (
+                                            <span style={{ marginLeft: '8px', color: '#64748B' }}>Challan: {inst.challanNumber}</span>
+                                          )}
+                                          <div style={{ color: theme === 'dark' ? '#CBD5E1' : '#475569', marginTop: '2px' }}>
+                                            Items: {(inst.items || []).map(i => `Size ${i.size}: ${i.qty} pcs`).join(' | ')}
+                                          </div>
+                                        </div>
+                                        <div style={{ fontWeight: '700', color: '#10B981' }}>
+                                          +{batchTotal} pcs
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {order.notes && (
+                              <div style={{ marginTop: '8px', fontSize: '11px', color: '#64748B', fontStyle: 'italic' }}>
+                                Notes: {order.notes}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
           {activePage === 'Settings' && (
             <section className="page-panel placeholder-panel">
               <div className="card card-panel placeholder-card" style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -6279,6 +6937,360 @@ function App() {
                   Confirm & Save Order
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vendor Order (Restock PO) Modal */}
+      {showVendorOrderModal && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button type="button" className="manage-modal-close" onClick={() => setShowVendorOrderModal(false)}>
+              {getSafeEmoji('✕')}
+            </button>
+            <p className="manage-modal-title">
+              {selectedVendorOrder ? `${getSafeEmoji('✏️')} Edit Restock PO ${selectedVendorOrder.poNumber}` : `${getSafeEmoji('➕')} Create New Restock PO`}
+            </p>
+            <p className="manage-modal-subtitle">
+              Issue a bulk manufacturing order to a party with size-wise quantity targets.
+            </p>
+
+            <form onSubmit={handleSaveVendorOrder}>
+              <div className="manage-input-group">
+                <label>
+                  Party / Vendor Name *
+                  <select
+                    value={vendorOrderFormData.partyName}
+                    onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, partyName: e.target.value })}
+                    required
+                  >
+                    <option value="">-- Select Party --</option>
+                    {parties.map(p => (
+                      <option key={p._id} value={p.name}>{p.name} {p.specialties && p.specialties.length ? `(${p.specialties.join(', ')})` : ''}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <div className="manage-input-group" style={{ flex: 1, minWidth: '180px' }}>
+                  <label>
+                    Item Category / Type *
+                    <input
+                      type="text"
+                      placeholder="e.g. T-Shirt, Jeans, Track, Pina, Shirt, Pant"
+                      value={vendorOrderFormData.itemType}
+                      onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, itemType: e.target.value })}
+                      required
+                    />
+                  </label>
+                </div>
+                <div className="manage-input-group" style={{ flex: 1, minWidth: '180px' }}>
+                  <label>
+                    School / Brand (Optional)
+                    <input
+                      type="text"
+                      placeholder="e.g. DPS, St. Xavier or General"
+                      value={vendorOrderFormData.school}
+                      onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, school: e.target.value })}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  Expected Target Delivery Date
+                  <input
+                    type="date"
+                    value={vendorOrderFormData.targetDate}
+                    onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, targetDate: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              {/* Dynamic Size Breakdown Input Matrix */}
+              <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <label style={{ fontWeight: '700', fontSize: '13px', margin: 0 }}>
+                    Size-wise Ordered Quantity *
+                  </label>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => {
+                      setVendorOrderFormData(prev => ({
+                        ...prev,
+                        sizeBreakdown: [...(prev.sizeBreakdown || []), { size: '', orderedQty: '' }]
+                      }))
+                    }}
+                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                  >
+                    + Add Size Row
+                  </button>
+                </div>
+
+                {(vendorOrderFormData.sizeBreakdown || []).map((sb, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <input
+                        type="text"
+                        placeholder="Size (e.g. 28, 30, 32 or M, L)"
+                        value={sb.size}
+                        onChange={(e) => {
+                          const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
+                          updated[idx] = { ...updated[idx], size: e.target.value }
+                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
+                        }}
+                        required
+                        style={{ padding: '6px 10px', fontSize: '13px' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Ordered Pcs Qty"
+                        value={sb.orderedQty}
+                        onChange={(e) => {
+                          const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
+                          updated[idx] = { ...updated[idx], orderedQty: e.target.value }
+                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
+                        }}
+                        required
+                        style={{ padding: '6px 10px', fontSize: '13px' }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
+                        updated.splice(idx, 1)
+                        setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
+                      }}
+                      disabled={(vendorOrderFormData.sizeBreakdown || []).length <= 1}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', opacity: (vendorOrderFormData.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
+                      title="Remove Row"
+                    >
+                      {getSafeEmoji('🗑️')}
+                    </button>
+                  </div>
+                ))}
+                <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: '700', marginTop: '6px', color: '#2563EB' }}>
+                  Total Order Target: {(vendorOrderFormData.sizeBreakdown || []).reduce((s, i) => s + Number(i.orderedQty || 0), 0)} pcs
+                </div>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  Notes / Instructions
+                  <textarea
+                    rows={2}
+                    value={vendorOrderFormData.notes}
+                    onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, notes: e.target.value })}
+                    placeholder="Specific fabric, color code, or delivery instructions..."
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button type="button" className="secondary-btn" onClick={() => setShowVendorOrderModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn">
+                  {selectedVendorOrder ? 'Save Order Changes' : 'Issue Restock PO'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Log Stock Installment Modal */}
+      {showInstallmentModal && selectedOrderForInstallment && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button type="button" className="manage-modal-close" onClick={() => setShowInstallmentModal(false)}>
+              {getSafeEmoji('✕')}
+            </button>
+            <p className="manage-modal-title">
+              {getSafeEmoji('➕')} Receive Stock Installment for {selectedOrderForInstallment.poNumber}
+            </p>
+            <p className="manage-modal-subtitle">
+              Log incoming stock shipment from <strong>{selectedOrderForInstallment.partyName}</strong> ({selectedOrderForInstallment.itemType}).
+            </p>
+
+            <form onSubmit={handleLogInstallment}>
+              <div className="manage-input-group">
+                <label>
+                  Challan / Delivery Receipt Number (Optional)
+                  <input
+                    type="text"
+                    placeholder="e.g. CH-9821 or Bill #450"
+                    value={installmentFormData.challanNumber}
+                    onChange={(e) => setInstallmentFormData({ ...installmentFormData, challanNumber: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                <label style={{ fontWeight: '700', fontSize: '13px', display: 'block', marginBottom: '10px' }}>
+                  Quantities Received in this Batch (Per Size):
+                </label>
+
+                {(installmentFormData.items || []).map((item, idx) => (
+                  <div key={item.size} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '13px' }}>
+                    <div style={{ flex: 1 }}>
+                      <strong>Size {item.size}</strong>
+                      <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>
+                        (Ordered: {item.orderedQty} | Rec'd so far: {item.receivedQty} | Pending: {item.remainingQty})
+                      </span>
+                    </div>
+                    <div style={{ width: '110px' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Qty received"
+                        value={item.newQty}
+                        onChange={(e) => {
+                          const updated = [...(installmentFormData.items || [])]
+                          updated[idx] = { ...updated[idx], newQty: e.target.value }
+                          setInstallmentFormData({ ...installmentFormData, items: updated })
+                        }}
+                        style={{ padding: '6px 10px', fontSize: '13px', textAlign: 'right' }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: '700', marginTop: '8px', color: '#10B981' }}>
+                  Batch Total: {(installmentFormData.items || []).reduce((s, i) => s + Number(i.newQty || 0), 0)} pcs
+                </div>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  Installment Notes (Optional)
+                  <input
+                    type="text"
+                    value={installmentFormData.notes}
+                    onChange={(e) => setInstallmentFormData({ ...installmentFormData, notes: e.target.value })}
+                    placeholder="e.g. Delivered by driver John / Batch 1 of 3"
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button type="button" className="secondary-btn" onClick={() => setShowInstallmentModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn">
+                  Confirm Stock Receipt
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Party Manager Directory Modal */}
+      {showPartyManagerModal && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button type="button" className="manage-modal-close" onClick={() => setShowPartyManagerModal(false)}>
+              {getSafeEmoji('✕')}
+            </button>
+            <p className="manage-modal-title">
+              {getSafeEmoji('🏭')} Manage Party Directory ({parties.length})
+            </p>
+            <p className="manage-modal-subtitle">
+              Add vendor profiles and tag their specific garment manufacturing specialties.
+            </p>
+
+            {/* Add Party Form */}
+            <form onSubmit={handleSaveParty} style={{ background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 10px 0' }}>Add New Vendor / Party:</p>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  placeholder="Party Name * (e.g. Ramsons)"
+                  value={partyFormData.name}
+                  onChange={(e) => setPartyFormData({ ...partyFormData, name: e.target.value })}
+                  required
+                  style={{ flex: 1, minWidth: '160px', padding: '6px 10px', fontSize: '13px' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Contact Number"
+                  value={partyFormData.contactNumber}
+                  onChange={(e) => setPartyFormData({ ...partyFormData, contactNumber: e.target.value })}
+                  style={{ flex: 1, minWidth: '140px', padding: '6px 10px', fontSize: '13px' }}
+                />
+              </div>
+              <div style={{ marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Specialties (comma separated: e.g. T-Shirts, Jeans, Track)"
+                  value={partyFormData.specialties}
+                  onChange={(e) => setPartyFormData({ ...partyFormData, specialties: e.target.value })}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: '13px' }}
+                />
+              </div>
+              <button type="submit" className="primary-btn" style={{ width: '100%', padding: '8px', fontSize: '13px' }}>
+                + Add Party to Directory
+              </button>
+            </form>
+
+            {/* Party List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 4px 0' }}>Existing Parties ({parties.length}):</p>
+              {parties.length === 0 ? (
+                <p style={{ fontSize: '12px', color: '#64748B' }}>No parties added yet.</p>
+              ) : (
+                parties.map(p => (
+                  <div
+                    key={p._id}
+                    style={{
+                      display: 'flex',
+                      justify: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color, #E2E8F0)',
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: '700', fontSize: '13px' }}>
+                        {p.name} {p.contactNumber && <span style={{ fontWeight: 'normal', color: '#64748B', fontSize: '11px' }}>({p.contactNumber})</span>}
+                      </div>
+                      {p.specialties && p.specialties.length > 0 && (
+                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                          {p.specialties.map(spec => (
+                            <span key={spec} style={{ fontSize: '10px', background: 'rgba(37, 99, 235, 0.1)', color: '#2563EB', padding: '1px 6px', borderRadius: '8px', fontWeight: '600' }}>
+                              {spec}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="icon-btn danger"
+                      onClick={() => handleDeleteParty(p._id, p.name)}
+                      title="Delete Party"
+                    >
+                      {getSafeEmoji('🗑️')}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ textAlign: 'right', marginTop: '20px' }}>
+              <button type="button" className="secondary-btn" onClick={() => setShowPartyManagerModal(false)}>
+                Close
+              </button>
             </div>
           </div>
         </div>
