@@ -1416,13 +1416,61 @@ app.delete("/api/waitlist/schools/:id", authenticateJWT, async (req, res) => {
   }
 });
 
-// Party (Vendor) Endpoints
+// Helper to sort size breakdown logically (lower sizes above, increasing below)
+function sortSizeBreakdown(sizeBreakdown) {
+  if (!Array.isArray(sizeBreakdown)) return [];
+  return sizeBreakdown.sort((a, b) => {
+    const numA = parseFloat(a.size);
+    const numB = parseFloat(b.size);
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return numA - numB;
+    }
+    return String(a.size).localeCompare(String(b.size), undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
+// Helper to recalculate received quantities and order status from installments
+function recalculateOrderQuantities(order) {
+  (order.sizeBreakdown || []).forEach(sb => {
+    sb.receivedQty = 0;
+  });
+
+  (order.installments || []).forEach(inst => {
+    (inst.items || []).forEach(item => {
+      let sb = order.sizeBreakdown.find(s => s.size === item.size);
+      if (sb) {
+        sb.receivedQty = (sb.receivedQty || 0) + (item.qty || 0);
+      } else {
+        order.sizeBreakdown.push({
+          size: item.size,
+          orderedQty: item.qty || 0,
+          receivedQty: item.qty || 0
+        });
+      }
+    });
+  });
+
+  sortSizeBreakdown(order.sizeBreakdown);
+
+  const totalOrdered = (order.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.orderedQty || 0), 0);
+  const totalReceived = (order.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.receivedQty || 0), 0);
+
+  if (totalReceived >= totalOrdered && totalOrdered > 0) {
+    order.status = "Completed";
+  } else if (totalReceived > 0) {
+    order.status = "Partial";
+  } else {
+    order.status = "Pending";
+  }
+}
+
+// Party (Supplier) Endpoints
 app.get("/api/parties", authenticateJWT, async (req, res) => {
   try {
     const parties = await Party.find().sort({ name: 1 });
     res.json(parties);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch parties", error: error.message });
+    res.status(500).json({ message: "Failed to fetch suppliers", error: error.message });
   }
 });
 
@@ -1449,6 +1497,37 @@ app.post("/api/parties", authenticateJWT, async (req, res) => {
     res.status(201).json(party);
   } catch (error) {
     res.status(500).json({ message: "Failed to create supplier", error: error.message });
+  }
+});
+
+app.patch("/api/parties/:id", authenticateJWT, async (req, res) => {
+  try {
+    const { name, contactNumber, notes } = req.body;
+    const party = await Party.findById(req.params.id);
+    if (!party) {
+      return res.status(404).json({ message: "Supplier not found" });
+    }
+
+    const oldName = party.name;
+    if (name && name.trim() && name.trim() !== oldName) {
+      const newName = name.trim();
+      const existing = await Party.findOne({ name: newName });
+      if (existing) {
+        return res.status(400).json({ message: "A supplier with this new name already exists." });
+      }
+      party.name = newName;
+      // Update all vendor orders matching old name
+      await VendorOrder.updateMany({ partyName: oldName }, { partyName: newName });
+    }
+
+    if (contactNumber !== undefined) party.contactNumber = contactNumber.trim();
+    if (notes !== undefined) party.notes = notes.trim();
+
+    await party.save();
+    await logAudit(null, "System", "Supplier Updated", `Supplier '${party.name}' updated`);
+    res.json(party);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update supplier", error: error.message });
   }
 });
 
@@ -1498,7 +1577,7 @@ app.get("/api/vendor-orders", authenticateJWT, async (req, res) => {
 
     res.json(filtered);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch vendor orders", error: error.message });
+    res.status(500).json({ message: "Failed to fetch supplier orders", error: error.message });
   }
 });
 
@@ -1509,14 +1588,16 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: "Supplier name is required." });
     }
     if (!itemType || !itemType.trim()) {
-      return res.status(400).json({ message: "Item type/category is required." });
+      return res.status(400).json({ message: "Item category/type is required." });
+    }
+    if (!school || !school.trim()) {
+      return res.status(400).json({ message: "School / Firm Name is required." });
     }
 
-    // Auto-generate PO Number
     const count = await VendorOrder.countDocuments();
     const poNumber = `PO-${String(count + 1001).padStart(4, '0')}`;
 
-    const formattedBreakdown = Array.isArray(sizeBreakdown)
+    let formattedBreakdown = Array.isArray(sizeBreakdown)
       ? sizeBreakdown.map(sb => ({
           size: String(sb.size || '').trim(),
           orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
@@ -1528,11 +1609,13 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: "At least one size with quantity > 0 is required." });
     }
 
+    sortSizeBreakdown(formattedBreakdown);
+
     const newOrder = await VendorOrder.create({
       poNumber,
       partyName: partyName.trim(),
       itemType: itemType.trim(),
-      school: (school || "").trim(),
+      school: school.trim(),
       targetDate: (targetDate || "").trim(),
       status: "Pending",
       sizeBreakdown: formattedBreakdown,
@@ -1544,23 +1627,48 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
     await logAudit(null, "System", "Vendor Order Created", `Order ${poNumber} placed with '${partyName.trim()}' for ${totalOrdered} pcs of ${itemType.trim()}`);
     res.status(201).json(newOrder);
   } catch (error) {
-    res.status(500).json({ message: "Failed to create vendor order", error: error.message });
+    res.status(500).json({ message: "Failed to create supplier order", error: error.message });
   }
 });
 
 app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
   try {
-    const { partyName, itemType, school, targetDate, notes, status } = req.body;
+    const { partyName, itemType, school, targetDate, sizeBreakdown, notes, status } = req.body;
     const order = await VendorOrder.findById(req.params.id);
     if (!order) {
-      return res.status(404).json({ message: "Vendor order not found" });
+      return res.status(404).json({ message: "Supplier order not found" });
     }
 
     if (partyName) order.partyName = partyName.trim();
     if (itemType) order.itemType = itemType.trim();
-    if (school !== undefined) order.school = school.trim();
+    if (school !== undefined) {
+      if (!school.trim()) {
+        return res.status(400).json({ message: "School / Firm Name is required." });
+      }
+      order.school = school.trim();
+    }
     if (targetDate !== undefined) order.targetDate = targetDate.trim();
     if (notes !== undefined) order.notes = notes.trim();
+
+    if (Array.isArray(sizeBreakdown) && sizeBreakdown.length > 0) {
+      // Merge/update size breakdown while preserving existing received quantities
+      const updatedBreakdown = sizeBreakdown.map(sb => {
+        const cleanSize = String(sb.size || '').trim();
+        const existing = (order.sizeBreakdown || []).find(e => e.size === cleanSize);
+        return {
+          size: cleanSize,
+          orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
+          receivedQty: existing ? (existing.receivedQty || 0) : 0
+        };
+      }).filter(sb => sb.size && sb.orderedQty > 0);
+
+      if (updatedBreakdown.length > 0) {
+        order.sizeBreakdown = updatedBreakdown;
+      }
+    }
+
+    recalculateOrderQuantities(order);
+
     if (status && ["Pending", "Partial", "Completed", "Cancelled"].includes(status)) {
       order.status = status;
     }
@@ -1569,7 +1677,7 @@ app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
     await logAudit(null, "System", "Vendor Order Updated", `Order ${order.poNumber} updated`);
     res.json(order);
   } catch (error) {
-    res.status(500).json({ message: "Failed to update vendor order", error: error.message });
+    res.status(500).json({ message: "Failed to update supplier order", error: error.message });
   }
 });
 
@@ -1577,12 +1685,12 @@ app.delete("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
   try {
     const order = await VendorOrder.findByIdAndDelete(req.params.id);
     if (!order) {
-      return res.status(404).json({ message: "Vendor order not found" });
+      return res.status(404).json({ message: "Supplier order not found" });
     }
     await logAudit(null, "System", "Vendor Order Deleted", `Order ${order.poNumber} deleted`);
-    res.json({ message: "Vendor order deleted successfully" });
+    res.json({ message: "Supplier order deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete vendor order", error: error.message });
+    res.status(500).json({ message: "Failed to delete supplier order", error: error.message });
   }
 });
 
@@ -1591,7 +1699,7 @@ app.post("/api/vendor-orders/:id/installments", authenticateJWT, async (req, res
     const { challanNumber, items, notes } = req.body;
     const order = await VendorOrder.findById(req.params.id);
     if (!order) {
-      return res.status(404).json({ message: "Vendor order not found" });
+      return res.status(404).json({ message: "Supplier order not found" });
     }
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -1607,7 +1715,6 @@ app.post("/api/vendor-orders/:id/installments", authenticateJWT, async (req, res
       return res.status(400).json({ message: "At least one size received quantity must be greater than 0." });
     }
 
-    // Add installment record
     const newInstallment = {
       receivedAt: new Date(),
       challanNumber: (challanNumber || "").trim(),
@@ -1616,29 +1723,7 @@ app.post("/api/vendor-orders/:id/installments", authenticateJWT, async (req, res
     };
     order.installments.push(newInstallment);
 
-    // Update received quantities in sizeBreakdown
-    cleanItems.forEach(recItem => {
-      const sizeObj = order.sizeBreakdown.find(sb => sb.size === recItem.size);
-      if (sizeObj) {
-        sizeObj.receivedQty = (sizeObj.receivedQty || 0) + recItem.qty;
-      } else {
-        order.sizeBreakdown.push({
-          size: recItem.size,
-          orderedQty: recItem.qty,
-          receivedQty: recItem.qty
-        });
-      }
-    });
-
-    // Calculate total status
-    const totalOrdered = order.sizeBreakdown.reduce((sum, sb) => sum + sb.orderedQty, 0);
-    const totalReceived = order.sizeBreakdown.reduce((sum, sb) => sum + sb.receivedQty, 0);
-
-    if (totalReceived >= totalOrdered && totalOrdered > 0) {
-      order.status = "Completed";
-    } else if (totalReceived > 0) {
-      order.status = "Partial";
-    }
+    recalculateOrderQuantities(order);
 
     await order.save();
     const batchTotal = cleanItems.reduce((sum, i) => sum + i.qty, 0);
@@ -1646,6 +1731,65 @@ app.post("/api/vendor-orders/:id/installments", authenticateJWT, async (req, res
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: "Failed to record installment", error: error.message });
+  }
+});
+
+// Edit existing installment
+app.patch("/api/vendor-orders/:id/installments/:installmentId", authenticateJWT, async (req, res) => {
+  try {
+    const { challanNumber, items, notes } = req.body;
+    const order = await VendorOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Supplier order not found" });
+    }
+
+    const inst = order.installments.id(req.params.installmentId);
+    if (!inst) {
+      return res.status(404).json({ message: "Installment batch not found" });
+    }
+
+    if (challanNumber !== undefined) inst.challanNumber = challanNumber.trim();
+    if (notes !== undefined) inst.notes = notes.trim();
+
+    if (Array.isArray(items)) {
+      const cleanItems = items.map(i => ({
+        size: String(i.size || '').trim(),
+        qty: Math.max(0, Number(i.qty || 0))
+      })).filter(i => i.size && i.qty > 0);
+      inst.items = cleanItems;
+    }
+
+    recalculateOrderQuantities(order);
+    await order.save();
+
+    await logAudit(null, "System", "Stock Installment Updated", `Updated installment batch for Order ${order.poNumber}`);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update installment", error: error.message });
+  }
+});
+
+// Delete existing installment
+app.delete("/api/vendor-orders/:id/installments/:installmentId", authenticateJWT, async (req, res) => {
+  try {
+    const order = await VendorOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Supplier order not found" });
+    }
+
+    const inst = order.installments.id(req.params.installmentId);
+    if (!inst) {
+      return res.status(404).json({ message: "Installment batch not found" });
+    }
+
+    inst.deleteOne();
+    recalculateOrderQuantities(order);
+    await order.save();
+
+    await logAudit(null, "System", "Stock Installment Deleted", `Deleted installment batch from Order ${order.poNumber}`);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete installment", error: error.message });
   }
 });
 

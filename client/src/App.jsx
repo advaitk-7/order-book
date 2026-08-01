@@ -599,14 +599,18 @@ function App() {
     items: []
   })
 
-  // Party Manager Modal
+  // Supplier Manager Modal
   const [showPartyManagerModal, setShowPartyManagerModal] = useState(false)
+  const [editingSupplierId, setEditingSupplierId] = useState(null)
   const [partyFormData, setPartyFormData] = useState({
     name: '',
     contactNumber: '',
-    specialties: '',
     notes: ''
   })
+
+  // Edit Installment Modal State
+  const [showEditInstallmentModal, setShowEditInstallmentModal] = useState(false)
+  const [editingInstallment, setEditingInstallment] = useState(null)
   const [selectedOldCycleOrder, setSelectedOldCycleOrder] = useState(null)
 
   // Tailor Work Page Filters & Selections
@@ -792,7 +796,7 @@ function App() {
         fetchWaitlistSchools(),
         fetchParties(),
         fetchVendorOrders('', 'All', 'All', true)
-      ]).catch(() => {})
+      ]).catch(() => { })
     } else {
       setOrders([])
       setSelectedOrder(null)
@@ -1421,7 +1425,7 @@ function App() {
     const item = request.items[itemIndex]
     const cleanPhone = request.contactNumber.replace(/\D/g, '')
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone
-    
+
     const rawTemplate = (whatsappTemplates && whatsappTemplates.waitlistTemplate) || DEFAULT_WHATSAPP_TEMPLATES.waitlistTemplate
     const messageText = rawTemplate
       .replace(/\{customerName\}/g, request.customerName || 'Customer')
@@ -1429,34 +1433,34 @@ function App() {
       .replace(/\{school\}/g, (request.schools && request.schools.length) ? request.schools.join(', ') : 'General')
 
     const encodedText = encodeURIComponent(messageText)
-    
+
     const link = whatsappMode === 'app'
       ? `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`
       : `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`
-      
+
     window.open(link, '_blank')
   }
 
   const handleSendAllWhatsAppNotification = async (request) => {
     const cleanPhone = request.contactNumber.replace(/\D/g, '')
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone
-    
+
     const remainingItems = (request.items || []).filter(i => i.status !== 'Notified')
     if (remainingItems.length === 0) return
-    
+
     const itemNames = remainingItems.map(i => `"${i.name}"`).join(', ')
     const rawTemplate = (whatsappTemplates && whatsappTemplates.waitlistTemplate) || DEFAULT_WHATSAPP_TEMPLATES.waitlistTemplate
     const messageText = rawTemplate
       .replace(/\{customerName\}/g, request.customerName || 'Customer')
       .replace(/\{items\}/g, itemNames)
       .replace(/\{school\}/g, (request.schools && request.schools.length) ? request.schools.join(', ') : 'General')
-      
+
     const encodedText = encodeURIComponent(messageText)
-    
+
     const link = whatsappMode === 'app'
       ? `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`
       : `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedText}`
-      
+
     window.open(link, '_blank')
   }
 
@@ -1500,6 +1504,18 @@ function App() {
     }
   }
 
+  const sortSizesAscending = (sizeArray) => {
+    if (!Array.isArray(sizeArray)) return []
+    return [...sizeArray].sort((a, b) => {
+      const numA = parseFloat(a.size)
+      const numB = parseFloat(b.size)
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB
+      }
+      return String(a.size || '').localeCompare(String(b.size || ''), undefined, { numeric: true, sensitivity: 'base' })
+    })
+  }
+
   const handleSaveParty = async (e) => {
     e.preventDefault()
     if (!partyFormData.name || !partyFormData.name.trim()) {
@@ -1507,9 +1523,13 @@ function App() {
       return
     }
 
+    const isEditing = Boolean(editingSupplierId)
+    const url = isEditing ? `${API_BASE}/api/parties/${editingSupplierId}` : `${API_BASE}/api/parties`
+    const method = isEditing ? 'PATCH' : 'POST'
+
     try {
-      const response = await fetch(`${API_BASE}/api/parties`, {
-        method: 'POST',
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -1522,14 +1542,15 @@ function App() {
       })
       const data = await response.json()
       if (response.ok) {
-        setMessage(`Supplier '${data.name}' added successfully.`)
+        setMessage(isEditing ? `Supplier '${data.name}' updated.` : `Supplier '${data.name}' added successfully.`)
         setPartyFormData({ name: '', contactNumber: '', notes: '' })
+        setEditingSupplierId(null)
         fetchParties()
       } else {
-        setMessage(data.message || 'Failed to add supplier.')
+        setMessage(data.message || 'Failed to save supplier.')
       }
     } catch (err) {
-      setMessage('Network error adding supplier.')
+      setMessage('Network error saving supplier.')
     }
   }
 
@@ -1542,6 +1563,7 @@ function App() {
       })
       if (response.ok) {
         setMessage(`Supplier '${name}' deleted.`)
+        if (editingSupplierId === id) setEditingSupplierId(null)
         fetchParties()
       }
     } catch (err) {
@@ -1552,13 +1574,19 @@ function App() {
   const handleSaveVendorOrder = async (e) => {
     e.preventDefault()
     if (!vendorOrderFormData.partyName || !vendorOrderFormData.itemType) {
-      setMessage('Supplier Name and Item Type are required.')
+      setMessage('Supplier Name and Item Category are required.')
+      return
+    }
+    if (!vendorOrderFormData.school || !vendorOrderFormData.school.trim()) {
+      setMessage('School / Institution / Firm Name is required.')
       return
     }
 
-    const cleanBreakdown = (vendorOrderFormData.sizeBreakdown || [])
-      .map(sb => ({ size: (sb.size || '').trim(), orderedQty: Number(sb.orderedQty || 0) }))
-      .filter(sb => sb.size && sb.orderedQty > 0)
+    const cleanBreakdown = sortSizesAscending(
+      (vendorOrderFormData.sizeBreakdown || [])
+        .map(sb => ({ size: (sb.size || '').trim(), orderedQty: Number(sb.orderedQty || 0) }))
+        .filter(sb => sb.size && sb.orderedQty > 0)
+    )
 
     if (cleanBreakdown.length === 0) {
       setMessage('At least one size with ordered quantity > 0 is required.')
@@ -1617,7 +1645,7 @@ function App() {
 
   const handleOpenInstallmentModal = (order) => {
     setSelectedOrderForInstallment(order)
-    const initialItems = (order.sizeBreakdown || []).map(sb => ({
+    const initialItems = sortSizesAscending(order.sizeBreakdown || []).map(sb => ({
       size: sb.size,
       orderedQty: sb.orderedQty,
       receivedQty: sb.receivedQty || 0,
@@ -1669,6 +1697,73 @@ function App() {
       }
     } catch (err) {
       setMessage('Network error logging installment.')
+    }
+  }
+
+  const handleOpenEditInstallment = (order, installment) => {
+    setSelectedOrderForInstallment(order)
+    const items = sortSizesAscending(installment.items || []).map(i => ({
+      size: i.size,
+      qty: String(i.qty || 0)
+    }))
+    setEditingInstallment({
+      orderId: order._id,
+      installmentId: installment._id,
+      challanNumber: installment.challanNumber || '',
+      notes: installment.notes || '',
+      items
+    })
+    setShowEditInstallmentModal(true)
+  }
+
+  const handleUpdateInstallment = async (e) => {
+    e.preventDefault()
+    if (!editingInstallment) return
+
+    const itemsToSubmit = (editingInstallment.items || [])
+      .map(i => ({ size: i.size, qty: Number(i.qty || 0) }))
+      .filter(i => i.size && i.qty >= 0)
+
+    try {
+      const response = await fetch(`${API_BASE}/api/vendor-orders/${editingInstallment.orderId}/installments/${editingInstallment.installmentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          challanNumber: editingInstallment.challanNumber,
+          items: itemsToSubmit,
+          notes: editingInstallment.notes
+        })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(`Stock installment updated for Order ${data.poNumber}.`)
+        setShowEditInstallmentModal(false)
+        setEditingInstallment(null)
+        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
+      } else {
+        setMessage(data.message || 'Failed to update installment.')
+      }
+    } catch (err) {
+      setMessage('Network error updating installment.')
+    }
+  }
+
+  const handleDeleteInstallment = async (order, installmentId) => {
+    if (!window.confirm('Delete this logged stock installment batch? Stock totals will be recalculated automatically.')) return
+    try {
+      const response = await fetch(`${API_BASE}/api/vendor-orders/${order._id}/installments/${installmentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        setMessage(`Stock installment batch deleted for Order ${order.poNumber}.`)
+        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
+      }
+    } catch (err) {
+      console.error('Failed to delete installment', err)
     }
   }
 
@@ -4051,63 +4146,63 @@ function App() {
                               {order.paymentStatus || 'Unpaid'}
                             </span>
                           </td>
-                           <td>
-                             <div style={{ display: 'inline-block', position: 'relative' }}>
-                               <span
-                                 className={`status-badge ${order.status === 'Delivered' ? 'clickable' : ''} ${order.status.toLowerCase()}`}
-                                 onClick={(e) => {
-                                   if (order.status === 'Delivered') {
-                                     e.stopPropagation();
-                                     handleStatusTap(order)
-                                   }
-                                 }}
-                               >
-                                 {statusLabel[order.status] || order.status}
-                               </span>
+                          <td>
+                            <div style={{ display: 'inline-block', position: 'relative' }}>
+                              <span
+                                className={`status-badge ${order.status === 'Delivered' ? 'clickable' : ''} ${order.status.toLowerCase()}`}
+                                onClick={(e) => {
+                                  if (order.status === 'Delivered') {
+                                    e.stopPropagation();
+                                    handleStatusTap(order)
+                                  }
+                                }}
+                              >
+                                {statusLabel[order.status] || order.status}
+                              </span>
 
-                               {timerAlertOrder && timerAlertOrder._id === order._id && (
-                                 <div
-                                   className="timer-popup"
-                                   style={{
-                                     position: 'absolute',
-                                     bottom: '100%',
-                                     left: '50%',
-                                     transform: 'translateX(-50%) translateY(-8px)',
-                                     background: '#1E293B',
-                                     color: 'white',
-                                     padding: '10px 14px',
-                                     borderRadius: '12px',
-                                     boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
-                                     zIndex: 100,
-                                     fontSize: '13px',
-                                     fontWeight: '500',
-                                     whiteSpace: 'nowrap',
-                                     display: 'flex',
-                                     flexDirection: 'column',
-                                     alignItems: 'center',
-                                     gap: '4px',
-                                     pointerEvents: 'none'
-                                   }}
-                                 >
-                                   <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
-                                   <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
-                                     {computeTimeLeftDescription(order.deliveredAt, order.updatedAt, order.createdAt)}
-                                   </span>
-                                   <div style={{
-                                     position: 'absolute',
-                                     top: '100%',
-                                     left: '50%',
-                                     transform: 'translateX(-50%)',
-                                     width: 0,
-                                     height: 0,
-                                     borderLeft: '6px solid transparent',
-                                     borderRight: '6px solid transparent',
-                                     borderTop: '6px solid #1E293B'
-                                   }} />
-                                 </div>
-                               )}
-                             </div>
-                           </td>
+                              {timerAlertOrder && timerAlertOrder._id === order._id && (
+                                <div
+                                  className="timer-popup"
+                                  style={{
+                                    position: 'absolute',
+                                    bottom: '100%',
+                                    left: '50%',
+                                    transform: 'translateX(-50%) translateY(-8px)',
+                                    background: '#1E293B',
+                                    color: 'white',
+                                    padding: '10px 14px',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
+                                    zIndex: 100,
+                                    fontSize: '13px',
+                                    fontWeight: '500',
+                                    whiteSpace: 'nowrap',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    pointerEvents: 'none'
+                                  }}
+                                >
+                                  <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
+                                  <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
+                                    {computeTimeLeftDescription(order.deliveredAt, order.updatedAt, order.createdAt)}
+                                  </span>
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    width: 0,
+                                    height: 0,
+                                    borderLeft: '6px solid transparent',
+                                    borderRight: '6px solid transparent',
+                                    borderTop: '6px solid #1E293B'
+                                  }} />
+                                </div>
+                              )}
+                            </div>
+                          </td>
                           <td>
                             {order.contactStatus || 'Not contacted'}
                           </td>
@@ -5125,31 +5220,31 @@ function App() {
                                           >
                                             {item.status || 'Pending'}
                                           </span>
-                                          
+
                                           <button
-                                             type="button"
-                                             disabled={item.status === 'Notified'}
-                                             title={item.status === 'Notified' ? "Item already notified" : "Send WhatsApp for this item"}
-                                             onClick={() => handleSendSingleWhatsAppNotification(request, idx)}
-                                             style={{
-                                               background: 'none',
-                                               border: 'none',
-                                               cursor: item.status === 'Notified' ? 'not-allowed' : 'pointer',
-                                               fontSize: '11px',
-                                               padding: '2px 4px',
-                                               display: 'inline-flex',
-                                               alignItems: 'center',
-                                               gap: '4px',
-                                               color: item.status === 'Notified' ? '#94A3B8' : '#10B981',
-                                               fontWeight: '700',
-                                               opacity: item.status === 'Notified' ? 0.6 : 1
-                                             }}
-                                           >
-                                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={item.status === 'Notified' ? "#94A3B8" : "#10B981"} style={{ verticalAlign: 'middle' }}>
-                                               <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.49-3.99c1.657.982 3.585 1.502 5.547 1.503 5.714 0 10.364-4.65 10.368-10.366.002-2.772-1.077-5.378-3.037-7.338C17.466 2.25 14.86 1.17 12.088 1.17c-5.722 0-10.371 4.65-10.375 10.367a10.29 10.29 0 0 0 1.523 5.44L2.247 20.91l4.3-1.129-.001.001zM18.06 14.65c-.328-.164-1.94-.957-2.24-1.068-.3-.11-.518-.164-.737.164-.219.328-.847 1.068-1.038 1.286-.19.219-.382.246-.71.082a10.428 10.428 0 0 1-2.737-1.69 11.48 11.48 0 0 1-1.895-2.36c-.19-.328-.02-.507.143-.672.147-.148.328-.382.492-.574.164-.19.219-.328.328-.548.11-.219.055-.41-.027-.574-.082-.164-.737-1.777-1.01-2.435-.267-.643-.56-.553-.768-.564-.199-.01-.427-.01-.656-.01-.228 0-.6-.086-.913.256-.312.342-1.192 1.166-1.192 2.842 0 1.677 1.22 3.296 1.39 3.515.17.219 2.4 3.666 5.816 5.143.812.35 1.447.56 1.942.718.816.26 1.56.223 2.148.135.656-.098 1.94-.794 2.213-1.56.273-.767.273-1.423.19-1.56-.081-.137-.3-.22-.627-.383z"/>
-                                             </svg>
-                                             Notify
-                                           </button>
+                                            type="button"
+                                            disabled={item.status === 'Notified'}
+                                            title={item.status === 'Notified' ? "Item already notified" : "Send WhatsApp for this item"}
+                                            onClick={() => handleSendSingleWhatsAppNotification(request, idx)}
+                                            style={{
+                                              background: 'none',
+                                              border: 'none',
+                                              cursor: item.status === 'Notified' ? 'not-allowed' : 'pointer',
+                                              fontSize: '11px',
+                                              padding: '2px 4px',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px',
+                                              color: item.status === 'Notified' ? '#94A3B8' : '#10B981',
+                                              fontWeight: '700',
+                                              opacity: item.status === 'Notified' ? 0.6 : 1
+                                            }}
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={item.status === 'Notified' ? "#94A3B8" : "#10B981"} style={{ verticalAlign: 'middle' }}>
+                                              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.49-3.99c1.657.982 3.585 1.502 5.547 1.503 5.714 0 10.364-4.65 10.368-10.366.002-2.772-1.077-5.378-3.037-7.338C17.466 2.25 14.86 1.17 12.088 1.17c-5.722 0-10.371 4.65-10.375 10.367a10.29 10.29 0 0 0 1.523 5.44L2.247 20.91l4.3-1.129-.001.001zM18.06 14.65c-.328-.164-1.94-.957-2.24-1.068-.3-.11-.518-.164-.737.164-.219.328-.847 1.068-1.038 1.286-.19.219-.382.246-.71.082a10.428 10.428 0 0 1-2.737-1.69 11.48 11.48 0 0 1-1.895-2.36c-.19-.328-.02-.507.143-.672.147-.148.328-.382.492-.574.164-.19.219-.328.328-.548.11-.219.055-.41-.027-.574-.082-.164-.737-1.777-1.01-2.435-.267-.643-.56-.553-.768-.564-.199-.01-.427-.01-.656-.01-.228 0-.6-.086-.913.256-.312.342-1.192 1.166-1.192 2.842 0 1.677 1.22 3.296 1.39 3.515.17.219 2.4 3.666 5.816 5.143.812.35 1.447.56 1.942.718.816.26 1.56.223 2.148.135.656-.098 1.94-.794 2.213-1.56.273-.767.273-1.423.19-1.56-.081-.137-.3-.22-.627-.383z" />
+                                            </svg>
+                                            Notify
+                                          </button>
                                           <button
                                             type="button"
                                             title="Toggle status"
@@ -5199,7 +5294,7 @@ function App() {
                                             }}
                                           >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={allAlreadyNotified ? "#64748B" : "#FFFFFF"} style={{ verticalAlign: 'middle' }}>
-                                              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.49-3.99c1.657.982 3.585 1.502 5.547 1.503 5.714 0 10.364-4.65 10.368-10.366.002-2.772-1.077-5.378-3.037-7.338C17.466 2.25 14.86 1.17 12.088 1.17c-5.722 0-10.371 4.65-10.375 10.367a10.29 10.29 0 0 0 1.523 5.44L2.247 20.91l4.3-1.129-.001.001zM18.06 14.65c-.328-.164-1.94-.957-2.24-1.068-.3-.11-.518-.164-.737.164-.219.328-.847 1.068-1.038 1.286-.19.219-.382.246-.71.082a10.428 10.428 0 0 1-2.737-1.69 11.48 11.48 0 0 1-1.895-2.36c-.19-.328-.02-.507.143-.672.147-.148.328-.382.492-.574.164-.19.219-.328.328-.548.11-.219.055-.41-.027-.574-.082-.164-.737-1.777-1.01-2.435-.267-.643-.56-.553-.768-.564-.199-.01-.427-.01-.656-.01-.228 0-.6-.086-.913.256-.312.342-1.192 1.166-1.192 2.842 0 1.677 1.22 3.296 1.39 3.515.17.219 2.4 3.666 5.816 5.143.812.35 1.447.56 1.942.718.816.26 1.56.223 2.148.135.656-.098 1.94-.794 2.213-1.56.273-.767.273-1.423.19-1.56-.081-.137-.3-.22-.627-.383z"/>
+                                              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.49-3.99c1.657.982 3.585 1.502 5.547 1.503 5.714 0 10.364-4.65 10.368-10.366.002-2.772-1.077-5.378-3.037-7.338C17.466 2.25 14.86 1.17 12.088 1.17c-5.722 0-10.371 4.65-10.375 10.367a10.29 10.29 0 0 0 1.523 5.44L2.247 20.91l4.3-1.129-.001.001zM18.06 14.65c-.328-.164-1.94-.957-2.24-1.068-.3-.11-.518-.164-.737.164-.219.328-.847 1.068-1.038 1.286-.19.219-.382.246-.71.082a10.428 10.428 0 0 1-2.737-1.69 11.48 11.48 0 0 1-1.895-2.36c-.19-.328-.02-.507.143-.672.147-.148.328-.382.492-.574.164-.19.219-.328.328-.548.11-.219.055-.41-.027-.574-.082-.164-.737-1.777-1.01-2.435-.267-.643-.56-.553-.768-.564-.199-.01-.427-.01-.656-.01-.228 0-.6-.086-.913.256-.312.342-1.192 1.166-1.192 2.842 0 1.677 1.22 3.296 1.39 3.515.17.219 2.4 3.666 5.816 5.143.812.35 1.447.56 1.942.718.816.26 1.56.223 2.148.135.656-.098 1.94-.794 2.213-1.56.273-.767.273-1.423.19-1.56-.081-.137-.3-.22-.627-.383z" />
                                             </svg>
                                             {isAllPending ? "Notify All Items" : "Notify Remaining Items"}
                                           </button>
@@ -5527,7 +5622,7 @@ function App() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {(order.sizeBreakdown || []).map((sb) => {
+                                  {sortSizesAscending(order.sizeBreakdown || []).map((sb) => {
                                     const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
                                     const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
                                     return (
@@ -5564,7 +5659,7 @@ function App() {
                                     const batchTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
                                     return (
                                       <div
-                                        key={idx}
+                                        key={inst._id || idx}
                                         style={{
                                           fontSize: '11px',
                                           background: theme === 'dark' ? '#0F172A' : '#FFFFFF',
@@ -5586,11 +5681,31 @@ function App() {
                                             <span style={{ marginLeft: '8px', color: '#64748B' }}>Challan: {inst.challanNumber}</span>
                                           )}
                                           <div style={{ color: theme === 'dark' ? '#CBD5E1' : '#475569', marginTop: '2px' }}>
-                                            Items: {(inst.items || []).map(i => `Size ${i.size}: ${i.qty} pcs`).join(' | ')}
+                                            Items: {sortSizesAscending(inst.items || []).map(i => `Size ${i.size}: ${i.qty} pcs`).join(' | ')}
                                           </div>
                                         </div>
-                                        <div style={{ fontWeight: '700', color: '#10B981' }}>
-                                          +{batchTotal} pcs
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span style={{ fontWeight: '700', color: '#10B981', marginRight: '4px' }}>
+                                            +{batchTotal} pcs
+                                          </span>
+                                          <button
+                                            type="button"
+                                            className="icon-btn"
+                                            style={{ padding: '2px 6px', fontSize: '11px' }}
+                                            title="Edit Installment Batch"
+                                            onClick={() => handleOpenEditInstallment(order, inst)}
+                                          >
+                                            {getSafeEmoji('✏️')}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="icon-btn danger"
+                                            style={{ padding: '2px 6px', fontSize: '11px' }}
+                                            title="Delete Installment Batch"
+                                            onClick={() => handleDeleteInstallment(order, inst._id)}
+                                          >
+                                            {getSafeEmoji('🗑️')}
+                                          </button>
                                         </div>
                                       </div>
                                     )
@@ -5921,7 +6036,7 @@ function App() {
                       </div>
                     </div>
 
-                     {/* WhatsApp integration configuration card */}
+                    {/* WhatsApp integration configuration card */}
                     <div className="settings-box">
                       <p className="settings-box-title">{getSafeEmoji('💬')} WhatsApp Integration Mode</p>
                       <p className="settings-box-desc">Choose whether customer alerts launch the native WhatsApp app (supporting drafts stack-to-top) or load WhatsApp Web in browser tabs.</p>
@@ -6293,149 +6408,149 @@ function App() {
                     padding: pdfMargin === 'compact' ? '24px 24px' : (pdfMargin === 'wide' ? '68px 68px' : '38px 38px'),
                     boxSizing: 'border-box',
                   }}>
-                  {/* Sheet Header */}
-                  <div style={{ borderBottom: '2px solid #1D4ED8', paddingBottom: '8px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <div>
-                      <h2 style={{ margin: 0, fontSize: '16px', color: '#1D4ED8', fontWeight: '800' }}>
-                        Liberty Uniform — Production Queue
-                      </h2>
-                      <p style={{ margin: '3px 0 0 0', fontSize: '10px', color: '#475569' }}>
-                        Status: <strong>{tailorStatusFilter || 'All'}</strong> &nbsp;|&nbsp; School: <strong>{tailorSchoolFilter || 'All'}</strong> &nbsp;|&nbsp; Date: {tailorDeliveryFilter || 'All'}
-                      </p>
+                    {/* Sheet Header */}
+                    <div style={{ borderBottom: '2px solid #1D4ED8', paddingBottom: '8px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                      <div>
+                        <h2 style={{ margin: 0, fontSize: '16px', color: '#1D4ED8', fontWeight: '800' }}>
+                          Liberty Uniform — Production Queue
+                        </h2>
+                        <p style={{ margin: '3px 0 0 0', fontSize: '10px', color: '#475569' }}>
+                          Status: <strong>{tailorStatusFilter || 'All'}</strong> &nbsp;|&nbsp; School: <strong>{tailorSchoolFilter || 'All'}</strong> &nbsp;|&nbsp; Date: {tailorDeliveryFilter || 'All'}
+                        </p>
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '10px', color: '#64748B' }}>
+                        <div style={{ fontWeight: '700' }}>Generated: {new Date().toLocaleDateString('en-GB')}</div>
+                        <div style={{ marginTop: '2px' }}>{pdfFormat.toUpperCase()} · {pdfOrientation}</div>
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right', fontSize: '10px', color: '#64748B' }}>
-                      <div style={{ fontWeight: '700' }}>Generated: {new Date().toLocaleDateString('en-GB')}</div>
-                      <div style={{ marginTop: '2px' }}>{pdfFormat.toUpperCase()} · {pdfOrientation}</div>
-                    </div>
-                  </div>
 
-                  {/* Garments Table — fixed layout with % column widths so nothing overflows */}
-                  <table style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                    tableLayout: 'fixed',
-                    fontSize: pdfScale === 'compact' ? '9px' : (pdfScale === 'large' ? '11.5px' : '10.5px'),
-                    color: '#0F172A',
-                    marginBottom: '18px'
-                  }}>
-                    <colgroup>
-                      <col style={{ width: '6%' }} />   {/* Order # */}
-                      <col style={{ width: '8%' }} />   {/* Product */}
-                      <col style={{ width: '13%' }} />  {/* Category */}
-                      <col style={{ width: '13%' }} />  {/* School */}
-                      <col style={{ width: '4%' }} />   {/* Gender */}
-                      <col style={{ width: '4%' }} />   {/* Qty */}
-                      <col style={{ width: '29%' }} />  {/* Measurements */}
-                      <col style={{ width: '12%' }} />  {/* Notes */}
-                      <col style={{ width: '11%' }} />  {/* Delivery */}
-                    </colgroup>
-                    <thead>
-                      <tr style={{ background: '#F1F5F9', borderBottom: '2px solid #CBD5E1', textAlign: 'left' }}>
-                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Order #</th>
-                        <th style={{ padding: '6px 5px', overflow: 'hidden' }}>Product</th>
-                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Category</th>
-                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>School</th>
-                        <th style={{ padding: '6px 5px', overflow: 'hidden' }}>G</th>
-                        <th style={{ padding: '6px 5px', overflow: 'hidden' }}>Qty</th>
-                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Measurements</th>
-                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Notes</th>
-                        <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Delivery</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedTailorGarments.length === 0 ? (
-                        <tr>
-                          <td colSpan="9" style={{ padding: '16px', textAlign: 'center', color: '#64748B' }}>
-                            No garments match the selected filters.
-                          </td>
-                        </tr>
-                      ) : (
-                        sortedTailorGarments.map((row) => (
-                          <tr key={row.uniqueRowId} style={{ borderBottom: '1px solid #E2E8F0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                            <td style={{ padding: '5px', fontWeight: '800', overflow: 'hidden' }}>#{row.orderNumber}</td>
-                            <td style={{ padding: '5px', overflow: 'hidden' }}>
-                              <span style={{
-                                display: 'inline-block',
-                                padding: '2px 5px',
-                                borderRadius: '4px',
-                                fontSize: '9px',
-                                fontWeight: '700',
-                                textTransform: 'uppercase',
-                                background: row.product.toLowerCase() === 'shirt' ? '#EFF6FF' : row.product.toLowerCase() === 'pant' ? '#FAF5FF' : '#FFF1F2',
-                                color: row.product.toLowerCase() === 'shirt' ? '#1D4ED8' : row.product.toLowerCase() === 'pant' ? '#7C3AED' : '#E11D48',
-                              }}>{row.product}</span>
-                            </td>
-                            <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px' }}>
-                              {(() => {
-                                const catVal = row.productionCategory || guessProductionCategory(row);
-                                const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
-                                return catObj ? catObj.name : (catVal || '-');
-                              })()}
-                            </td>
-                            <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word' }}>{row.school}</td>
-                            <td style={{ padding: '5px', fontWeight: '800', overflow: 'hidden' }}>
-                              {row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))}
-                            </td>
-                            <td style={{ padding: '5px', fontWeight: '800', overflow: 'hidden' }}>{row.quantity}</td>
-                            <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px', letterSpacing: '-0.01em' }}>
-                              {renderPDFMeasurements(row.product, row.measurements)}
-                            </td>
-                            <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px', color: '#475569' }}>{row.notes || '-'}</td>
-                            <td style={{ padding: '5px', overflow: 'hidden', color: '#E11D48', fontWeight: '600', wordBreak: 'break-word' }}>
-                              {formatDateToDMY(row.deliveryDate)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-
-                  {/* Production Cost Summary Table */}
-                  <div style={{ marginTop: '16px', borderTop: '2px solid #0F172A', paddingTop: '12px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                    <h3 style={{ fontSize: '11px', margin: '0 0 8px 0', color: '#0F172A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                      Production Cost Summary
-                    </h3>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '10px', color: '#0F172A' }}>
+                    {/* Garments Table — fixed layout with % column widths so nothing overflows */}
+                    <table style={{
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      tableLayout: 'fixed',
+                      fontSize: pdfScale === 'compact' ? '9px' : (pdfScale === 'large' ? '11.5px' : '10.5px'),
+                      color: '#0F172A',
+                      marginBottom: '18px'
+                    }}>
                       <colgroup>
-                        <col style={{ width: '45%' }} />
-                        <col style={{ width: '18%' }} />
-                        <col style={{ width: '15%' }} />
-                        <col style={{ width: '22%' }} />
+                        <col style={{ width: '6%' }} />   {/* Order # */}
+                        <col style={{ width: '8%' }} />   {/* Product */}
+                        <col style={{ width: '13%' }} />  {/* Category */}
+                        <col style={{ width: '13%' }} />  {/* School */}
+                        <col style={{ width: '4%' }} />   {/* Gender */}
+                        <col style={{ width: '4%' }} />   {/* Qty */}
+                        <col style={{ width: '29%' }} />  {/* Measurements */}
+                        <col style={{ width: '12%' }} />  {/* Notes */}
+                        <col style={{ width: '11%' }} />  {/* Delivery */}
                       </colgroup>
                       <thead>
-                        <tr style={{ borderBottom: '1px solid #475569', textAlign: 'left', background: '#F8FAFC' }}>
-                          <th style={{ padding: '5px 6px' }}>Component Category</th>
-                          <th style={{ padding: '5px 6px', textAlign: 'right' }}>Rate/Unit</th>
-                          <th style={{ padding: '5px 6px', textAlign: 'center' }}>Pieces</th>
-                          <th style={{ padding: '5px 6px', textAlign: 'right' }}>Total Cost</th>
+                        <tr style={{ background: '#F1F5F9', borderBottom: '2px solid #CBD5E1', textAlign: 'left' }}>
+                          <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Order #</th>
+                          <th style={{ padding: '6px 5px', overflow: 'hidden' }}>Product</th>
+                          <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Category</th>
+                          <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>School</th>
+                          <th style={{ padding: '6px 5px', overflow: 'hidden' }}>G</th>
+                          <th style={{ padding: '6px 5px', overflow: 'hidden' }}>Qty</th>
+                          <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Measurements</th>
+                          <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Notes</th>
+                          <th style={{ padding: '6px 5px', overflow: 'hidden', wordBreak: 'break-word' }}>Delivery</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {productionCostDetails.activeCategories.length === 0 ? (
+                        {sortedTailorGarments.length === 0 ? (
                           <tr>
-                            <td colSpan="4" style={{ padding: '6px', color: '#64748B', fontStyle: 'italic' }}>
-                              No active production categories.
+                            <td colSpan="9" style={{ padding: '16px', textAlign: 'center', color: '#64748B' }}>
+                              No garments match the selected filters.
                             </td>
                           </tr>
                         ) : (
-                          productionCostDetails.activeCategories.map(cat => (
-                            <tr key={cat.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                              <td style={{ padding: '5px 6px', fontWeight: '600' }}>{cat.name}</td>
-                              <td style={{ padding: '5px 6px', textAlign: 'right' }}>Rs.{cat.rate}</td>
-                              <td style={{ padding: '5px 6px', textAlign: 'center' }}>{cat.qty}</td>
-                              <td style={{ padding: '5px 6px', textAlign: 'right', fontWeight: '600' }}>Rs.{cat.cost.toLocaleString()}</td>
+                          sortedTailorGarments.map((row) => (
+                            <tr key={row.uniqueRowId} style={{ borderBottom: '1px solid #E2E8F0', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                              <td style={{ padding: '5px', fontWeight: '800', overflow: 'hidden' }}>#{row.orderNumber}</td>
+                              <td style={{ padding: '5px', overflow: 'hidden' }}>
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '2px 5px',
+                                  borderRadius: '4px',
+                                  fontSize: '9px',
+                                  fontWeight: '700',
+                                  textTransform: 'uppercase',
+                                  background: row.product.toLowerCase() === 'shirt' ? '#EFF6FF' : row.product.toLowerCase() === 'pant' ? '#FAF5FF' : '#FFF1F2',
+                                  color: row.product.toLowerCase() === 'shirt' ? '#1D4ED8' : row.product.toLowerCase() === 'pant' ? '#7C3AED' : '#E11D48',
+                                }}>{row.product}</span>
+                              </td>
+                              <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px' }}>
+                                {(() => {
+                                  const catVal = row.productionCategory || guessProductionCategory(row);
+                                  const catObj = PRODUCTION_CATEGORIES.find(c => c.id === catVal);
+                                  return catObj ? catObj.name : (catVal || '-');
+                                })()}
+                              </td>
+                              <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word' }}>{row.school}</td>
+                              <td style={{ padding: '5px', fontWeight: '800', overflow: 'hidden' }}>
+                                {row.gender === 'Female' ? 'F' : (row.gender === 'Male' ? 'M' : (row.gender || '-'))}
+                              </td>
+                              <td style={{ padding: '5px', fontWeight: '800', overflow: 'hidden' }}>{row.quantity}</td>
+                              <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px', letterSpacing: '-0.01em' }}>
+                                {renderPDFMeasurements(row.product, row.measurements)}
+                              </td>
+                              <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px', color: '#475569' }}>{row.notes || '-'}</td>
+                              <td style={{ padding: '5px', overflow: 'hidden', color: '#E11D48', fontWeight: '600', wordBreak: 'break-word' }}>
+                                {formatDateToDMY(row.deliveryDate)}
+                              </td>
                             </tr>
                           ))
                         )}
-                        <tr style={{ fontWeight: '800', background: '#EFF6FF', borderTop: '2px solid #2563EB' }}>
-                          <td style={{ padding: '6px', color: '#1D4ED8' }}>Total Production Cost</td>
-                          <td style={{ padding: '6px' }}></td>
-                          <td style={{ padding: '6px', textAlign: 'center', color: '#1D4ED8' }}>{productionCostDetails.totalQty} pcs</td>
-                          <td style={{ padding: '6px', textAlign: 'right', color: '#1D4ED8' }}>Rs.{productionCostDetails.totalCost.toLocaleString()}</td>
-                        </tr>
                       </tbody>
                     </table>
-                  </div>
+
+                    {/* Production Cost Summary Table */}
+                    <div style={{ marginTop: '16px', borderTop: '2px solid #0F172A', paddingTop: '12px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                      <h3 style={{ fontSize: '11px', margin: '0 0 8px 0', color: '#0F172A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                        Production Cost Summary
+                      </h3>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: '10px', color: '#0F172A' }}>
+                        <colgroup>
+                          <col style={{ width: '45%' }} />
+                          <col style={{ width: '18%' }} />
+                          <col style={{ width: '15%' }} />
+                          <col style={{ width: '22%' }} />
+                        </colgroup>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #475569', textAlign: 'left', background: '#F8FAFC' }}>
+                            <th style={{ padding: '5px 6px' }}>Component Category</th>
+                            <th style={{ padding: '5px 6px', textAlign: 'right' }}>Rate/Unit</th>
+                            <th style={{ padding: '5px 6px', textAlign: 'center' }}>Pieces</th>
+                            <th style={{ padding: '5px 6px', textAlign: 'right' }}>Total Cost</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productionCostDetails.activeCategories.length === 0 ? (
+                            <tr>
+                              <td colSpan="4" style={{ padding: '6px', color: '#64748B', fontStyle: 'italic' }}>
+                                No active production categories.
+                              </td>
+                            </tr>
+                          ) : (
+                            productionCostDetails.activeCategories.map(cat => (
+                              <tr key={cat.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                                <td style={{ padding: '5px 6px', fontWeight: '600' }}>{cat.name}</td>
+                                <td style={{ padding: '5px 6px', textAlign: 'right' }}>Rs.{cat.rate}</td>
+                                <td style={{ padding: '5px 6px', textAlign: 'center' }}>{cat.qty}</td>
+                                <td style={{ padding: '5px 6px', textAlign: 'right', fontWeight: '600' }}>Rs.{cat.cost.toLocaleString()}</td>
+                              </tr>
+                            ))
+                          )}
+                          <tr style={{ fontWeight: '800', background: '#EFF6FF', borderTop: '2px solid #2563EB' }}>
+                            <td style={{ padding: '6px', color: '#1D4ED8' }}>Total Production Cost</td>
+                            <td style={{ padding: '6px' }}></td>
+                            <td style={{ padding: '6px', textAlign: 'center', color: '#1D4ED8' }}>{productionCostDetails.totalQty} pcs</td>
+                            <td style={{ padding: '6px', textAlign: 'right', color: '#1D4ED8' }}>Rs.{productionCostDetails.totalCost.toLocaleString()}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div> {/* end inner content div */}
                 </div>
               </div>
@@ -6602,7 +6717,7 @@ function App() {
                     {showSchoolManager ? `${getSafeEmoji('✕')} Hide Directory` : `${getSafeEmoji('⚙️')} Manage Directory`}
                   </button>
                 </div>
-                
+
                 {!showSchoolManager ? (
                   <div style={{
                     border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1',
@@ -6964,30 +7079,30 @@ function App() {
                 </label>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <div className="manage-input-group" style={{ flex: 1, minWidth: '180px' }}>
-                  <label>
-                    Item Category / Type *
-                    <input
-                      type="text"
-                      placeholder="e.g. T-Shirt, Jeans, Track, Pina, Shirt, Pant"
-                      value={vendorOrderFormData.itemType}
-                      onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, itemType: e.target.value })}
-                      required
-                    />
-                  </label>
-                </div>
-                <div className="manage-input-group" style={{ flex: 1, minWidth: '180px' }}>
-                  <label>
-                    School / Brand (Optional)
-                    <input
-                      type="text"
-                      placeholder="e.g. DPS, St. Xavier or General"
-                      value={vendorOrderFormData.school}
-                      onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, school: e.target.value })}
-                    />
-                  </label>
-                </div>
+              <div className="manage-input-group">
+                <label>
+                  Item Category / Garment Type *
+                  <input
+                    type="text"
+                    placeholder="e.g. T-Shirt, Jeans, Track Suit, Pinafore, Shirt, Pant"
+                    value={vendorOrderFormData.itemType}
+                    onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, itemType: e.target.value })}
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  School / Institution / Firm Name *
+                  <input
+                    type="text"
+                    placeholder="e.g. DPS School, St. Xavier, Reliance Corp, Liberty Retail"
+                    value={vendorOrderFormData.school}
+                    onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, school: e.target.value })}
+                    required
+                  />
+                </label>
               </div>
 
               <div className="manage-input-group">
@@ -7005,16 +7120,16 @@ function App() {
               <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <label style={{ fontWeight: '700', fontSize: '13px', margin: 0 }}>
-                    Size-wise Ordered Quantity *
+                    Size-wise Ordered Quantity * (Lower sizes top → Higher sizes bottom)
                   </label>
                   <button
                     type="button"
                     className="secondary-btn"
                     onClick={() => {
-                      setVendorOrderFormData(prev => ({
-                        ...prev,
-                        sizeBreakdown: [...(prev.sizeBreakdown || []), { size: '', orderedQty: '' }]
-                      }))
+                      setVendorOrderFormData(prev => {
+                        const updated = sortSizesAscending([...(prev.sizeBreakdown || []), { size: '', orderedQty: '' }])
+                        return { ...prev, sizeBreakdown: updated }
+                      })
                     }}
                     style={{ fontSize: '11px', padding: '4px 10px' }}
                   >
@@ -7022,7 +7137,7 @@ function App() {
                   </button>
                 </div>
 
-                {(vendorOrderFormData.sizeBreakdown || []).map((sb, idx) => (
+                {sortSizesAscending(vendorOrderFormData.sizeBreakdown || []).map((sb, idx) => (
                   <div key={idx} style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center' }}>
                     <div style={{ flex: 1 }}>
                       <input
@@ -7030,9 +7145,9 @@ function App() {
                         placeholder="Size (e.g. 28, 30, 32 or M, L)"
                         value={sb.size}
                         onChange={(e) => {
-                          const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
-                          updated[idx] = { ...updated[idx], size: e.target.value }
-                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
+                          const rawBreakdown = [...(vendorOrderFormData.sizeBreakdown || [])]
+                          rawBreakdown[idx] = { ...rawBreakdown[idx], size: e.target.value }
+                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: rawBreakdown })
                         }}
                         required
                         style={{ padding: '6px 10px', fontSize: '13px' }}
@@ -7045,9 +7160,9 @@ function App() {
                         placeholder="Ordered Pcs Qty"
                         value={sb.orderedQty}
                         onChange={(e) => {
-                          const updated = [...(vendorOrderFormData.sizeBreakdown || [])]
-                          updated[idx] = { ...updated[idx], orderedQty: e.target.value }
-                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: updated })
+                          const rawBreakdown = [...(vendorOrderFormData.sizeBreakdown || [])]
+                          rawBreakdown[idx] = { ...rawBreakdown[idx], orderedQty: e.target.value }
+                          setVendorOrderFormData({ ...vendorOrderFormData, sizeBreakdown: rawBreakdown })
                         }}
                         required
                         style={{ padding: '6px 10px', fontSize: '13px' }}
@@ -7109,7 +7224,7 @@ function App() {
               {getSafeEmoji('➕')} Receive Stock Installment for {selectedOrderForInstallment.poNumber}
             </p>
             <p className="manage-modal-subtitle">
-              Log incoming stock shipment from <strong>{selectedOrderForInstallment.partyName}</strong> ({selectedOrderForInstallment.itemType}).
+              Log incoming stock shipment from <strong>{selectedOrderForInstallment.partyName}</strong> ({selectedOrderForInstallment.itemType} - {selectedOrderForInstallment.school}).
             </p>
 
             <form onSubmit={handleLogInstallment}>
@@ -7130,7 +7245,7 @@ function App() {
                   Quantities Received in this Batch (Per Size):
                 </label>
 
-                {(installmentFormData.items || []).map((item, idx) => (
+                {sortSizesAscending(installmentFormData.items || []).map((item, idx) => (
                   <div key={item.size} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '13px' }}>
                     <div style={{ flex: 1 }}>
                       <strong>Size {item.size}</strong>
@@ -7184,11 +7299,102 @@ function App() {
         </div>
       )}
 
+      {/* Edit Stock Installment Modal */}
+      {showEditInstallmentModal && editingInstallment && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button type="button" className="manage-modal-close" onClick={() => setShowEditInstallmentModal(false)}>
+              {getSafeEmoji('✕')}
+            </button>
+            <p className="manage-modal-title">
+              {getSafeEmoji('✏️')} Edit Stock Installment Batch
+            </p>
+            <p className="manage-modal-subtitle">
+              Modify or reduce stock quantities received in this batch log.
+            </p>
+
+            <form onSubmit={handleUpdateInstallment}>
+              <div className="manage-input-group">
+                <label>
+                  Challan / Delivery Receipt Number (Optional)
+                  <input
+                    type="text"
+                    placeholder="e.g. CH-9821 or Bill #450"
+                    value={editingInstallment.challanNumber}
+                    onChange={(e) => setEditingInstallment({ ...editingInstallment, challanNumber: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                <label style={{ fontWeight: '700', fontSize: '13px', display: 'block', marginBottom: '10px' }}>
+                  Adjust Received Quantities (Per Size):
+                </label>
+
+                {(editingInstallment.items || []).map((item, idx) => (
+                  <div key={item.size} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '13px' }}>
+                    <div style={{ flex: 1 }}>
+                      <strong>Size {item.size}</strong>
+                    </div>
+                    <div style={{ width: '110px' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Qty"
+                        value={item.qty}
+                        onChange={(e) => {
+                          const updated = [...(editingInstallment.items || [])]
+                          updated[idx] = { ...updated[idx], qty: e.target.value }
+                          setEditingInstallment({ ...editingInstallment, items: updated })
+                        }}
+                        style={{ padding: '6px 10px', fontSize: '13px', textAlign: 'right' }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: '700', marginTop: '8px', color: '#10B981' }}>
+                  Updated Batch Total: {(editingInstallment.items || []).reduce((s, i) => s + Number(i.qty || 0), 0)} pcs
+                </div>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  Installment Notes (Optional)
+                  <input
+                    type="text"
+                    value={editingInstallment.notes}
+                    onChange={(e) => setEditingInstallment({ ...editingInstallment, notes: e.target.value })}
+                    placeholder="e.g. Delivered by driver John"
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button type="button" className="secondary-btn" onClick={() => setShowEditInstallmentModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn">
+                  Save Installment Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Supplier Manager Directory Modal */}
       {showPartyManagerModal && (
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <button type="button" className="manage-modal-close" onClick={() => setShowPartyManagerModal(false)}>
+            <button
+              type="button"
+              className="manage-modal-close"
+              onClick={() => {
+                setShowPartyManagerModal(false)
+                setEditingSupplierId(null)
+                setPartyFormData({ name: '', contactNumber: '', notes: '' })
+              }}
+            >
               {getSafeEmoji('✕')}
             </button>
             <p className="manage-modal-title">
@@ -7198,9 +7404,11 @@ function App() {
               Add supplier profiles to issue bulk restock orders.
             </p>
 
-            {/* Add Supplier Form */}
+            {/* Add / Edit Supplier Form */}
             <form onSubmit={handleSaveParty} style={{ background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--border-color, #E2E8F0)' }}>
-              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 10px 0' }}>Add New Supplier:</p>
+              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 10px 0' }}>
+                {editingSupplierId ? 'Edit Supplier Details:' : 'Add New Supplier:'}
+              </p>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
                 <input
                   type="text"
@@ -7218,9 +7426,24 @@ function App() {
                   style={{ flex: 1, minWidth: '140px', padding: '6px 10px', fontSize: '13px' }}
                 />
               </div>
-              <button type="submit" className="primary-btn" style={{ width: '100%', padding: '8px', fontSize: '13px', marginTop: '4px' }}>
-                + Add Supplier to Directory
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="submit" className="primary-btn" style={{ flex: 1, padding: '8px', fontSize: '13px', marginTop: '4px' }}>
+                  {editingSupplierId ? 'Save Supplier Changes' : '+ Add Supplier to Directory'}
+                </button>
+                {editingSupplierId && (
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    style={{ padding: '8px', fontSize: '13px', marginTop: '4px' }}
+                    onClick={() => {
+                      setEditingSupplierId(null)
+                      setPartyFormData({ name: '', contactNumber: '', notes: '' })
+                    }}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </form>
 
             {/* Supplier List */}
@@ -7234,7 +7457,7 @@ function App() {
                     key={p._id}
                     style={{
                       display: 'flex',
-                      justify: 'space-between',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '10px 12px',
                       borderRadius: '8px',
@@ -7247,14 +7470,27 @@ function App() {
                         {p.name} {p.contactNumber && <span style={{ fontWeight: 'normal', color: '#64748B', fontSize: '11px' }}>({p.contactNumber})</span>}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      className="icon-btn danger"
-                      onClick={() => handleDeleteParty(p._id, p.name)}
-                      title="Delete Supplier"
-                    >
-                      {getSafeEmoji('🗑️')}
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        onClick={() => {
+                          setEditingSupplierId(p._id)
+                          setPartyFormData({ name: p.name, contactNumber: p.contactNumber || '', notes: p.notes || '' })
+                        }}
+                        title="Edit Supplier"
+                      >
+                        {getSafeEmoji('✏️')}
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn danger"
+                        onClick={() => handleDeleteParty(p._id, p.name)}
+                        title="Delete Supplier"
+                      >
+                        {getSafeEmoji('🗑️')}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
