@@ -2257,7 +2257,7 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if (e && e.key && typeof e.key === 'string' && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         if (activePage === 'Supplier Restock' && poSearchInputRef.current) {
           e.preventDefault()
           poSearchInputRef.current.focus()
@@ -7641,7 +7641,7 @@ function App() {
                         </div>
                       </div>
                       <div style={{ fontSize: '10px', color: '#64748B', textAlign: 'right' }}>
-                        <div>Generated: {new Date().toLocaleDateString()}</div>
+                        <div>Generated: {safeFormatDate(new Date())}</div>
                         <div style={{ textTransform: 'uppercase', fontWeight: '700' }}>{poPdfFormat} &middot; {poPdfOrientation}</div>
                       </div>
                     </div>

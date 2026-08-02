@@ -12,12 +12,14 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('CRITICAL APP RENDER ERROR CAUGHT BY BOUNDARY:', error, errorInfo)
-    this.setState({ errorInfo })
+    this.setState({ error, errorInfo })
   }
 
   handleReset = () => {
+    localStorage.clear()
+    sessionStorage.clear()
     this.setState({ hasError: false, error: null, errorInfo: null })
-    window.location.reload()
+    window.location.href = '/'
   }
 
   render() {
@@ -36,7 +38,7 @@ class ErrorBoundary extends React.Component {
           textAlign: 'center'
         }}>
           <div style={{
-            maxWidth: '480px',
+            maxWidth: '600px',
             width: '100%',
             background: '#FFFFFF',
             borderRadius: '16px',
@@ -46,29 +48,69 @@ class ErrorBoundary extends React.Component {
           }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚡</div>
             <h2 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 8px 0', color: '#0F172A' }}>
-              Application Recovered
+              Application Error Intercepted
             </h2>
-            <p style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.5', margin: '0 0 20px 0' }}>
-              A temporary display error was intercepted and safely contained to prevent app crashes. Click below to refresh your view smoothly.
+            <p style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.5', margin: '0 0 16px 0' }}>
+              The exact error detail below was captured:
             </p>
-            <button
-              onClick={this.handleReset}
-              style={{
-                width: '100%',
-                padding: '12px 20px',
-                background: '#2563EB',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '14px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              🔄 Reload & Restore Session
-            </button>
+
+            <div style={{
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              color: '#991B1B',
+              padding: '12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              textAlign: 'left',
+              fontFamily: 'monospace',
+              marginBottom: '20px',
+              maxHeight: '200px',
+              overflowY: 'auto',
+              wordBreak: 'break-word',
+              whiteSpace: 'pre-wrap'
+            }}>
+              <strong>Error:</strong> {this.state.error?.toString() || 'Unknown Render Error'}
+              {this.state.errorInfo?.componentStack && (
+                <div style={{ marginTop: '8px', fontSize: '11px', opacity: 0.8 }}>
+                  {this.state.errorInfo.componentStack}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#2563EB',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Try Re-rendering
+              </button>
+              <button
+                onClick={this.handleReset}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#EF4444',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Clear Cache & Hard Reset
+              </button>
+            </div>
           </div>
         </div>
       )
