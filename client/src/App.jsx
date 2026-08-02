@@ -1937,6 +1937,299 @@ function App() {
     document.body.removeChild(link)
   }
 
+  const exportPoToExcel = (order) => {
+    const prods = getNormalizedProducts(order)
+    let poTotalCost = 0
+    prods.forEach(p => {
+      const rec = (p.sizeBreakdown || []).reduce((s, sb) => s + (sb.receivedQty || 0), 0)
+      const price = Number(p.unitPrice || 0)
+      if (price > 0) poTotalCost += rec * price
+    })
+
+    let xml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${order.poNumber}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+      <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+      <style>
+        th { background-color: #0284C7; color: white; font-weight: bold; border: 1px solid #0284C7; text-align: left; padding: 6px; }
+        td { border: 1px solid #E2E8F0; padding: 6px; }
+        .header-title { font-size: 16px; font-weight: bold; color: #0284C7; }
+        .section-header { background-color: #F1F5F9; font-weight: bold; color: #0284C7; }
+        .total-row { background-color: #F8FAFC; font-weight: bold; border-top: 2px solid #0284C7; }
+      </style>
+    </head>
+    <body>
+      <table>
+        <tr><td colspan="5" class="header-title">Liberty Uniform &mdash; Supplier Purchase Order (${order.poNumber})</td></tr>
+        <tr><td><b>PO Number:</b></td><td>${order.poNumber}</td><td><b>Supplier:</b></td><td colspan="2">${order.partyName}</td></tr>
+        <tr><td><b>Status:</b></td><td>${order.status}</td><td><b>Target Date:</b></td><td colspan="2">${order.targetDate || '-'}</td></tr>
+        <tr><td><b>Created Date:</b></td><td>${new Date(order.createdAt).toLocaleDateString()}</td><td><b>Total Value:</b></td><td colspan="2">Rs. ${poTotalCost.toLocaleString('en-IN')}</td></tr>
+        ${order.notes ? `<tr><td><b>Special Notes:</b></td><td colspan="4">${order.notes}</td></tr>` : ''}
+        <tr><td colspan="5"></td></tr>
+      </table>`
+
+    prods.forEach((p, pIdx) => {
+      const sortedSizes = sortSizesAscending(p.sizeBreakdown || [])
+      const pOrdered = sortedSizes.reduce((s, sb) => s + (sb.orderedQty || 0), 0)
+      const pReceived = sortedSizes.reduce((s, sb) => s + (sb.receivedQty || 0), 0)
+      const pPending = Math.max(0, pOrdered - pReceived)
+      const pPrice = Number(p.unitPrice || 0)
+      const pCost = pPrice > 0 ? pReceived * pPrice : 0
+
+      xml += `<br/>
+      <table>
+        <tr class="section-header"><td colspan="5">Product #${pIdx + 1}: ${p.productName} (School / Firm: ${p.school}) | Unit Price: Rs. ${pPrice || '-'} | Total Cost: Rs. ${pCost ? pCost.toLocaleString('en-IN') : '-'}</td></tr>
+        <tr>
+          <th>Size</th>
+          <th>Ordered Qty</th>
+          <th>Received Qty</th>
+          <th>Pending Balance</th>
+          <th>Status</th>
+        </tr>`
+
+      sortedSizes.forEach(sb => {
+        const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
+        xml += `<tr>
+          <td>Size ${sb.size}</td>
+          <td>${sb.orderedQty} pcs</td>
+          <td>${sb.receivedQty || 0} pcs</td>
+          <td>${pending > 0 ? pending + ' pcs' : 'Done'}</td>
+          <td>${sb.orderedQty > 0 && sb.receivedQty >= sb.orderedQty ? 'Completed' : (sb.receivedQty > 0 ? 'Partial' : 'Pending')}</td>
+        </tr>`
+      })
+
+      xml += `<tr class="total-row">
+        <td><b>Total</b></td>
+        <td><b>${pOrdered} pcs</b></td>
+        <td><b>${pReceived} pcs</b></td>
+        <td><b>${pPending > 0 ? pPending + ' pcs' : 'Done'}</b></td>
+        <td><b>${pOrdered > 0 && pReceived >= pOrdered ? '100%' : Math.round((pReceived / (pOrdered || 1)) * 100) + '%'}</b></td>
+      </tr>
+      </table>`
+    })
+
+    if (order.installments && order.installments.length > 0) {
+      xml += `<br/>
+      <table>
+        <tr class="section-header"><td colspan="4">Stock Received Installment History (${order.installments.length} Batches)</td></tr>
+        <tr>
+          <th>Batch #</th>
+          <th>Date Received</th>
+          <th>Quantity Received</th>
+          <th>Breakdown & Notes</th>
+        </tr>`
+
+      order.installments.forEach((inst, idx) => {
+        const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+        const bItems = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')
+        xml += `<tr>
+          <td>Batch #${idx + 1}</td>
+          <td>${new Date(inst.receivedAt).toLocaleDateString()}</td>
+          <td>${bTotal} pcs</td>
+          <td>${bItems}${inst.notes ? ' | Note: ' + inst.notes : ''}</td>
+        </tr>`
+      })
+      xml += `</table>`
+    }
+
+    xml += `</body></html>`
+
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    const cleanName = `Restock_PO_${order.poNumber}_${(order.partyName || '').replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`
+    link.download = cleanName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleOpenPoPdfModal = (order) => {
+    setSelectedPoForPDF(order)
+    const today = new Date().toISOString().split('T')[0]
+    setPoPdfFileName(`Restock_PO_${order.poNumber}_${(order.partyName || '').replace(/[^a-zA-Z0-9]/g, '_')}_${today}`)
+    setPoPdfOrientation('landscape')
+    setPoPdfFormat('a4')
+    setPoPdfMargin('normal')
+    setPoPdfScale('normal')
+    setShowPoPDFModal(true)
+  }
+
+  const executePoPdfDownload = async () => {
+    if (!selectedPoForPDF) return
+    try {
+      setExportingPoPDF(true)
+      if (!window.jspdf) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+          s.onload = resolve
+          s.onerror = reject
+          document.head.appendChild(s)
+        })
+      }
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        throw new Error('jsPDF failed to load')
+      }
+      if (!window.jspdfAutoTable) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'
+          s.onload = resolve
+          s.onerror = reject
+          document.head.appendChild(s)
+        })
+        window.jspdfAutoTable = true
+      }
+
+      let cleanFileName = poPdfFileName.trim() ? poPdfFileName.trim() : `Restock_PO_${selectedPoForPDF.poNumber}`
+      if (!cleanFileName.toLowerCase().endsWith('.pdf')) cleanFileName += '.pdf'
+
+      let marginMm = 10
+      if (poPdfMargin === 'compact') marginMm = 6
+      if (poPdfMargin === 'wide') marginMm = 18
+
+      let bodyFontSize = 8
+      let headerFontSize = 8.5
+      if (poPdfScale === 'compact') { bodyFontSize = 7; headerFontSize = 7.5 }
+      if (poPdfScale === 'large') { bodyFontSize = 9.5; headerFontSize = 10 }
+
+      const { jsPDF } = window.jspdf
+      const doc = new jsPDF({
+        orientation: poPdfOrientation,
+        unit: 'mm',
+        format: poPdfFormat
+      })
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const usableWidth = pageWidth - marginMm * 2
+
+      // Header Banner
+      doc.setFillColor(2, 132, 199)
+      doc.rect(marginMm, marginMm, usableWidth, 7, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Liberty Uniform — Purchase Order (${selectedPoForPDF.poNumber})`, marginMm + 3, marginMm + 5)
+
+      doc.setTextColor(100, 116, 139)
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'normal')
+      const genDate = new Date().toLocaleDateString('en-GB')
+      doc.text(`Generated: ${genDate} | ${poPdfFormat.toUpperCase()} ${poPdfOrientation}`, pageWidth - marginMm, marginMm + 5, { align: 'right' })
+
+      doc.setTextColor(51, 65, 85)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      let currentY = marginMm + 12
+      doc.text(`Supplier: ${selectedPoForPDF.partyName}   Target Date: ${selectedPoForPDF.targetDate || '-'}   Status: ${selectedPoForPDF.status}`, marginMm, currentY)
+      currentY += 5
+
+      if (selectedPoForPDF.notes) {
+        doc.setFillColor(254, 243, 199)
+        doc.setDrawColor(252, 211, 77)
+        doc.rect(marginMm, currentY, usableWidth, 6, 'FD')
+        doc.setTextColor(146, 64, 14)
+        doc.setFontSize(7.5)
+        doc.text(`Special Notes: ${selectedPoForPDF.notes}`, marginMm + 3, currentY + 4)
+        currentY += 8
+      }
+
+      const prods = getNormalizedProducts(selectedPoForPDF)
+      for (let pIdx = 0; pIdx < prods.length; pIdx++) {
+        const prod = prods[pIdx]
+        const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
+        const pOrdered = sortedSizes.reduce((s, sb) => s + (sb.orderedQty || 0), 0)
+        const pReceived = sortedSizes.reduce((s, sb) => s + (sb.receivedQty || 0), 0)
+        const pPending = Math.max(0, pOrdered - pReceived)
+        const pPrice = Number(prod.unitPrice || 0)
+        const pCost = pPrice > 0 ? pReceived * pPrice : 0
+
+        doc.setTextColor(2, 132, 199)
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`Product #${pIdx + 1}: ${prod.productName} (School: ${prod.school}) — Unit Price: ${pPrice > 0 ? 'Rs.' + pPrice : '-'} | Total Cost: ${pCost > 0 ? 'Rs.' + pCost.toLocaleString('en-IN') : '-'}`, marginMm, currentY)
+        currentY += 3
+
+        const tableBody = sortedSizes.map(sb => {
+          const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
+          const pct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
+          return [
+            `Size ${sb.size}`,
+            `${sb.orderedQty} pcs`,
+            `${sb.receivedQty || 0} pcs`,
+            pending > 0 ? `${pending} pcs` : 'Done',
+            `${pct}%`
+          ]
+        })
+
+        const pPct = pOrdered > 0 ? Math.min(100, Math.round((pReceived / pOrdered) * 100)) : 0
+        tableBody.push([
+          'Total',
+          `${pOrdered} pcs`,
+          `${pReceived} pcs`,
+          pPending > 0 ? `${pPending} pcs` : 'Done',
+          `${pPct}%`
+        ])
+
+        doc.autoTable({
+          startY: currentY,
+          head: [['Size', 'Ordered', 'Received', 'Pending Balance', 'Fulfillment']],
+          body: tableBody,
+          margin: { left: marginMm, right: marginMm },
+          tableWidth: usableWidth,
+          styles: { fontSize: bodyFontSize, cellPadding: 1.8 },
+          headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: headerFontSize },
+          didParseCell: function(data) {
+            if (data.row.index === tableBody.length - 1) {
+              data.cell.styles.fontStyle = 'bold'
+              data.cell.styles.fillColor = [241, 245, 249]
+            }
+          }
+        })
+
+        currentY = doc.lastAutoTable.finalY + 6
+      }
+
+      if (selectedPoForPDF.installments && selectedPoForPDF.installments.length > 0) {
+        doc.setTextColor(51, 65, 85)
+        doc.setFontSize(8.5)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`Received Stock Installment History (${selectedPoForPDF.installments.length} Batches):`, marginMm, currentY)
+        currentY += 3
+
+        const instRows = selectedPoForPDF.installments.map((inst, idx) => {
+          const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+          const bItems = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')
+          return [
+            `Batch #${idx + 1}`,
+            new Date(inst.receivedAt).toLocaleDateString(),
+            `${bTotal} pcs`,
+            bItems + (inst.notes ? ` | Note: ${inst.notes}` : '')
+          ]
+        })
+
+        doc.autoTable({
+          startY: currentY,
+          head: [['Batch #', 'Date Received', 'Quantity Received', 'Breakdown & Notes']],
+          body: instRows,
+          margin: { left: marginMm, right: marginMm },
+          tableWidth: usableWidth,
+          styles: { fontSize: bodyFontSize, cellPadding: 1.8 },
+          headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: headerFontSize }
+        })
+      }
+
+      doc.save(cleanFileName)
+      setShowPoPDFModal(false)
+    } catch (err) {
+      console.error('Failed to generate PO PDF', err)
+      setMessage('Failed to generate PO PDF.')
+    } finally {
+      setExportingPoPDF(false)
+    }
+  }
+
   useEffect(() => {
     if (activePage === 'Supplier Restock' && token) {
       fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, vendorOrders.length > 0)
@@ -5639,14 +5932,6 @@ function App() {
                     >
                       {getSafeEmoji('🏭')} Manage Suppliers ({parties.length})
                     </button>
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={exportVendorOrdersCSV}
-                      style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      {getSafeEmoji('📊')} Export CSV
-                    </button>
                   </div>
                 </div>
 
@@ -6049,6 +6334,24 @@ function App() {
                                   style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
                                 >
                                   {getSafeEmoji('➕')} Receive Stock
+                                </button>
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  onClick={() => exportPoToExcel(order)}
+                                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  title="Export PO to Excel (.xlsx)"
+                                >
+                                  {getSafeEmoji('📊')} Excel (.xlsx)
+                                </button>
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  onClick={() => handleOpenPoPdfModal(order)}
+                                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  title="Save & Preview PDF Document"
+                                >
+                                  {getSafeEmoji('📄')} Save PDF
                                 </button>
                                 <button
                                   type="button"
@@ -7140,6 +7443,287 @@ function App() {
                       </table>
                     </div>
                   </div> {/* end inner content div */}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPoPDFModal && selectedPoForPDF && (
+        <div className="pdf-modal-backdrop">
+          <div className="pdf-modal-card">
+            <div className="pdf-modal-header">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} PO PDF Export & Live Preview</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
+                  Configure paper format, orientation, margins, and density with a live sheet preview.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="manage-modal-close"
+                onClick={() => setShowPoPDFModal(false)}
+                style={{ position: 'static', fontSize: '20px' }}
+              >
+                {getSafeEmoji('✕')}
+              </button>
+            </div>
+
+            <div className="pdf-modal-body">
+              {/* Settings Controls Sidebar */}
+              <div className="pdf-controls-sidebar">
+                <div className="pdf-control-group">
+                  <label>File Name</label>
+                  <input
+                    type="text"
+                    value={poPdfFileName}
+                    onChange={(e) => setPoPdfFileName(e.target.value)}
+                    placeholder="Enter file name"
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #CBD5E1',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>Orientation</label>
+                  <select
+                    value={poPdfOrientation}
+                    onChange={(e) => setPoPdfOrientation(e.target.value)}
+                  >
+                    <option value="landscape">Landscape (Horizontal - Rec.)</option>
+                    <option value="portrait">Portrait (Vertical)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>Paper Format</label>
+                  <select
+                    value={poPdfFormat}
+                    onChange={(e) => setPoPdfFormat(e.target.value)}
+                  >
+                    <option value="a4">A4 (210 × 297 mm)</option>
+                    <option value="a3">A3 (297 × 420 mm - Large Format)</option>
+                    <option value="letter">Letter (8.5 × 11 in)</option>
+                    <option value="legal">Legal (8.5 × 14 in)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>Margins</label>
+                  <select
+                    value={poPdfMargin}
+                    onChange={(e) => setPoPdfMargin(e.target.value)}
+                  >
+                    <option value="compact">Compact (3mm)</option>
+                    <option value="normal">Normal (6mm)</option>
+                    <option value="wide">Wide (12mm)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>Table Scale</label>
+                  <select
+                    value={poPdfScale}
+                    onChange={(e) => setPoPdfScale(e.target.value)}
+                  >
+                    <option value="compact">Compact (85%)</option>
+                    <option value="normal">Normal (100%)</option>
+                    <option value="large">Large Text (115%)</option>
+                  </select>
+                </div>
+
+                <div style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={executePoPdfDownload}
+                    disabled={exportingPoPDF}
+                    style={{ padding: '12px', fontSize: '14px', fontWeight: '700', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {exportingPoPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('⬇️')} Download PDF`}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setShowPoPDFModal(false)}
+                    style={{ padding: '10px', fontSize: '13px', justifyContent: 'center', display: 'flex', alignItems: 'center' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Preview Workspace */}
+              <div className="pdf-preview-workspace">
+                <div
+                  ref={poPdfPreviewSheetRef}
+                  className="pdf-paper-sheet"
+                  style={{
+                    width: (() => {
+                      if (poPdfFormat === 'a3') return poPdfOrientation === 'landscape' ? '1587px' : '1123px'
+                      if (poPdfFormat === 'legal') return poPdfOrientation === 'landscape' ? '1344px' : '816px'
+                      if (poPdfFormat === 'letter') return poPdfOrientation === 'landscape' ? '1056px' : '816px'
+                      return poPdfOrientation === 'landscape' ? '1123px' : '794px'
+                    })(),
+                    minHeight: (() => {
+                      if (poPdfFormat === 'a3') return poPdfOrientation === 'landscape' ? '1123px' : '1587px'
+                      if (poPdfFormat === 'legal') return poPdfOrientation === 'landscape' ? '816px' : '1344px'
+                      return poPdfOrientation === 'landscape' ? '794px' : '1123px'
+                    })(),
+                    padding: '0',
+                    fontSize: poPdfScale === 'compact' ? '10px' : (poPdfScale === 'large' ? '13px' : '11.5px'),
+                    boxSizing: 'border-box',
+                    fontFamily: 'Arial, sans-serif',
+                    lineHeight: '1.3',
+                    overflowX: 'hidden',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Dashed Margin Guide Overlay */}
+                  {(() => {
+                    const marginPx = poPdfMargin === 'compact' ? 23 : (poPdfMargin === 'wide' ? 68 : 38)
+                    return (
+                      <div style={{
+                        position: 'absolute',
+                        top: `${marginPx}px`,
+                        left: `${marginPx}px`,
+                        right: `${marginPx}px`,
+                        bottom: `${marginPx}px`,
+                        border: '1.5px dashed rgba(37,99,235,0.35)',
+                        borderRadius: '2px',
+                        pointerEvents: 'none',
+                        zIndex: 10
+                      }} />
+                    )
+                  })()}
+
+                  <div style={{
+                    padding: poPdfMargin === 'compact' ? '24px 24px' : (poPdfMargin === 'wide' ? '68px 68px' : '38px 38px'),
+                    boxSizing: 'border-box'
+                  }}>
+                    {/* Header */}
+                    <div style={{ borderBottom: '2px solid #0284C7', paddingBottom: '8px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                      <div>
+                        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0284C7' }}>
+                          Liberty Uniform &mdash; Supplier Purchase Order ({selectedPoForPDF.poNumber})
+                        </h2>
+                        <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>
+                          Supplier: <strong>{selectedPoForPDF.partyName}</strong> &nbsp;|&nbsp;
+                          Target Date: <strong>{selectedPoForPDF.targetDate || '-'}</strong> &nbsp;|&nbsp;
+                          Status: <strong>{selectedPoForPDF.status}</strong>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#64748B', textAlign: 'right' }}>
+                        <div>Generated: {new Date().toLocaleDateString()}</div>
+                        <div style={{ textTransform: 'uppercase', fontWeight: '700' }}>{poPdfFormat} &middot; {poPdfOrientation}</div>
+                      </div>
+                    </div>
+
+                    {/* Special Notes Callout Banner */}
+                    {selectedPoForPDF.notes && (
+                      <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', color: '#92400E', padding: '8px 12px', borderRadius: '6px', fontSize: '11px', marginBottom: '12px', fontWeight: '600' }}>
+                        <strong>📝 PO Special Instructions / Notes:</strong> {selectedPoForPDF.notes}
+                      </div>
+                    )}
+
+                    {/* Products Tables in Preview */}
+                    {getNormalizedProducts(selectedPoForPDF).map((prod, pIdx) => {
+                      const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
+                      const pOrdered = sortedSizes.reduce((s, sb) => s + (sb.orderedQty || 0), 0)
+                      const pReceived = sortedSizes.reduce((s, sb) => s + (sb.receivedQty || 0), 0)
+                      const pPending = Math.max(0, pOrdered - pReceived)
+                      const pPrice = Number(prod.unitPrice || 0)
+                      const pCost = pPrice > 0 ? pReceived * pPrice : 0
+                      const pPct = pOrdered > 0 ? Math.min(100, Math.round((pReceived / pOrdered) * 100)) : 0
+
+                      return (
+                        <div key={pIdx} style={{ marginBottom: '14px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '10px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontWeight: '700', fontSize: '12px', color: '#0284C7' }}>
+                            <span>Product #{pIdx + 1}: {prod.productName} (School / Firm: {prod.school})</span>
+                            <span style={{ color: '#059669' }}>
+                              Unit Price: {pPrice > 0 ? `₹${pPrice}` : '-'} | Product Total: {pCost > 0 ? `₹${pCost.toLocaleString('en-IN')}` : '-'}
+                            </span>
+                          </div>
+
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', background: '#FFFFFF' }}>
+                            <thead>
+                              <tr style={{ background: '#F1F5F9', borderBottom: '1px solid #CBD5E1', textAlign: 'left', color: '#475569' }}>
+                                <th style={{ padding: '6px' }}>Size</th>
+                                <th style={{ padding: '6px' }}>Ordered</th>
+                                <th style={{ padding: '6px' }}>Received</th>
+                                <th style={{ padding: '6px' }}>Pending</th>
+                                <th style={{ padding: '6px' }}>Fulfillment</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sortedSizes.map((sb) => {
+                                const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
+                                const pct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
+                                return (
+                                  <tr key={sb.size} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                    <td style={{ padding: '5px 6px', fontWeight: '700' }}>Size {sb.size}</td>
+                                    <td style={{ padding: '5px 6px' }}>{sb.orderedQty} pcs</td>
+                                    <td style={{ padding: '5px 6px', color: '#059669', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
+                                    <td style={{ padding: '5px 6px', color: pending > 0 ? '#D97706' : '#059669', fontWeight: '600' }}>{pending > 0 ? `${pending} pcs` : 'Done'}</td>
+                                    <td style={{ padding: '5px 6px' }}>{pct}%</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                            <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #CBD5E1', fontWeight: '800' }}>
+                              <tr>
+                                <td style={{ padding: '6px' }}>Total</td>
+                                <td style={{ padding: '6px', color: '#2563EB' }}>{pOrdered} pcs</td>
+                                <td style={{ padding: '6px', color: '#059669' }}>{pReceived} pcs</td>
+                                <td style={{ padding: '6px', color: pPending > 0 ? '#D97706' : '#059669' }}>{pPending > 0 ? `${pPending} pcs` : 'Done'}</td>
+                                <td style={{ padding: '6px' }}>{pPct}%</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )
+                    })}
+
+                    {/* Installments History Log Table in Preview */}
+                    {selectedPoForPDF.installments && selectedPoForPDF.installments.length > 0 && (
+                      <div style={{ marginTop: '12px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>
+                          📦 Received Installment History ({selectedPoForPDF.installments.length} Batches):
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
+                          <thead>
+                            <tr style={{ background: '#F1F5F9', borderBottom: '1px solid #CBD5E1', textAlign: 'left', color: '#475569' }}>
+                              <th style={{ padding: '6px' }}>Batch</th>
+                              <th style={{ padding: '6px' }}>Date</th>
+                              <th style={{ padding: '6px' }}>Quantity Received</th>
+                              <th style={{ padding: '6px' }}>Breakdown & Notes</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedPoForPDF.installments.map((inst, idx) => {
+                              const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+                              const bItems = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(' • ')
+                              return (
+                                <tr key={inst._id || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                  <td style={{ padding: '5px 6px', fontWeight: '700' }}>Batch #{idx + 1}</td>
+                                  <td style={{ padding: '5px 6px' }}>{new Date(inst.receivedAt).toLocaleDateString()}</td>
+                                  <td style={{ padding: '5px 6px', color: '#059669', fontWeight: '700' }}>{bTotal} pcs</td>
+                                  <td style={{ padding: '5px 6px' }}>{bItems}{inst.notes ? ` | Note: ${inst.notes}` : ''}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
