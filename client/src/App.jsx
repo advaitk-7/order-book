@@ -234,52 +234,34 @@ const getNextPoNumber = (vendorOrders) => {
   return Math.max(...nums) + 1
 }
 
-const safeFormatDate = (dateVal, fallback = '-') => {
-  if (!dateVal) return fallback
-  try {
-    const d = new Date(dateVal)
-    if (isNaN(d.getTime())) return fallback
-    return d.toLocaleDateString()
-  } catch {
-    return fallback
-  }
-}
-
 // Gold-Standard Universal Search Matcher (Safe against null/undefined, supports Array, Object, String)
 const checkFuzzyMatch = (searchQuery, target) => {
-  try {
-    if (!searchQuery || !String(searchQuery).trim()) return true
-    const rawQuery = String(searchQuery).trim().toLowerCase()
-    const cleanQuery = rawQuery.replace(/^#/, '').trim()
-    const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
-    if (queryTokens.length === 0) return true
+  if (!searchQuery || !String(searchQuery).trim()) return true
+  const rawQuery = String(searchQuery).trim().toLowerCase()
+  const cleanQuery = rawQuery.replace(/^#/, '').trim()
+  const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
+  if (queryTokens.length === 0) return true
 
-    let textToSearch = ''
-    if (Array.isArray(target)) {
-      textToSearch = target.filter(Boolean).map(item => String(item).toLowerCase()).join(' ')
-    } else if (typeof target === 'object' && target !== null) {
-      textToSearch = Object.values(target).filter(Boolean).map(val => {
-        if (typeof val === 'object') {
-          try { return JSON.stringify(val).toLowerCase() } catch { return '' }
-        }
-        return String(val).toLowerCase()
-      }).join(' ')
-    } else {
-      textToSearch = String(target || '').toLowerCase()
-    }
-
-    for (const token of queryTokens) {
-      const cleanToken = token.replace(/^#/, '')
-      if (!textToSearch.includes(token) && !textToSearch.includes(cleanToken)) {
-        return false
-      }
-    }
-
-    return true
-  } catch (err) {
-    console.error('Safe search match error caught:', err)
-    return true
+  let textToSearch = ''
+  if (Array.isArray(target)) {
+    textToSearch = target.filter(Boolean).map(item => String(item).toLowerCase()).join(' ')
+  } else if (typeof target === 'object' && target !== null) {
+    textToSearch = Object.values(target).filter(Boolean).map(val => {
+      if (typeof val === 'object') return JSON.stringify(val).toLowerCase()
+      return String(val).toLowerCase()
+    }).join(' ')
+  } else {
+    textToSearch = String(target || '').toLowerCase()
   }
+
+  for (const token of queryTokens) {
+    const cleanToken = token.replace(/^#/, '')
+    if (!textToSearch.includes(token) && !textToSearch.includes(cleanToken)) {
+      return false
+    }
+  }
+
+  return true
 }
 
 function App() {
@@ -651,6 +633,17 @@ function App() {
     notes: '',
     products: [{ productName: '', school: '', sizeBreakdown: [{ size: '28', orderedQty: '' }] }]
   })
+
+  // PO PDF Export Modal State
+  const [showPOPDFModal, setShowPOPDFModal] = useState(false)
+  const [selectedPOForPDF, setSelectedPOForPDF] = useState(null)
+  const [poPdfFileName, setPoPdfFileName] = useState('')
+  const [poPdfOrientation, setPoPdfOrientation] = useState('landscape')
+  const [poPdfFormat, setPoPdfFormat] = useState('a4')
+  const [poPdfMargin, setPoPdfMargin] = useState('normal')
+  const [poPdfScale, setPoPdfScale] = useState('normal')
+  const [exportingPOPDF, setExportingPOPDF] = useState(false)
+  const poPdfPreviewSheetRef = useRef(null)
 
   // Installment Modal
   const [showInstallmentModal, setShowInstallmentModal] = useState(false)
@@ -1955,128 +1948,122 @@ function App() {
     document.body.removeChild(link)
   }
 
-  const exportPoToExcel = (order) => {
+  const exportVendorOrderExcel = (order) => {
+    if (!order) return
     const prods = getNormalizedProducts(order)
-    let poTotalCost = 0
+    const partyClean = (order.partyName || 'Supplier').replace(/[^a-zA-Z0-9_-]/g, '_')
+    const fileName = `${order.poNumber || 'PO'}_${partyClean}.xlsx`
+
+    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`
+    html += `<head><meta charset="utf-8"/><style>
+      table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 12px; }
+      th, td { border: 1px solid #CBD5E1; padding: 8px; text-align: left; }
+      th { background-color: #2563EB; color: #FFFFFF; font-weight: bold; }
+      .header-table td { border: none; padding: 4px 8px; }
+      .total-row { background-color: #EFF6FF; font-weight: bold; }
+    </style></head><body>`
+
+    html += `<h2>RESTOCK PURCHASE ORDER &mdash; ${order.poNumber}</h2>`
+    html += `<table class="header-table">`
+    html += `<tr><td><strong>Supplier Name:</strong> ${order.partyName}</td><td><strong>Target Date:</strong> ${order.targetDate || '-'}</td></tr>`
+    html += `<tr><td><strong>Status:</strong> ${order.status}</td><td><strong>Created Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</td></tr>`
+    html += `</table><br/>`
+
+    html += `<h3>Product Breakdown</h3>`
+    html += `<table>`
+    html += `<thead><tr><th>Product Name</th><th>School / Firm</th><th>Size</th><th>Ordered Qty</th><th>Received Qty</th><th>Pending Balance</th><th>Unit Price (₹)</th><th>Product Cost (₹)</th></tr></thead>`
+    html += `<tbody>`
+
+    let grandOrdered = 0
+    let grandReceived = 0
+    let grandPending = 0
+    let grandCost = 0
+
     prods.forEach(p => {
-      const rec = (p.sizeBreakdown || []).reduce((s, sb) => s + (sb.receivedQty || 0), 0)
-      const price = Number(p.unitPrice || 0)
-      if (price > 0) poTotalCost += rec * price
-    })
-
-    let xml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-      <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${order.poNumber}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
-      <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
-      <style>
-        th { background-color: #0284C7; color: white; font-weight: bold; border: 1px solid #0284C7; text-align: left; padding: 6px; }
-        td { border: 1px solid #E2E8F0; padding: 6px; }
-        .header-title { font-size: 16px; font-weight: bold; color: #0284C7; }
-        .section-header { background-color: #F1F5F9; font-weight: bold; color: #0284C7; }
-        .total-row { background-color: #F8FAFC; font-weight: bold; border-top: 2px solid #0284C7; }
-      </style>
-    </head>
-    <body>
-      <table>
-        <tr><td colspan="5" class="header-title">Liberty Uniform &mdash; Supplier Purchase Order (${order.poNumber})</td></tr>
-        <tr><td><b>PO Number:</b></td><td>${order.poNumber}</td><td><b>Supplier:</b></td><td colspan="2">${order.partyName}</td></tr>
-        <tr><td><b>Status:</b></td><td>${order.status}</td><td><b>Target Date:</b></td><td colspan="2">${order.targetDate || '-'}</td></tr>
-        <tr><td><b>Created Date:</b></td><td>${new Date(order.createdAt).toLocaleDateString()}</td><td><b>Total Value:</b></td><td colspan="2">Rs. ${poTotalCost.toLocaleString('en-IN')}</td></tr>
-        ${order.notes ? `<tr><td><b>Special Notes:</b></td><td colspan="4">${order.notes}</td></tr>` : ''}
-        <tr><td colspan="5"></td></tr>
-      </table>`
-
-    prods.forEach((p, pIdx) => {
-      const sortedSizes = sortSizesAscending(p.sizeBreakdown || [])
-      const pOrdered = sortedSizes.reduce((s, sb) => s + (sb.orderedQty || 0), 0)
-      const pReceived = sortedSizes.reduce((s, sb) => s + (sb.receivedQty || 0), 0)
-      const pPending = Math.max(0, pOrdered - pReceived)
+      const sorted = sortSizesAscending(p.sizeBreakdown || [])
       const pPrice = Number(p.unitPrice || 0)
-      const pCost = pPrice > 0 ? pReceived * pPrice : 0
 
-      xml += `<br/>
-      <table>
-        <tr class="section-header"><td colspan="5">Product #${pIdx + 1}: ${p.productName} (School / Firm: ${p.school}) | Unit Price: Rs. ${pPrice || '-'} | Total Cost: Rs. ${pCost ? pCost.toLocaleString('en-IN') : '-'}</td></tr>
-        <tr>
-          <th>Size</th>
-          <th>Ordered Qty</th>
-          <th>Received Qty</th>
-          <th>Pending Balance</th>
-          <th>Status</th>
-        </tr>`
+      sorted.forEach((sb, idx) => {
+        const ordered = sb.orderedQty || 0
+        const received = sb.receivedQty || 0
+        const pending = Math.max(0, ordered - received)
+        const cost = pPrice > 0 ? received * pPrice : 0
 
-      sortedSizes.forEach(sb => {
-        const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
-        xml += `<tr>
-          <td>Size ${sb.size}</td>
-          <td>${sb.orderedQty} pcs</td>
-          <td>${sb.receivedQty || 0} pcs</td>
-          <td>${pending > 0 ? pending + ' pcs' : 'Done'}</td>
-          <td>${sb.orderedQty > 0 && sb.receivedQty >= sb.orderedQty ? 'Completed' : (sb.receivedQty > 0 ? 'Partial' : 'Pending')}</td>
-        </tr>`
+        grandOrdered += ordered
+        grandReceived += received
+        grandPending += pending
+        grandCost += cost
+
+        html += `<tr>`
+        html += `<td>${idx === 0 ? p.productName : ''}</td>`
+        html += `<td>${idx === 0 ? p.school : ''}</td>`
+        html += `<td>Size ${sb.size}</td>`
+        html += `<td>${ordered} pcs</td>`
+        html += `<td>${received} pcs</td>`
+        html += `<td>${pending > 0 ? pending + ' pcs' : 'Done'}</td>`
+        html += `<td>${pPrice > 0 ? '₹' + pPrice : '-'}</td>`
+        html += `<td>${cost > 0 ? '₹' + cost : '-'}</td>`
+        html += `</tr>`
       })
-
-      xml += `<tr class="total-row">
-        <td><b>Total</b></td>
-        <td><b>${pOrdered} pcs</b></td>
-        <td><b>${pReceived} pcs</b></td>
-        <td><b>${pPending > 0 ? pPending + ' pcs' : 'Done'}</b></td>
-        <td><b>${pOrdered > 0 && pReceived >= pOrdered ? '100%' : Math.round((pReceived / (pOrdered || 1)) * 100) + '%'}</b></td>
-      </tr>
-      </table>`
     })
 
-    if (order.installments && order.installments.length > 0) {
-      xml += `<br/>
-      <table>
-        <tr class="section-header"><td colspan="4">Stock Received Installment History (${order.installments.length} Batches)</td></tr>
-        <tr>
-          <th>Batch #</th>
-          <th>Date Received</th>
-          <th>Quantity Received</th>
-          <th>Breakdown & Notes</th>
-        </tr>`
+    html += `<tr class="total-row">`
+    html += `<td colspan="3"><strong>TOTAL</strong></td>`
+    html += `<td><strong>${grandOrdered} pcs</strong></td>`
+    html += `<td><strong>${grandReceived} pcs</strong></td>`
+    html += `<td><strong>${grandPending > 0 ? grandPending + ' pcs' : 'Done'}</strong></td>`
+    html += `<td>-</td>`
+    html += `<td><strong>${grandCost > 0 ? '₹' + grandCost.toLocaleString('en-IN') : '-'}</strong></td>`
+    html += `</tr>`
+    html += `</tbody></table>`
 
-      order.installments.forEach((inst, idx) => {
-        const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
-        const bItems = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')
-        xml += `<tr>
-          <td>Batch #${idx + 1}</td>
-          <td>${new Date(inst.receivedAt).toLocaleDateString()}</td>
-          <td>${bTotal} pcs</td>
-          <td>${bItems}${inst.notes ? ' | Note: ' + inst.notes : ''}</td>
-        </tr>`
-      })
-      xml += `</table>`
+    if (order.notes) {
+      html += `<br/><h3>PO Special Instructions / Notes</h3>`
+      html += `<p style="background:#FEF3C7; padding:10px; border:1px solid #FCD34D;">${order.notes}</p>`
     }
 
-    xml += `</body></html>`
+    if (order.installments && order.installments.length > 0) {
+      html += `<br/><h3>Received Stock Installment History</h3>`
+      html += `<table><thead><tr><th>Batch #</th><th>Received Date</th><th>Received Qty</th><th>Items Breakdown</th><th>Notes</th></tr></thead><tbody>`
+      order.installments.forEach((inst, idx) => {
+        const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+        const itemsStr = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')
+        html += `<tr>`
+        html += `<td>Batch #${idx + 1}</td>`
+        html += `<td>${new Date(inst.receivedAt).toLocaleDateString()}</td>`
+        html += `<td>${bTotal} pcs</td>`
+        html += `<td>${itemsStr}</td>`
+        html += `<td>${inst.notes || '-'}</td>`
+        html += `</tr>`
+      })
+      html += `</tbody></table>`
+    }
 
-    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    const cleanName = `Restock_PO_${order.poNumber}_${(order.partyName || '').replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`
-    link.download = cleanName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    html += `</body></html>`
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;choice=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
-  const handleOpenPoPdfModal = (order) => {
-    setSelectedPoForPDF(order)
-    const today = new Date().toISOString().split('T')[0]
-    setPoPdfFileName(`Restock_PO_${order.poNumber}_${(order.partyName || '').replace(/[^a-zA-Z0-9]/g, '_')}_${today}`)
-    setPoPdfOrientation('landscape')
-    setPoPdfFormat('a4')
-    setPoPdfMargin('normal')
-    setPoPdfScale('normal')
-    setShowPoPDFModal(true)
+  const handleOpenPOPDFModal = (order) => {
+    if (!order) return
+    setSelectedPOForPDF(order)
+    const partyClean = (order.partyName || 'Supplier').replace(/[^a-zA-Z0-9_-]/g, '_')
+    setPoPdfFileName(`PO_${order.poNumber || '0001'}_${partyClean}`)
+    setShowPOPDFModal(true)
   }
 
-  const executePoPdfDownload = async () => {
-    if (!selectedPoForPDF) return
+  const executePOPDFDownload = async () => {
+    if (!selectedPOForPDF) return
     try {
-      setExportingPoPDF(true)
+      setExportingPOPDF(true)
       if (!window.jspdf) {
         await new Promise((resolve, reject) => {
           const s = document.createElement('script')
@@ -2085,9 +2072,6 @@ function App() {
           s.onerror = reject
           document.head.appendChild(s)
         })
-      }
-      if (!window.jspdf || !window.jspdf.jsPDF) {
-        throw new Error('jsPDF failed to load')
       }
       if (!window.jspdfAutoTable) {
         await new Promise((resolve, reject) => {
@@ -2100,18 +2084,6 @@ function App() {
         window.jspdfAutoTable = true
       }
 
-      let cleanFileName = poPdfFileName.trim() ? poPdfFileName.trim() : `Restock_PO_${selectedPoForPDF.poNumber}`
-      if (!cleanFileName.toLowerCase().endsWith('.pdf')) cleanFileName += '.pdf'
-
-      let marginMm = 10
-      if (poPdfMargin === 'compact') marginMm = 6
-      if (poPdfMargin === 'wide') marginMm = 18
-
-      let bodyFontSize = 8
-      let headerFontSize = 8.5
-      if (poPdfScale === 'compact') { bodyFontSize = 7; headerFontSize = 7.5 }
-      if (poPdfScale === 'large') { bodyFontSize = 9.5; headerFontSize = 10 }
-
       const { jsPDF } = window.jspdf
       const doc = new jsPDF({
         orientation: poPdfOrientation,
@@ -2119,70 +2091,48 @@ function App() {
         format: poPdfFormat
       })
 
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const usableWidth = pageWidth - marginMm * 2
+      const order = selectedPOForPDF
+      const prods = getNormalizedProducts(order)
 
-      // Header Banner
-      doc.setFillColor(2, 132, 199)
-      doc.rect(marginMm, marginMm, usableWidth, 7, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(12)
+      doc.setFontSize(16)
+      doc.setTextColor(37, 99, 235)
       doc.setFont('helvetica', 'bold')
-      doc.text(`Liberty Uniform — Purchase Order (${selectedPoForPDF.poNumber})`, marginMm + 3, marginMm + 5)
+      doc.text(`LIBERTY UNIFORM — RESTOCK PURCHASE ORDER`, 14, 16)
 
+      doc.setFontSize(10)
       doc.setTextColor(100, 116, 139)
-      doc.setFontSize(7.5)
       doc.setFont('helvetica', 'normal')
-      const genDate = new Date().toLocaleDateString('en-GB')
-      doc.text(`Generated: ${genDate} | ${poPdfFormat.toUpperCase()} ${poPdfOrientation}`, pageWidth - marginMm, marginMm + 5, { align: 'right' })
-
-      doc.setTextColor(51, 65, 85)
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'bold')
-      let currentY = marginMm + 12
-      doc.text(`Supplier: ${selectedPoForPDF.partyName}   Target Date: ${selectedPoForPDF.targetDate || '-'}   Status: ${selectedPoForPDF.status}`, marginMm, currentY)
-      currentY += 5
-
-      if (selectedPoForPDF.notes) {
-        doc.setFillColor(254, 243, 199)
-        doc.setDrawColor(252, 211, 77)
-        doc.rect(marginMm, currentY, usableWidth, 6, 'FD')
-        doc.setTextColor(146, 64, 14)
-        doc.setFontSize(7.5)
-        doc.text(`Special Notes: ${selectedPoForPDF.notes}`, marginMm + 3, currentY + 4)
-        currentY += 8
+      doc.text(`PO Number: ${order.poNumber}  |  Supplier: ${order.partyName}  |  Status: ${order.status}`, 14, 23)
+      if (order.targetDate) {
+        doc.text(`Target Delivery Date: ${order.targetDate}  |  Created: ${new Date(order.createdAt).toLocaleDateString()}`, 14, 28)
       }
 
-      const prods = getNormalizedProducts(selectedPoForPDF)
-      for (let pIdx = 0; pIdx < prods.length; pIdx++) {
-        const prod = prods[pIdx]
-        const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
-        const pOrdered = sortedSizes.reduce((s, sb) => s + (sb.orderedQty || 0), 0)
-        const pReceived = sortedSizes.reduce((s, sb) => s + (sb.receivedQty || 0), 0)
-        const pPending = Math.max(0, pOrdered - pReceived)
-        const pPrice = Number(prod.unitPrice || 0)
-        const pCost = pPrice > 0 ? pReceived * pPrice : 0
+      let startY = order.targetDate ? 34 : 29
 
-        doc.setTextColor(2, 132, 199)
-        doc.setFontSize(9)
+      prods.forEach((prod, pIdx) => {
+        doc.setFontSize(11)
+        doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
-        doc.text(`Product #${pIdx + 1}: ${prod.productName} (School: ${prod.school}) — Unit Price: ${pPrice > 0 ? 'Rs.' + pPrice : '-'} | Total Cost: ${pCost > 0 ? 'Rs.' + pCost.toLocaleString('en-IN') : '-'}`, marginMm, currentY)
-        currentY += 3
+        doc.text(`Product ${pIdx + 1}: ${prod.productName} (School / Firm: ${prod.school || 'N/A'})`, 14, startY)
+        startY += 4
 
-        const tableBody = sortedSizes.map(sb => {
+        const sorted = sortSizesAscending(prod.sizeBreakdown || [])
+        const tableData = sorted.map(sb => {
           const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
-          const pct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
           return [
             `Size ${sb.size}`,
             `${sb.orderedQty} pcs`,
             `${sb.receivedQty || 0} pcs`,
             pending > 0 ? `${pending} pcs` : 'Done',
-            `${pct}%`
+            sb.orderedQty > 0 ? `${Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100))}%` : '0%'
           ]
         })
 
-        const pPct = pOrdered > 0 ? Math.min(100, Math.round((pReceived / pOrdered) * 100)) : 0
-        tableBody.push([
+        const pOrdered = sorted.reduce((s, b) => s + (b.orderedQty || 0), 0)
+        const pReceived = sorted.reduce((s, b) => s + (b.receivedQty || 0), 0)
+        const pPending = Math.max(0, pOrdered - pReceived)
+        const pPct = pOrdered > 0 ? Math.round((pReceived / pOrdered) * 100) : 0
+        tableData.push([
           'Total',
           `${pOrdered} pcs`,
           `${pReceived} pcs`,
@@ -2191,60 +2141,41 @@ function App() {
         ])
 
         doc.autoTable({
-          startY: currentY,
+          startY,
           head: [['Size', 'Ordered', 'Received', 'Pending Balance', 'Fulfillment']],
-          body: tableBody,
-          margin: { left: marginMm, right: marginMm },
-          tableWidth: usableWidth,
-          styles: { fontSize: bodyFontSize, cellPadding: 1.8 },
-          headStyles: { fillColor: [2, 132, 199], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: headerFontSize },
-          didParseCell: function(data) {
-            if (data.row.index === tableBody.length - 1) {
-              data.cell.styles.fontStyle = 'bold'
-              data.cell.styles.fillColor = [241, 245, 249]
-            }
-          }
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+          styles: { fontSize: 9, cellPadding: 3 }
         })
 
-        currentY = doc.lastAutoTable.finalY + 6
-      }
+        startY = doc.lastAutoTable.finalY + 8
+      })
 
-      if (selectedPoForPDF.installments && selectedPoForPDF.installments.length > 0) {
-        doc.setTextColor(51, 65, 85)
-        doc.setFontSize(8.5)
+      if (order.notes) {
+        if (startY > 250) { doc.addPage(); startY = 16 }
+        doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
-        doc.text(`Received Stock Installment History (${selectedPoForPDF.installments.length} Batches):`, marginMm, currentY)
-        currentY += 3
-
-        const instRows = selectedPoForPDF.installments.map((inst, idx) => {
-          const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
-          const bItems = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')
-          return [
-            `Batch #${idx + 1}`,
-            new Date(inst.receivedAt).toLocaleDateString(),
-            `${bTotal} pcs`,
-            bItems + (inst.notes ? ` | Note: ${inst.notes}` : '')
-          ]
-        })
-
-        doc.autoTable({
-          startY: currentY,
-          head: [['Batch #', 'Date Received', 'Quantity Received', 'Breakdown & Notes']],
-          body: instRows,
-          margin: { left: marginMm, right: marginMm },
-          tableWidth: usableWidth,
-          styles: { fontSize: bodyFontSize, cellPadding: 1.8 },
-          headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: headerFontSize }
-        })
+        doc.setTextColor(180, 83, 9)
+        doc.text(`Special Instructions / Notes:`, 14, startY)
+        startY += 5
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 65, 85)
+        const splitNotes = doc.splitTextToSize(order.notes, 180)
+        doc.text(splitNotes, 14, startY)
+        startY += (splitNotes.length * 4) + 6
       }
 
-      doc.save(cleanFileName)
-      setShowPoPDFModal(false)
+      let cleanName = poPdfFileName.trim() ? poPdfFileName.trim() : `PO_${order.poNumber}`
+      if (!cleanName.toLowerCase().endsWith('.pdf')) cleanName += '.pdf'
+      doc.save(cleanName)
+      setShowPOPDFModal(false)
     } catch (err) {
-      console.error('Failed to generate PO PDF', err)
-      setMessage('Failed to generate PO PDF.')
+      console.error('PO PDF export failed:', err)
+      alert('Failed to generate PO PDF: ' + err.message)
     } finally {
-      setExportingPoPDF(false)
+      setExportingPOPDF(false)
     }
   }
 
@@ -2257,7 +2188,7 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e && e.key && typeof e.key === 'string' && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         if (activePage === 'Supplier Restock' && poSearchInputRef.current) {
           e.preventDefault()
           poSearchInputRef.current.focus()
@@ -6160,8 +6091,7 @@ function App() {
 
                     {/* Live PO Counter Pill */}
                     {(() => {
-                      const tempFiltered = (vendorOrders || []).filter(o => {
-                        if (!o) return false
+                      const tempFiltered = vendorOrders.filter(o => {
                         if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
                         if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
                         if (vendorOrderSchoolFilter !== 'All') {
@@ -6172,9 +6102,9 @@ function App() {
                           const prods = getNormalizedProducts(o)
                           const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
                           const dates = [
-                            safeFormatDate(o.createdAt, ''),
+                            o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
                             o.targetDate || '',
-                            ...(o.installments || []).map(i => safeFormatDate(i.receivedAt, ''))
+                            ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
                           ]
                           const fields = [
                             o.poNumber,
@@ -6200,7 +6130,7 @@ function App() {
                             whiteSpace: 'nowrap'
                           }}
                         >
-                          Showing {tempFiltered.length} of {(vendorOrders || []).length} POs
+                          Showing {tempFiltered.length} of {vendorOrders.length} POs
                         </span>
                       )
                     })()}
@@ -6210,8 +6140,7 @@ function App() {
                 {/* Orders List View */}
                 <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
                   {(() => {
-                    const filteredOrders = (vendorOrders || []).filter(o => {
-                      if (!o) return false
+                    const filteredOrders = vendorOrders.filter(o => {
                       if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
                       if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
                       if (vendorOrderSchoolFilter !== 'All') {
@@ -6222,9 +6151,9 @@ function App() {
                         const prods = getNormalizedProducts(o)
                         const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
                         const dates = [
-                          safeFormatDate(o.createdAt, ''),
+                          o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
                           o.targetDate || '',
-                          ...(o.installments || []).map(i => safeFormatDate(i.receivedAt, ''))
+                          ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
                         ]
                         const fields = [
                           o.poNumber,
@@ -6314,9 +6243,9 @@ function App() {
                                 <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                                   <span>Products: <strong>{prods.length}</strong></span>
                                   {order.targetDate && <span>Target Date: <strong>{order.targetDate}</strong></span>}
-                                  <span>Created: <strong>{safeFormatDate(order.createdAt)}</strong></span>
+                                  <span>Created: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></span>
                                   <span style={{ fontWeight: '700', color: poHasAnyPrices ? (theme === 'dark' ? '#34D399' : '#059669') : '#64748B' }}>
-                                    Total PO Value: <strong>{poHasAnyPrices ? `₹${(poTotalCost || 0).toLocaleString('en-IN')}` : '-'}</strong>
+                                    Total PO Value: <strong>{poHasAnyPrices ? `₹${poTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
                                   </span>
                                 </div>
                               </div>
@@ -6357,24 +6286,6 @@ function App() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="secondary-btn"
-                                  onClick={() => exportPoToExcel(order)}
-                                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  title="Export PO to Excel (.xlsx)"
-                                >
-                                  {getSafeEmoji('📊')} Excel (.xlsx)
-                                </button>
-                                <button
-                                  type="button"
-                                  className="secondary-btn"
-                                  onClick={() => handleOpenPoPdfModal(order)}
-                                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  title="Save & Preview PDF Document"
-                                >
-                                  {getSafeEmoji('📄')} Save PDF
-                                </button>
-                                <button
-                                  type="button"
                                   className="icon-btn"
                                   title="Edit PO details"
                                   onClick={() => {
@@ -6395,6 +6306,24 @@ function App() {
                                   }}
                                 >
                                   {getSafeEmoji('✏️')}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  title="Export Excel Worksheet (.xlsx)"
+                                  onClick={() => exportVendorOrderExcel(order)}
+                                  style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  {getSafeEmoji('📊')} Export Excel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  title="Configure and Save as PDF"
+                                  onClick={() => handleOpenPOPDFModal(order)}
+                                  style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  {getSafeEmoji('📄')} Save as PDF
                                 </button>
                                 <button
                                   type="button"
@@ -7463,287 +7392,6 @@ function App() {
                       </table>
                     </div>
                   </div> {/* end inner content div */}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPoPDFModal && selectedPoForPDF && (
-        <div className="pdf-modal-backdrop">
-          <div className="pdf-modal-card">
-            <div className="pdf-modal-header">
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} PO PDF Export & Live Preview</h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
-                  Configure paper format, orientation, margins, and density with a live sheet preview.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="manage-modal-close"
-                onClick={() => setShowPoPDFModal(false)}
-                style={{ position: 'static', fontSize: '20px' }}
-              >
-                {getSafeEmoji('✕')}
-              </button>
-            </div>
-
-            <div className="pdf-modal-body">
-              {/* Settings Controls Sidebar */}
-              <div className="pdf-controls-sidebar">
-                <div className="pdf-control-group">
-                  <label>File Name</label>
-                  <input
-                    type="text"
-                    value={poPdfFileName}
-                    onChange={(e) => setPoPdfFileName(e.target.value)}
-                    placeholder="Enter file name"
-                    style={{
-                      padding: '8px 10px',
-                      fontSize: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #CBD5E1',
-                      width: '100%',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-
-                <div className="pdf-control-group">
-                  <label>Orientation</label>
-                  <select
-                    value={poPdfOrientation}
-                    onChange={(e) => setPoPdfOrientation(e.target.value)}
-                  >
-                    <option value="landscape">Landscape (Horizontal - Rec.)</option>
-                    <option value="portrait">Portrait (Vertical)</option>
-                  </select>
-                </div>
-
-                <div className="pdf-control-group">
-                  <label>Paper Format</label>
-                  <select
-                    value={poPdfFormat}
-                    onChange={(e) => setPoPdfFormat(e.target.value)}
-                  >
-                    <option value="a4">A4 (210 × 297 mm)</option>
-                    <option value="a3">A3 (297 × 420 mm - Large Format)</option>
-                    <option value="letter">Letter (8.5 × 11 in)</option>
-                    <option value="legal">Legal (8.5 × 14 in)</option>
-                  </select>
-                </div>
-
-                <div className="pdf-control-group">
-                  <label>Margins</label>
-                  <select
-                    value={poPdfMargin}
-                    onChange={(e) => setPoPdfMargin(e.target.value)}
-                  >
-                    <option value="compact">Compact (3mm)</option>
-                    <option value="normal">Normal (6mm)</option>
-                    <option value="wide">Wide (12mm)</option>
-                  </select>
-                </div>
-
-                <div className="pdf-control-group">
-                  <label>Table Scale</label>
-                  <select
-                    value={poPdfScale}
-                    onChange={(e) => setPoPdfScale(e.target.value)}
-                  >
-                    <option value="compact">Compact (85%)</option>
-                    <option value="normal">Normal (100%)</option>
-                    <option value="large">Large Text (115%)</option>
-                  </select>
-                </div>
-
-                <div style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <button
-                    type="button"
-                    className="primary-btn"
-                    onClick={executePoPdfDownload}
-                    disabled={exportingPoPDF}
-                    style={{ padding: '12px', fontSize: '14px', fontWeight: '700', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    {exportingPoPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('⬇️')} Download PDF`}
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={() => setShowPoPDFModal(false)}
-                    style={{ padding: '10px', fontSize: '13px', justifyContent: 'center', display: 'flex', alignItems: 'center' }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-
-              {/* Live Preview Workspace */}
-              <div className="pdf-preview-workspace">
-                <div
-                  ref={poPdfPreviewSheetRef}
-                  className="pdf-paper-sheet"
-                  style={{
-                    width: (() => {
-                      if (poPdfFormat === 'a3') return poPdfOrientation === 'landscape' ? '1587px' : '1123px'
-                      if (poPdfFormat === 'legal') return poPdfOrientation === 'landscape' ? '1344px' : '816px'
-                      if (poPdfFormat === 'letter') return poPdfOrientation === 'landscape' ? '1056px' : '816px'
-                      return poPdfOrientation === 'landscape' ? '1123px' : '794px'
-                    })(),
-                    minHeight: (() => {
-                      if (poPdfFormat === 'a3') return poPdfOrientation === 'landscape' ? '1123px' : '1587px'
-                      if (poPdfFormat === 'legal') return poPdfOrientation === 'landscape' ? '816px' : '1344px'
-                      return poPdfOrientation === 'landscape' ? '794px' : '1123px'
-                    })(),
-                    padding: '0',
-                    fontSize: poPdfScale === 'compact' ? '10px' : (poPdfScale === 'large' ? '13px' : '11.5px'),
-                    boxSizing: 'border-box',
-                    fontFamily: 'Arial, sans-serif',
-                    lineHeight: '1.3',
-                    overflowX: 'hidden',
-                    position: 'relative'
-                  }}
-                >
-                  {/* Dashed Margin Guide Overlay */}
-                  {(() => {
-                    const marginPx = poPdfMargin === 'compact' ? 23 : (poPdfMargin === 'wide' ? 68 : 38)
-                    return (
-                      <div style={{
-                        position: 'absolute',
-                        top: `${marginPx}px`,
-                        left: `${marginPx}px`,
-                        right: `${marginPx}px`,
-                        bottom: `${marginPx}px`,
-                        border: '1.5px dashed rgba(37,99,235,0.35)',
-                        borderRadius: '2px',
-                        pointerEvents: 'none',
-                        zIndex: 10
-                      }} />
-                    )
-                  })()}
-
-                  <div style={{
-                    padding: poPdfMargin === 'compact' ? '24px 24px' : (poPdfMargin === 'wide' ? '68px 68px' : '38px 38px'),
-                    boxSizing: 'border-box'
-                  }}>
-                    {/* Header */}
-                    <div style={{ borderBottom: '2px solid #0284C7', paddingBottom: '8px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                      <div>
-                        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0284C7' }}>
-                          Liberty Uniform &mdash; Supplier Purchase Order ({selectedPoForPDF.poNumber})
-                        </h2>
-                        <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>
-                          Supplier: <strong>{selectedPoForPDF.partyName}</strong> &nbsp;|&nbsp;
-                          Target Date: <strong>{selectedPoForPDF.targetDate || '-'}</strong> &nbsp;|&nbsp;
-                          Status: <strong>{selectedPoForPDF.status}</strong>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#64748B', textAlign: 'right' }}>
-                        <div>Generated: {safeFormatDate(new Date())}</div>
-                        <div style={{ textTransform: 'uppercase', fontWeight: '700' }}>{poPdfFormat} &middot; {poPdfOrientation}</div>
-                      </div>
-                    </div>
-
-                    {/* Special Notes Callout Banner */}
-                    {selectedPoForPDF.notes && (
-                      <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', color: '#92400E', padding: '8px 12px', borderRadius: '6px', fontSize: '11px', marginBottom: '12px', fontWeight: '600' }}>
-                        <strong>📝 PO Special Instructions / Notes:</strong> {selectedPoForPDF.notes}
-                      </div>
-                    )}
-
-                    {/* Products Tables in Preview */}
-                    {getNormalizedProducts(selectedPoForPDF).map((prod, pIdx) => {
-                      const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
-                      const pOrdered = sortedSizes.reduce((s, sb) => s + (sb.orderedQty || 0), 0)
-                      const pReceived = sortedSizes.reduce((s, sb) => s + (sb.receivedQty || 0), 0)
-                      const pPending = Math.max(0, pOrdered - pReceived)
-                      const pPrice = Number(prod.unitPrice || 0)
-                      const pCost = pPrice > 0 ? pReceived * pPrice : 0
-                      const pPct = pOrdered > 0 ? Math.min(100, Math.round((pReceived / pOrdered) * 100)) : 0
-
-                      return (
-                        <div key={pIdx} style={{ marginBottom: '14px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '10px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontWeight: '700', fontSize: '12px', color: '#0284C7' }}>
-                            <span>Product #{pIdx + 1}: {prod.productName} (School / Firm: {prod.school})</span>
-                            <span style={{ color: '#059669' }}>
-                              Unit Price: {pPrice > 0 ? `₹${pPrice}` : '-'} | Product Total: {pCost > 0 ? `₹${pCost.toLocaleString('en-IN')}` : '-'}
-                            </span>
-                          </div>
-
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', background: '#FFFFFF' }}>
-                            <thead>
-                              <tr style={{ background: '#F1F5F9', borderBottom: '1px solid #CBD5E1', textAlign: 'left', color: '#475569' }}>
-                                <th style={{ padding: '6px' }}>Size</th>
-                                <th style={{ padding: '6px' }}>Ordered</th>
-                                <th style={{ padding: '6px' }}>Received</th>
-                                <th style={{ padding: '6px' }}>Pending</th>
-                                <th style={{ padding: '6px' }}>Fulfillment</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {sortedSizes.map((sb) => {
-                                const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
-                                const pct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
-                                return (
-                                  <tr key={sb.size} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                    <td style={{ padding: '5px 6px', fontWeight: '700' }}>Size {sb.size}</td>
-                                    <td style={{ padding: '5px 6px' }}>{sb.orderedQty} pcs</td>
-                                    <td style={{ padding: '5px 6px', color: '#059669', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
-                                    <td style={{ padding: '5px 6px', color: pending > 0 ? '#D97706' : '#059669', fontWeight: '600' }}>{pending > 0 ? `${pending} pcs` : 'Done'}</td>
-                                    <td style={{ padding: '5px 6px' }}>{pct}%</td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                            <tfoot style={{ background: '#F8FAFC', borderTop: '2px solid #CBD5E1', fontWeight: '800' }}>
-                              <tr>
-                                <td style={{ padding: '6px' }}>Total</td>
-                                <td style={{ padding: '6px', color: '#2563EB' }}>{pOrdered} pcs</td>
-                                <td style={{ padding: '6px', color: '#059669' }}>{pReceived} pcs</td>
-                                <td style={{ padding: '6px', color: pPending > 0 ? '#D97706' : '#059669' }}>{pPending > 0 ? `${pPending} pcs` : 'Done'}</td>
-                                <td style={{ padding: '6px' }}>{pPct}%</td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      )
-                    })}
-
-                    {/* Installments History Log Table in Preview */}
-                    {selectedPoForPDF.installments && selectedPoForPDF.installments.length > 0 && (
-                      <div style={{ marginTop: '12px' }}>
-                        <div style={{ fontSize: '11px', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>
-                          📦 Received Installment History ({selectedPoForPDF.installments.length} Batches):
-                        </div>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
-                          <thead>
-                            <tr style={{ background: '#F1F5F9', borderBottom: '1px solid #CBD5E1', textAlign: 'left', color: '#475569' }}>
-                              <th style={{ padding: '6px' }}>Batch</th>
-                              <th style={{ padding: '6px' }}>Date</th>
-                              <th style={{ padding: '6px' }}>Quantity Received</th>
-                              <th style={{ padding: '6px' }}>Breakdown & Notes</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedPoForPDF.installments.map((inst, idx) => {
-                              const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
-                              const bItems = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(' • ')
-                              return (
-                                <tr key={inst._id || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                  <td style={{ padding: '5px 6px', fontWeight: '700' }}>Batch #{idx + 1}</td>
-                                  <td style={{ padding: '5px 6px' }}>{new Date(inst.receivedAt).toLocaleDateString()}</td>
-                                  <td style={{ padding: '5px 6px', color: '#059669', fontWeight: '700' }}>{bTotal} pcs</td>
-                                  <td style={{ padding: '5px 6px' }}>{bItems}{inst.notes ? ` | Note: ${inst.notes}` : ''}</td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
@@ -8841,6 +8489,287 @@ function App() {
       )}
 
       {/* Cycle Cleanup Confirmation Warning Modal */}
+      {/* Restock PO PDF Export & Live Preview Modal */}
+      {showPOPDFModal && selectedPOForPDF && (
+        <div className="pdf-modal-backdrop">
+          <div className="pdf-modal-card">
+            <div className="pdf-modal-header">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} PO PDF Export & Live Preview</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
+                  Configure paper format, orientation, margins, and density with a live sheet preview for {selectedPOForPDF.poNumber}.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="manage-modal-close"
+                onClick={() => setShowPOPDFModal(false)}
+                style={{ position: 'static', fontSize: '20px' }}
+              >
+                {getSafeEmoji('✕')}
+              </button>
+            </div>
+
+            <div className="pdf-modal-body">
+              {/* Settings Controls Sidebar */}
+              <div className="pdf-controls-sidebar">
+                <div className="pdf-control-group">
+                  <label>FILE NAME</label>
+                  <input
+                    type="text"
+                    value={poPdfFileName}
+                    onChange={(e) => setPoPdfFileName(e.target.value)}
+                    placeholder="Enter file name"
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>ORIENTATION</label>
+                  <select
+                    value={poPdfOrientation}
+                    onChange={(e) => setPoPdfOrientation(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="landscape">Landscape (Horizontal &mdash; Recommended)</option>
+                    <option value="portrait">Portrait (Vertical)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>PAPER FORMAT</label>
+                  <select
+                    value={poPdfFormat}
+                    onChange={(e) => setPoPdfFormat(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="a4">A4 (210 &times; 297 mm)</option>
+                    <option value="letter">Letter (8.5 &times; 11 in)</option>
+                    <option value="legal">Legal (8.5 &times; 14 in)</option>
+                    <option value="a3">A3 (297 &times; 420 mm)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>MARGINS</label>
+                  <select
+                    value={poPdfMargin}
+                    onChange={(e) => setPoPdfMargin(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="compact">Compact (3mm)</option>
+                    <option value="normal">Normal (6mm)</option>
+                    <option value="wide">Wide (12mm)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>TABLE SCALE</label>
+                  <select
+                    value={poPdfScale}
+                    onChange={(e) => setPoPdfScale(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="compact">Compact (80%)</option>
+                    <option value="normal">Normal (100%)</option>
+                    <option value="large">Large (120%)</option>
+                  </select>
+                </div>
+
+                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={executePOPDFDownload}
+                    disabled={exportingPOPDF}
+                    style={{ padding: '12px', width: '100%', fontSize: '13px', justifyContent: 'center' }}
+                  >
+                    {exportingPOPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('⬇️')} Download PDF`}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setShowPOPDFModal(false)}
+                    style={{ padding: '10px', width: '100%', fontSize: '13px', justifyContent: 'center' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Live Sheet Preview */}
+              <div className="pdf-preview-pane">
+                {(() => {
+                  const order = selectedPOForPDF
+                  const prods = getNormalizedProducts(order)
+                  let poTotalCost = 0
+                  let poHasAnyPrices = false
+                  prods.forEach(p => {
+                    const pRec = (p.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
+                    const pPrice = Number(p.unitPrice || 0)
+                    if (pPrice > 0) {
+                      poTotalCost += pRec * pPrice
+                      poHasAnyPrices = true
+                    }
+                  })
+
+                  return (
+                    <div
+                      ref={poPdfPreviewSheetRef}
+                      className="pdf-sheet-page"
+                      style={{
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        padding: poPdfMargin === 'compact' ? '12px' : poPdfMargin === 'wide' ? '32px' : '20px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                        borderRadius: '4px',
+                        minHeight: '600px'
+                      }}
+                    >
+                      {/* Document Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #2563EB', paddingBottom: '12px', marginBottom: '16px' }}>
+                        <div>
+                          <h2 style={{ margin: 0, fontSize: '18px', color: '#2563EB', fontWeight: '800' }}>
+                            Liberty Uniform &mdash; Purchase Order
+                          </h2>
+                          <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
+                            <strong>PO Number:</strong> {order.poNumber} &nbsp;|&nbsp; <strong>Supplier:</strong> {order.partyName}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748B' }}>
+                          <div>Generated: {new Date().toLocaleDateString()}</div>
+                          <div>Status: <strong style={{ color: order.status === 'Completed' ? '#059669' : order.status === 'Partial' ? '#D97706' : '#DC2626' }}>{order.status}</strong></div>
+                        </div>
+                      </div>
+
+                      {/* Meta Information Bar */}
+                      <div style={{ background: '#F8FAFC', padding: '10px 14px', borderRadius: '6px', border: '1px solid #E2E8F0', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                        <div>Target Delivery Date: <strong>{order.targetDate || 'Not specified'}</strong></div>
+                        <div>Created Date: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></div>
+                        <div>Total PO Value: <strong style={{ color: poHasAnyPrices ? '#059669' : '#64748B' }}>{poHasAnyPrices ? `₹${poTotalCost.toLocaleString('en-IN')}` : '-'}</strong></div>
+                      </div>
+
+                      {/* Product Tables */}
+                      {prods.map((prod, pIdx) => {
+                        const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
+                        const totalProdOrdered = sortedSizes.reduce((sum, sb) => sum + (sb.orderedQty || 0), 0)
+                        const totalProdReceived = sortedSizes.reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
+                        const totalProdPending = Math.max(0, totalProdOrdered - totalProdReceived)
+                        const totalProdPct = totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdReceived / totalProdOrdered) * 100)) : 0
+
+                        const prodUnitPrice = Number(prod.unitPrice || 0)
+                        const prodTotalCost = prodUnitPrice > 0 ? totalProdReceived * prodUnitPrice : 0
+
+                        return (
+                          <div key={pIdx} style={{ marginBottom: '16px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <div style={{ fontWeight: '800', fontSize: '13px', color: '#0284C7' }}>
+                                Product {pIdx + 1} &mdash; {prod.productName} {prod.school ? `(School/Firm: ${prod.school})` : ''}
+                              </div>
+                              <div style={{ fontSize: '11px', textAlign: 'right' }}>
+                                Price: <strong>{prodUnitPrice > 0 ? `₹${prodUnitPrice}` : '-'}</strong> &nbsp;|&nbsp; Total Cost: <strong style={{ color: prodUnitPrice > 0 ? '#059669' : '#64748B' }}>{prodUnitPrice > 0 ? `₹${prodTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
+                              </div>
+                            </div>
+
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                              <thead>
+                                <tr style={{ background: '#2563EB', color: '#FFFFFF' }}>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Size</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Ordered</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Received</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Pending Balance</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Fulfillment</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sortedSizes.map((sb) => {
+                                  const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
+                                  const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
+                                  return (
+                                    <tr key={sb.size} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                      <td style={{ padding: '5px 8px', fontWeight: '700' }}>Size {sb.size}</td>
+                                      <td style={{ padding: '5px 8px' }}>{sb.orderedQty} pcs</td>
+                                      <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
+                                      <td style={{ padding: '5px 8px', color: pending > 0 ? '#D97706' : '#059669', fontWeight: '600' }}>{pending > 0 ? `${pending} pcs` : 'Done'}</td>
+                                      <td style={{ padding: '5px 8px' }}>{sizePct}%</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                              <tfoot style={{ background: '#F8FAFC', fontWeight: '800', borderTop: '2px solid #CBD5E1' }}>
+                                <tr>
+                                  <td style={{ padding: '6px 8px' }}>Total</td>
+                                  <td style={{ padding: '6px 8px', color: '#2563EB' }}>{totalProdOrdered} pcs</td>
+                                  <td style={{ padding: '6px 8px', color: '#059669' }}>{totalProdReceived} pcs</td>
+                                  <td style={{ padding: '6px 8px', color: totalProdPending > 0 ? '#D97706' : '#059669' }}>{totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}</td>
+                                  <td style={{ padding: '6px 8px' }}>{totalProdPct}%</td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+                        )
+                      })}
+
+                      {/* Notes Section */}
+                      {order.notes && (
+                        <div style={{ background: '#FEF3C7', padding: '10px 14px', borderRadius: '6px', border: '1px solid #FCD34D', fontSize: '11px', color: '#92400E', marginTop: '12px' }}>
+                          <strong>PO Special Instructions / Notes:</strong> {order.notes}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
