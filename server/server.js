@@ -1495,12 +1495,21 @@ function recalculateOrderQuantities(order) {
     });
   });
 
+  let grandTotalOrdered = 0;
+  let grandTotalReceived = 0;
+  let totalPending = 0;
+
   // Calculate totals and sort size breakdowns
   (order.products || []).forEach(p => {
     sortSizeBreakdown(p.sizeBreakdown || []);
     (p.sizeBreakdown || []).forEach(sb => {
-      grandTotalOrdered += (sb.orderedQty || 0);
-      grandTotalReceived += (sb.receivedQty || 0);
+      const ord = (sb.orderedQty || 0);
+      const rec = (sb.receivedQty || 0);
+      grandTotalOrdered += ord;
+      grandTotalReceived += rec;
+      if (rec < ord) {
+        totalPending += (ord - rec);
+      }
     });
   });
 
@@ -1510,8 +1519,9 @@ function recalculateOrderQuantities(order) {
     order.school = order.products.map(p => p.school).filter(Boolean).join(', ');
   }
 
-  // Recalculate status & completion timestamp
-  if (grandTotalReceived >= grandTotalOrdered && grandTotalOrdered > 0) {
+  // Recalculate status & completion timestamp:
+  // Order is ONLY Completed if every size item has received >= ordered (totalPending === 0)
+  if (totalPending === 0 && grandTotalOrdered > 0) {
     order.status = "Completed";
     if (!order.completedAt) {
       order.completedAt = new Date();

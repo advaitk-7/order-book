@@ -1902,13 +1902,18 @@ function App() {
       const prodsSummary = prods.map(p => `${p.productName} (${p.school})`).join(' | ')
       let totalOrdered = 0
       let totalReceived = 0
+      let pendingBalance = 0
       prods.forEach(p => {
         (p.sizeBreakdown || []).forEach(s => {
-          totalOrdered += (s.orderedQty || 0)
-          totalReceived += (s.receivedQty || 0)
+          const ord = s.orderedQty || 0
+          const rec = s.receivedQty || 0
+          totalOrdered += ord
+          totalReceived += rec
+          if (rec < ord) {
+            pendingBalance += (ord - rec)
+          }
         })
       })
-      const pendingBalance = Math.max(0, totalOrdered - totalReceived)
       return [
         vo.poNumber,
         `"${(vo.partyName || '').replace(/"/g, '""')}"`,
@@ -6341,6 +6346,7 @@ function App() {
                         const prods = getNormalizedProducts(order)
                         let totalOrdered = 0
                         let totalReceived = 0
+                        let pendingBalance = 0
                         let poTotalCost = 0
                         let poHasAnyPrices = false
 
@@ -6352,11 +6358,15 @@ function App() {
                               poTotalCost += (sb.receivedQty || 0) * sbPrice
                               poHasAnyPrices = true
                             }
-                            totalOrdered += (sb.orderedQty || 0)
-                            totalReceived += (sb.receivedQty || 0)
+                            const ord = sb.orderedQty || 0
+                            const rec = sb.receivedQty || 0
+                            totalOrdered += ord
+                            totalReceived += rec
+                            if (rec < ord) {
+                              pendingBalance += (ord - rec)
+                            }
                           })
                         })
-                        const pendingBalance = Math.max(0, totalOrdered - totalReceived)
                         const progressPct = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0
 
                         let daysLeftForDeletion = null
