@@ -1957,7 +1957,6 @@ function App() {
     const rows = []
     rows.push([`RESTOCK PURCHASE ORDER — ${order.poNumber}`])
     rows.push([`Supplier Name:`, order.partyName, `Target Date:`, order.targetDate || '-'])
-    rows.push([`Status:`, order.status, `Created Date:`, new Date(order.createdAt).toLocaleDateString()])
     rows.push([])
 
     rows.push(['Product Breakdown'])
@@ -2095,9 +2094,9 @@ function App() {
       doc.setFontSize(10)
       doc.setTextColor(100, 116, 139)
       doc.setFont('helvetica', 'normal')
-      doc.text(`PO Number: ${order.poNumber}  |  Supplier: ${order.partyName}  |  Status: ${order.status}`, 14, 23)
+      doc.text(`PO Number: ${order.poNumber}  |  Supplier: ${order.partyName}`, 14, 23)
       if (order.targetDate) {
-        doc.text(`Target Delivery Date: ${order.targetDate}  |  Created: ${new Date(order.createdAt).toLocaleDateString()}`, 14, 28)
+        doc.text(`Target Delivery Date: ${order.targetDate}`, 14, 28)
       }
 
       let startY = order.targetDate ? 34 : 29
@@ -8722,14 +8721,12 @@ function App() {
                         </div>
                         <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748B' }}>
                           <div>Generated: {new Date().toLocaleDateString()}</div>
-                          <div>Status: <strong style={{ color: order.status === 'Completed' ? '#059669' : order.status === 'Partial' ? '#D97706' : '#DC2626' }}>{order.status}</strong></div>
                         </div>
                       </div>
 
                       {/* Meta Information Bar */}
                       <div style={{ background: '#F8FAFC', padding: '10px 14px', borderRadius: '6px', border: '1px solid #E2E8F0', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                         <div>Target Delivery Date: <strong>{order.targetDate || 'Not specified'}</strong></div>
-                        <div>Created Date: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></div>
                         <div>Total PO Value: <strong style={{ color: poHasAnyPrices ? '#059669' : '#64748B' }}>{poHasAnyPrices ? `₹${poTotalCost.toLocaleString('en-IN')}` : '-'}</strong></div>
                       </div>
 
