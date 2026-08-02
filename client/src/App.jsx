@@ -6150,45 +6150,70 @@ function App() {
 
                             {/* Received Installment History Log Timeline */}
                             {order.installments && order.installments.length > 0 && (
-                              <div style={{ marginTop: '12px', borderTop: '1px dashed var(--border-color, #E2E8F0)', paddingTop: '10px' }}>
-                                <p style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', margin: '0 0 6px 0' }}>
-                                  📦 Received Installment History ({order.installments.length} Batches):
-                                </p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <div style={{ marginTop: '16px', borderTop: '1px dashed var(--border-color, #CBD5E1)', paddingTop: '14px' }}>
+                                <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span>{getSafeEmoji('📦')}</span> Received Installment History ({order.installments.length} {order.installments.length === 1 ? 'Batch' : 'Batches'}):
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                   {order.installments.map((inst, idx) => {
                                     const batchTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
                                     return (
                                       <div
                                         key={inst._id || idx}
                                         style={{
-                                          fontSize: '11px',
                                           background: theme === 'dark' ? '#0F172A' : '#FFFFFF',
-                                          padding: '8px 12px',
-                                          borderRadius: '6px',
-                                          border: '1px solid var(--border-color, #E2E8F0)',
+                                          padding: '12px 16px',
+                                          borderRadius: '10px',
+                                          border: theme === 'dark' ? '1px solid #334155' : '1px solid #CBD5E1',
+                                          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                                           display: 'flex',
                                           justifyContent: 'space-between',
-                                          alignItems: 'center'
+                                          alignItems: 'flex-start',
+                                          gap: '12px',
+                                          flexWrap: 'wrap'
                                         }}
                                       >
-                                        <div>
-                                          <span style={{ fontWeight: '700' }}>Batch #{idx + 1} ({new Date(inst.receivedAt).toLocaleDateString()}): </span>
-                                          {inst.challanNumber && <span>Challan: <strong>{inst.challanNumber}</strong> | </span>}
-                                          <span style={{ color: '#10B981', fontWeight: '700' }}>Received {batchTotal} pcs </span>
-                                          <span style={{ color: '#64748B' }}>
-                                            [{(inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')}]
-                                          </span>
+                                        <div style={{ flex: 1, minWidth: '240px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                                            <span style={{ fontWeight: '800', fontSize: '13px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                                              Batch #{idx + 1} ({new Date(inst.receivedAt).toLocaleDateString()})
+                                            </span>
+                                            <span
+                                              style={{
+                                                fontSize: '12px',
+                                                fontWeight: '800',
+                                                padding: '2px 8px',
+                                                borderRadius: '6px',
+                                                background: theme === 'dark' ? '#064E3B' : '#D1FAE5',
+                                                color: theme === 'dark' ? '#34D399' : '#059669',
+                                                border: theme === 'dark' ? '1px solid #059669' : '1px solid #6EE7B7'
+                                              }}
+                                            >
+                                              Received {batchTotal} pcs
+                                            </span>
+                                            {inst.challanNumber && (
+                                              <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>
+                                                Challan: <strong style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{inst.challanNumber}</strong>
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          <div style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', lineHeight: '1.4' }}>
+                                            {(inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(' • ')}
+                                          </div>
+
                                           {inst.notes && (
-                                            <div style={{ color: '#2563EB', fontWeight: '600', marginTop: '2px', fontSize: '11px' }}>
-                                              📝 Batch Note: {inst.notes}
+                                            <div style={{ color: '#2563EB', fontWeight: '600', marginTop: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                              <span>📝</span> Note: {inst.notes}
                                             </div>
                                           )}
                                         </div>
-                                        <div style={{ display: 'flex', gap: '4px' }}>
+
+                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                                           <button
                                             type="button"
                                             className="icon-btn"
-                                            style={{ padding: '2px 4px', fontSize: '11px' }}
+                                            style={{ padding: '6px 8px', fontSize: '12px' }}
                                             title="Edit Installment Batch"
                                             onClick={() => handleOpenEditInstallment(order, inst)}
                                           >
@@ -6197,7 +6222,7 @@ function App() {
                                           <button
                                             type="button"
                                             className="icon-btn danger"
-                                            style={{ padding: '2px 4px', fontSize: '11px' }}
+                                            style={{ padding: '6px 8px', fontSize: '12px' }}
                                             title="Delete Installment Batch"
                                             onClick={() => handleDeleteInstallment(order, inst._id)}
                                           >
