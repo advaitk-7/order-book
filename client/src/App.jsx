@@ -6015,22 +6015,25 @@ function App() {
                               <div
                                 style={{
                                   margin: '10px 0 14px 0',
-                                  padding: '10px 14px',
-                                  borderRadius: '8px',
+                                  padding: '12px 16px',
+                                  borderRadius: '10px',
                                   background: theme === 'dark' ? '#1E293B' : '#FEF3C7',
                                   border: theme === 'dark' ? '1px solid #D97706' : '1px solid #FCD34D',
                                   color: theme === 'dark' ? '#FDE68A' : '#92400E',
-                                  fontSize: '12px',
+                                  fontSize: '13px',
                                   display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
+                                  alignItems: 'flex-start',
+                                  gap: '10px',
                                   fontWeight: '600',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                  wordBreak: 'break-word',
+                                  whiteSpace: 'pre-wrap',
+                                  lineHeight: '1.5'
                                 }}
                               >
-                                <span style={{ fontSize: '15px' }}>{getSafeEmoji('📝')}</span>
-                                <div>
-                                  <strong>PO Special Instructions / Note:</strong> {order.notes}
+                                <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '2px' }}>{getSafeEmoji('📝')}</span>
+                                <div style={{ flex: 1 }}>
+                                  <strong style={{ color: theme === 'dark' ? '#FBBF24' : '#B45309' }}>PO Special Instructions / Note:</strong> {order.notes}
                                 </div>
                               </div>
                             )}
@@ -7833,12 +7836,25 @@ function App() {
 
               <div className="manage-input-group">
                 <label>
-                  PO Order Notes (Optional)
-                  <input
-                    type="text"
+                  PO Order Special Instructions / Notes (Optional &mdash; Unlimited Length)
+                  <textarea
+                    rows={3}
                     value={vendorOrderFormData.notes}
                     onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, notes: e.target.value })}
-                    placeholder="e.g. Urgent shipment, special fabric code"
+                    placeholder="Enter any detailed notes, special instructions, fabric specs, delivery addresses, terms..."
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      fontSize: '13px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      lineHeight: '1.5',
+                      boxSizing: 'border-box'
+                    }}
                   />
                 </label>
               </div>
