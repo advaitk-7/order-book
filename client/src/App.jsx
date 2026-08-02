@@ -1992,13 +1992,16 @@ function App() {
         ])
       })
 
+      const pSurplus = pReceived > pOrdered ? pReceived - pOrdered : 0
+      const pRecStr = pSurplus > 0 ? `${pReceived} pcs (+${pSurplus} Extra)` : `${pReceived} pcs`
+
       rows.push([
         `Total (${p.productName})`,
         '',
         '',
         '',
         `${pOrdered} pcs`,
-        `${pReceived} pcs`,
+        pRecStr,
         pPending > 0 ? `${pPending} pcs` : 'Done',
         pTotalCost > 0 ? `Total Product Cost: Rs. ${pTotalCost}` : '-'
       ])
@@ -2008,11 +2011,14 @@ function App() {
       }
     })
 
+    const grandSurplus = grandReceived > grandOrdered ? grandReceived - grandOrdered : 0
+    const grandRecStr = grandSurplus > 0 ? `${grandReceived} pcs (+${grandSurplus} Extra)` : `${grandReceived} pcs`
+
     rows.push([])
     rows.push([
       'TOTAL PO SUMMARY', '', '',
       `${grandOrdered} pcs`,
-      `${grandReceived} pcs`,
+      grandRecStr,
       `${grandPending > 0 ? grandPending + ' pcs' : 'Done'}`,
       grandCost > 0 ? `Total PO Value: Rs. ${grandCost}` : '-'
     ])
@@ -2181,11 +2187,14 @@ function App() {
         })
 
         const pPending = Math.max(0, pOrdered - pReceived)
+        const pSurplus = pReceived > pOrdered ? pReceived - pOrdered : 0
+        const pRecStr = pSurplus > 0 ? `${pReceived} pcs (+${pSurplus} Extra)` : `${pReceived} pcs`
+
         tableData.push([
           'Total',
           '',
           `${pOrdered} pcs`,
-          `${pReceived} pcs`,
+          pRecStr,
           pPending > 0 ? `${pPending} pcs` : 'Done',
           pTotalCost > 0 ? `Rs.${pTotalCost.toLocaleString('en-IN')}` : '-'
         ])
