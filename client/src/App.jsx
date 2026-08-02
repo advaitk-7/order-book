@@ -1994,7 +1994,7 @@ function App() {
         rows.push([
           idx === 0 ? p.productName : '',
           idx === 0 ? p.school : '',
-          `Size ${sb.size}`,
+          sb.size,
           sbPrice > 0 ? `Rs. ${sbPrice}` : '-',
           `${ordered} pcs`,
           `${received} pcs`,
@@ -2177,7 +2177,7 @@ function App() {
           pReceived += (sb.receivedQty || 0)
           pOrdered += (sb.orderedQty || 0)
           return [
-            `Size ${sb.size}`,
+            `${sb.size}`,
             sbPrice > 0 ? `Rs.${sbPrice}` : '-',
             `${sb.orderedQty || 0} pcs`,
             `${sb.receivedQty || 0} pcs`,
@@ -6627,7 +6627,7 @@ function App() {
                                           const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
                                           return (
                                             <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
-                                              <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>Size {sb.size}</td>
+                                              <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>{sb.size}</td>
                                               <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '140px' }}>
                                                 {sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}
                                               </td>
@@ -8929,7 +8929,7 @@ function App() {
                                   const rowCost = sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
                                   return (
                                     <tr key={sb.size} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                      <td style={{ padding: '5px 8px', fontWeight: '700' }}>Size {sb.size}</td>
+                                      <td style={{ padding: '5px 8px', fontWeight: '700' }}>{sb.size}</td>
                                       <td style={{ padding: '5px 8px', color: '#475569' }}>{sbPrice > 0 ? `₹${sbPrice}` : '-'}</td>
                                       <td style={{ padding: '5px 8px' }}>{sb.orderedQty || 0} pcs</td>
                                       <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
