@@ -1948,31 +1948,20 @@ function App() {
     document.body.removeChild(link)
   }
 
-  const exportVendorOrderExcel = (order) => {
+  const exportVendorOrderCSV = (order) => {
     if (!order) return
     const prods = getNormalizedProducts(order)
     const partyClean = (order.partyName || 'Supplier').replace(/[^a-zA-Z0-9_-]/g, '_')
-    const fileName = `${order.poNumber || 'PO'}_${partyClean}.xlsx`
+    const fileName = `${order.poNumber || 'PO'}_${partyClean}.csv`
 
-    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`
-    html += `<head><meta charset="utf-8"/><style>
-      table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 12px; }
-      th, td { border: 1px solid #CBD5E1; padding: 8px; text-align: left; }
-      th { background-color: #2563EB; color: #FFFFFF; font-weight: bold; }
-      .header-table td { border: none; padding: 4px 8px; }
-      .total-row { background-color: #EFF6FF; font-weight: bold; }
-    </style></head><body>`
+    const rows = []
+    rows.push([`RESTOCK PURCHASE ORDER — ${order.poNumber}`])
+    rows.push([`Supplier Name:`, order.partyName, `Target Date:`, order.targetDate || '-'])
+    rows.push([`Status:`, order.status, `Created Date:`, new Date(order.createdAt).toLocaleDateString()])
+    rows.push([])
 
-    html += `<h2>RESTOCK PURCHASE ORDER &mdash; ${order.poNumber}</h2>`
-    html += `<table class="header-table">`
-    html += `<tr><td><strong>Supplier Name:</strong> ${order.partyName}</td><td><strong>Target Date:</strong> ${order.targetDate || '-'}</td></tr>`
-    html += `<tr><td><strong>Status:</strong> ${order.status}</td><td><strong>Created Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</td></tr>`
-    html += `</table><br/>`
-
-    html += `<h3>Product Breakdown</h3>`
-    html += `<table>`
-    html += `<thead><tr><th>Product Name</th><th>School / Firm</th><th>Size</th><th>Ordered Qty</th><th>Received Qty</th><th>Pending Balance</th><th>Unit Price (₹)</th><th>Product Cost (₹)</th></tr></thead>`
-    html += `<tbody>`
+    rows.push(['Product Breakdown'])
+    rows.push(['Product Name', 'School / Firm', 'Size', 'Ordered Qty', 'Received Qty', 'Pending Balance', 'Price / Unit (₹)', 'Product Cost (₹)'])
 
     let grandOrdered = 0
     let grandReceived = 0
@@ -1994,54 +1983,53 @@ function App() {
         grandPending += pending
         grandCost += cost
 
-        html += `<tr>`
-        html += `<td>${idx === 0 ? p.productName : ''}</td>`
-        html += `<td>${idx === 0 ? p.school : ''}</td>`
-        html += `<td>Size ${sb.size}</td>`
-        html += `<td>${ordered} pcs</td>`
-        html += `<td>${received} pcs</td>`
-        html += `<td>${pending > 0 ? pending + ' pcs' : 'Done'}</td>`
-        html += `<td>${pPrice > 0 ? '₹' + pPrice : '-'}</td>`
-        html += `<td>${cost > 0 ? '₹' + cost : '-'}</td>`
-        html += `</tr>`
+        rows.push([
+          idx === 0 ? p.productName : '',
+          idx === 0 ? p.school : '',
+          `Size ${sb.size}`,
+          `${ordered} pcs`,
+          `${received} pcs`,
+          pending > 0 ? `${pending} pcs` : 'Done',
+          pPrice > 0 ? `Rs. ${pPrice}` : '-',
+          cost > 0 ? `Rs. ${cost}` : '-'
+        ])
       })
     })
 
-    html += `<tr class="total-row">`
-    html += `<td colspan="3"><strong>TOTAL</strong></td>`
-    html += `<td><strong>${grandOrdered} pcs</strong></td>`
-    html += `<td><strong>${grandReceived} pcs</strong></td>`
-    html += `<td><strong>${grandPending > 0 ? grandPending + ' pcs' : 'Done'}</strong></td>`
-    html += `<td>-</td>`
-    html += `<td><strong>${grandCost > 0 ? '₹' + grandCost.toLocaleString('en-IN') : '-'}</strong></td>`
-    html += `</tr>`
-    html += `</tbody></table>`
+    rows.push([
+      'TOTAL', '', '',
+      `${grandOrdered} pcs`,
+      `${grandReceived} pcs`,
+      `${grandPending > 0 ? grandPending + ' pcs' : 'Done'}`,
+      '-',
+      grandCost > 0 ? `Rs. ${grandCost}` : '-'
+    ])
 
     if (order.notes) {
-      html += `<br/><h3>PO Special Instructions / Notes</h3>`
-      html += `<p style="background:#FEF3C7; padding:10px; border:1px solid #FCD34D;">${order.notes}</p>`
+      rows.push([])
+      rows.push(['PO Special Instructions / Notes'])
+      rows.push([order.notes])
     }
 
     if (order.installments && order.installments.length > 0) {
-      html += `<br/><h3>Received Stock Installment History</h3>`
-      html += `<table><thead><tr><th>Batch #</th><th>Received Date</th><th>Received Qty</th><th>Items Breakdown</th><th>Notes</th></tr></thead><tbody>`
+      rows.push([])
+      rows.push(['Received Stock Installment History (Batches)'])
+      rows.push(['Batch #', 'Received Date', 'Received Qty', 'Items Breakdown', 'Notes'])
       order.installments.forEach((inst, idx) => {
         const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
         const itemsStr = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')
-        html += `<tr>`
-        html += `<td>Batch #${idx + 1}</td>`
-        html += `<td>${new Date(inst.receivedAt).toLocaleDateString()}</td>`
-        html += `<td>${bTotal} pcs</td>`
-        html += `<td>${itemsStr}</td>`
-        html += `<td>${inst.notes || '-'}</td>`
-        html += `</tr>`
+        rows.push([
+          `Batch #${idx + 1}`,
+          new Date(inst.receivedAt).toLocaleDateString(),
+          `${bTotal} pcs`,
+          itemsStr,
+          inst.notes || '-'
+        ])
       })
-      html += `</tbody></table>`
     }
 
-    html += `</body></html>`
-
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;choice=utf-8' })
+    const csvContent = '\uFEFF' + rows.map(r => r.map(c => `"${String(c || '').replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -2151,6 +2139,38 @@ function App() {
 
         startY = doc.lastAutoTable.finalY + 8
       })
+
+      if (order.installments && order.installments.length > 0) {
+        if (startY > 230) { doc.addPage(); startY = 16 }
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(15, 23, 42)
+        doc.text(`Received Stock Installment History (Batches):`, 14, startY)
+        startY += 4
+
+        const batchRows = order.installments.map((inst, idx) => {
+          const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+          const itemsStr = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')
+          return [
+            `Batch #${idx + 1}`,
+            new Date(inst.receivedAt).toLocaleDateString(),
+            `${bTotal} pcs`,
+            itemsStr,
+            inst.notes || '-'
+          ]
+        })
+
+        doc.autoTable({
+          startY,
+          head: [['Batch #', 'Received Date', 'Received Qty', 'Product & Size Breakdown', 'Notes']],
+          body: batchRows,
+          theme: 'striped',
+          headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+          styles: { fontSize: 8.5, cellPadding: 3 }
+        })
+
+        startY = doc.lastAutoTable.finalY + 8
+      }
 
       if (order.notes) {
         if (startY > 250) { doc.addPage(); startY = 16 }
@@ -6309,12 +6329,26 @@ function App() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="secondary-btn"
-                                  title="Export Excel Worksheet (.xlsx)"
-                                  onClick={() => exportVendorOrderExcel(order)}
-                                  style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  onClick={() => exportVendorOrderCSV(order)}
+                                  style={{
+                                    background: '#2563EB',
+                                    color: '#FFFFFF',
+                                    border: 'none',
+                                    borderRadius: '20px',
+                                    padding: '6px 14px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  title="Export Excel (CSV) Spreadsheet"
                                 >
-                                  {getSafeEmoji('📊')} Export Excel
+                                  <span style={{ fontSize: '13px' }}>{getSafeEmoji('📊')}</span>
+                                  Export Excel (CSV)
                                 </button>
                                 <button
                                   type="button"
@@ -6413,7 +6447,7 @@ function App() {
 
                                       <div style={{ fontSize: '12px', textAlign: 'right' }}>
                                         <div style={{ color: theme === 'dark' ? '#CBD5E1' : '#475569', fontWeight: '600' }}>
-                                          Price / Pc: <strong style={{ color: prodUnitPrice > 0 ? (theme === 'dark' ? '#34D399' : '#059669') : '#94A3B8' }}>{prodUnitPrice > 0 ? `₹${prodUnitPrice.toLocaleString('en-IN')}` : '-'}</strong>
+                                          Price / Unit: <strong style={{ color: prodUnitPrice > 0 ? (theme === 'dark' ? '#34D399' : '#059669') : '#94A3B8' }}>{prodUnitPrice > 0 ? `₹${prodUnitPrice.toLocaleString('en-IN')}` : '-'}</strong>
                                         </div>
                                         <div style={{ fontSize: '12px', fontWeight: '700', color: prodUnitPrice > 0 ? (theme === 'dark' ? '#34D399' : '#059669') : '#94A3B8', marginTop: '2px' }}>
                                           Total Product Cost: {prodUnitPrice > 0 ? `₹${prodTotalCost.toLocaleString('en-IN')}` : '-'}
@@ -8058,7 +8092,7 @@ function App() {
 
                       <div style={{ flex: 1, minWidth: '140px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                         <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap' }}>
-                          Price / Pc (₹) (Optional)
+                          Price / Unit (₹) (Optional)
                         </label>
                         <input
                           type="number"
@@ -8712,7 +8746,7 @@ function App() {
                                 Product {pIdx + 1} &mdash; {prod.productName} {prod.school ? `(School/Firm: ${prod.school})` : ''}
                               </div>
                               <div style={{ fontSize: '11px', textAlign: 'right' }}>
-                                Price: <strong>{prodUnitPrice > 0 ? `₹${prodUnitPrice}` : '-'}</strong> &nbsp;|&nbsp; Total Cost: <strong style={{ color: prodUnitPrice > 0 ? '#059669' : '#64748B' }}>{prodUnitPrice > 0 ? `₹${prodTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
+                                Price / Unit: <strong>{prodUnitPrice > 0 ? `₹${prodUnitPrice}` : '-'}</strong> &nbsp;|&nbsp; Total Cost: <strong style={{ color: prodUnitPrice > 0 ? '#059669' : '#64748B' }}>{prodUnitPrice > 0 ? `₹${prodTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
                               </div>
                             </div>
 
@@ -8754,6 +8788,41 @@ function App() {
                           </div>
                         )
                       })}
+
+                      {/* Received Stock Batches Section */}
+                      {order.installments && order.installments.length > 0 && (
+                        <div style={{ marginTop: '16px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px' }}>
+                          <div style={{ fontWeight: '800', fontSize: '13px', color: '#059669', marginBottom: '8px' }}>
+                            Received Stock Installment History (Batches)
+                          </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                            <thead>
+                              <tr style={{ background: '#059669', color: '#FFFFFF' }}>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Batch #</th>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Received Date</th>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Received Qty</th>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Product & Size Breakdown</th>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {order.installments.map((inst, idx) => {
+                                const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+                                const itemsStr = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(' • ')
+                                return (
+                                  <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                    <td style={{ padding: '5px 8px', fontWeight: '700' }}>Batch #{idx + 1}</td>
+                                    <td style={{ padding: '5px 8px' }}>{new Date(inst.receivedAt).toLocaleDateString()}</td>
+                                    <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '700' }}>{bTotal} pcs</td>
+                                    <td style={{ padding: '5px 8px' }}>{itemsStr}</td>
+                                    <td style={{ padding: '5px 8px', color: '#64748B' }}>{inst.notes || '-'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
 
                       {/* Notes Section */}
                       {order.notes && (
