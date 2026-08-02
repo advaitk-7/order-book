@@ -2203,7 +2203,11 @@ function App() {
           theme: 'striped',
           headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
           styles: { fontSize: 8.5, cellPadding: 3, overflow: 'linebreak' },
-          columnStyles: { 5: { fontStyle: 'bold', textColor: [5, 150, 105] } },
+          columnStyles: {
+            0: { cellWidth: 28 },
+            1: { cellWidth: 34 },
+            5: { fontStyle: 'bold', textColor: [5, 150, 105] }
+          },
           rowPageBreak: 'avoid',
           pageBreak: 'avoid'
         })
@@ -6608,8 +6612,8 @@ function App() {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                       <thead>
                                         <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
-                                          <th style={{ padding: '8px 24px 8px 8px', whiteSpace: 'nowrap', minWidth: '95px' }}>Size</th>
-                                          <th style={{ padding: '8px 24px 8px 8px', whiteSpace: 'nowrap', minWidth: '115px' }}>Price / Unit</th>
+                                          <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '120px' }}>Size</th>
+                                          <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '140px' }}>Price / Unit</th>
                                           <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Ordered</th>
                                           <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Received</th>
                                           <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Pending Balance</th>
@@ -6623,8 +6627,8 @@ function App() {
                                           const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
                                           return (
                                             <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
-                                              <td style={{ padding: '8px 24px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap' }}>Size {sb.size}</td>
-                                              <td style={{ padding: '8px 24px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                              <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>Size {sb.size}</td>
+                                              <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '140px' }}>
                                                 {sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}
                                               </td>
                                               <td style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>{sb.orderedQty} pcs</td>
@@ -6646,8 +6650,8 @@ function App() {
                                       </tbody>
                                       <tfoot style={{ borderTop: '2px solid var(--border-color, #CBD5E1)', fontWeight: '800', background: theme === 'dark' ? '#1E293B' : '#F8FAFC' }}>
                                         <tr>
-                                          <td style={{ padding: '8px 24px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap' }}>Total</td>
-                                          <td style={{ padding: '8px 24px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap' }}>-</td>
+                                          <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap', minWidth: '120px' }}>Total</td>
+                                          <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap', minWidth: '140px' }}>-</td>
                                           <td style={{ padding: '8px 16px 8px 8px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrdered} pcs</td>
                                           <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>{totalProdReceived} pcs</td>
                                           <td style={{ padding: '8px 16px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
