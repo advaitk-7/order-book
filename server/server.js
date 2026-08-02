@@ -1858,27 +1858,6 @@ app.post("/api/vendor-orders/:id/installments", authenticateJWT, async (req, res
       return res.status(400).json({ message: "At least one size received quantity must be greater than 0." });
     }
 
-    // Remaining quantity validation: received quantity cannot exceed pending remaining quantity
-    recalculateOrderQuantities(order);
-    for (const item of cleanItems) {
-      let matchedProd = (order.products || []).find(p => p.productName === item.productName);
-      if (!matchedProd && (order.products || []).length > 0) {
-        matchedProd = order.products[0];
-      }
-      if (matchedProd) {
-        const sizeObj = (matchedProd.sizeBreakdown || []).find(sb => sb.size === item.size);
-        const orderedQty = sizeObj ? sizeObj.orderedQty : 0;
-        const currentReceived = sizeObj ? sizeObj.receivedQty : 0;
-        const remainingQty = Math.max(0, orderedQty - currentReceived);
-
-        if (item.qty > remainingQty) {
-          return res.status(400).json({
-            message: `Quantity received for Product '${item.productName || matchedProd.productName}' (Size ${item.size}) [${item.qty} pcs] cannot exceed remaining pending quantity (${remainingQty} pcs).`
-          });
-        }
-      }
-    }
-
     const newInstallment = {
       receivedAt: new Date(),
       challanNumber: (challanNumber || "").trim(),
@@ -1921,38 +1900,6 @@ app.patch("/api/vendor-orders/:id/installments/:installmentId", authenticateJWT,
         size: String(i.size || '').trim(),
         qty: Math.max(0, Number(i.qty || 0))
       })).filter(i => i.size && i.qty >= 0);
-
-      // Validate bounds against remaining quantity
-      recalculateOrderQuantities(order);
-      for (const item of cleanItems) {
-        let matchedProd = (order.products || []).find(p => p.productName === item.productName);
-        if (!matchedProd && (order.products || []).length > 0) {
-          matchedProd = order.products[0];
-        }
-        if (matchedProd) {
-          const sizeObj = (matchedProd.sizeBreakdown || []).find(sb => sb.size === item.size);
-          const orderedQty = sizeObj ? sizeObj.orderedQty : 0;
-          
-          // Calculate received from all other batches except this one
-          let otherReceived = 0;
-          (order.installments || []).forEach(otherInst => {
-            if (String(otherInst._id) !== String(req.params.installmentId)) {
-              (otherInst.items || []).forEach(otherItem => {
-                if ((!otherItem.productName || otherItem.productName === item.productName) && otherItem.size === item.size) {
-                  otherReceived += (otherItem.qty || 0);
-                }
-              });
-            }
-          });
-
-          const remainingQty = Math.max(0, orderedQty - otherReceived);
-          if (item.qty > remainingQty) {
-            return res.status(400).json({
-              message: `Quantity received for Product '${item.productName || matchedProd.productName}' (Size ${item.size}) [${item.qty} pcs] cannot exceed remaining pending quantity (${remainingQty} pcs).`
-            });
-          }
-        }
-      }
 
       inst.items = cleanItems;
     }

@@ -1771,14 +1771,7 @@ function App() {
       return
     }
 
-    // Boundary check: cannot exceed remaining pending quantity
-    for (const item of installmentFormData.items || []) {
-      const val = Number(item.newQty || 0)
-      if (val > item.remainingQty) {
-        setMessage(`Quantity received for '${item.productName}' (Size ${item.size}) [${val} pcs] cannot exceed remaining pending quantity (${item.remainingQty} pcs).`)
-        return
-      }
-    }
+    // Submit installment without strict remainingQty ceiling check
 
     try {
       const response = await fetch(`${API_BASE}/api/vendor-orders/${selectedOrderForInstallment._id}/installments`, {
@@ -1853,14 +1846,7 @@ function App() {
       .map(i => ({ productName: i.productName, size: i.size, qty: Number(i.qty || 0) }))
       .filter(i => i.size && i.qty >= 0)
 
-    // Boundary check
-    for (const item of editingInstallment.items || []) {
-      const val = Number(item.qty || 0)
-      if (val > item.remainingQty) {
-        setMessage(`Quantity received for '${item.productName}' (Size ${item.size}) [${val} pcs] cannot exceed remaining pending quantity (${item.remainingQty} pcs).`)
-        return
-      }
-    }
+    // Submit installment edit without strict remainingQty ceiling check
 
     try {
       const response = await fetch(`${API_BASE}/api/vendor-orders/${editingInstallment.orderId}/installments/${editingInstallment.installmentId}`, {
@@ -1991,13 +1977,16 @@ function App() {
         grandPending += pending
         grandCost += rowCost
 
+        const surplus = received > ordered ? received - ordered : 0
+        const recStr = surplus > 0 ? `${received} pcs (+${surplus} Extra)` : `${received} pcs`
+
         rows.push([
           idx === 0 ? p.productName : '',
           idx === 0 ? p.school : '',
           sb.size,
           sbPrice > 0 ? `Rs. ${sbPrice}` : '-',
           `${ordered} pcs`,
-          `${received} pcs`,
+          recStr,
           pending > 0 ? `${pending} pcs` : 'Done',
           rowCost > 0 ? `Rs. ${rowCost}` : '-'
         ])
@@ -2176,11 +2165,16 @@ function App() {
           pTotalCost += rowCost
           pReceived += (sb.receivedQty || 0)
           pOrdered += (sb.orderedQty || 0)
+          const recQty = sb.receivedQty || 0
+          const ordQty = sb.orderedQty || 0
+          const surplus = recQty > ordQty ? recQty - ordQty : 0
+          const recStr = surplus > 0 ? `${recQty} pcs (+${surplus} Extra)` : `${recQty} pcs`
+
           return [
             `${sb.size}`,
             sbPrice > 0 ? `Rs.${sbPrice}` : '-',
-            `${sb.orderedQty || 0} pcs`,
-            `${sb.receivedQty || 0} pcs`,
+            `${ordQty} pcs`,
+            recStr,
             pending > 0 ? `${pending} pcs` : 'Done',
             rowCost > 0 ? `Rs.${rowCost.toLocaleString('en-IN')}` : '-'
           ]
@@ -6624,17 +6618,27 @@ function App() {
                                       <tbody>
                                         {sortedSizes.map((sb) => {
                                           const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-                                          const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
-                                          const rowCost = sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
-                                          const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
+                                          const recQty = sb.receivedQty || 0
+                                          const ordQty = sb.orderedQty || 0
+                                          const pending = Math.max(0, ordQty - recQty)
+                                          const surplus = recQty > ordQty ? recQty - ordQty : 0
+                                          const rowCost = sbPrice > 0 ? recQty * sbPrice : 0
+                                          const sizePct = ordQty > 0 ? Math.min(100, Math.round((recQty / ordQty) * 100)) : 0
                                           return (
                                             <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
                                               <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>{sb.size}</td>
                                               <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '140px' }}>
                                                 {sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}
                                               </td>
-                                              <td style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>{sb.orderedQty} pcs</td>
-                                              <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>{sb.receivedQty || 0} pcs</td>
+                                              <td style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>{ordQty} pcs</td>
+                                              <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                {recQty} pcs
+                                                {surplus > 0 && (
+                                                  <span style={{ marginLeft: '6px', fontSize: '11px', background: theme === 'dark' ? '#064E3B' : '#D1FAE5', color: theme === 'dark' ? '#34D399' : '#047857', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                                    (+{surplus} Extra)
+                                                  </span>
+                                                )}
+                                              </td>
                                               <td style={{ padding: '8px 16px 8px 8px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                                 {pending > 0 ? `${pending} pcs` : 'Done'}
                                               </td>
@@ -6658,7 +6662,14 @@ function App() {
                                           <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap', minWidth: '120px' }}>Total</td>
                                           <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap', minWidth: '140px' }}>-</td>
                                           <td style={{ padding: '8px 16px 8px 8px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrdered} pcs</td>
-                                          <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>{totalProdReceived} pcs</td>
+                                          <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>
+                                            {totalProdReceived} pcs
+                                            {totalProdReceived > totalProdOrdered && (
+                                              <span style={{ marginLeft: '4px', fontSize: '11px', color: theme === 'dark' ? '#34D399' : '#047857', fontWeight: '700' }}>
+                                                (+{totalProdReceived - totalProdOrdered} Extra)
+                                              </span>
+                                            )}
+                                          </td>
                                           <td style={{ padding: '8px 16px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
                                             {totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}
                                           </td>
@@ -8933,14 +8944,19 @@ function App() {
                               <tbody>
                                 {sortedSizes.map((sb) => {
                                   const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-                                  const pending = Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
-                                  const rowCost = sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
+                                  const recQty = sb.receivedQty || 0
+                                  const ordQty = sb.orderedQty || 0
+                                  const pending = Math.max(0, ordQty - recQty)
+                                  const surplus = recQty > ordQty ? recQty - ordQty : 0
+                                  const rowCost = sbPrice > 0 ? recQty * sbPrice : 0
                                   return (
                                     <tr key={sb.size} style={{ borderBottom: '1px solid #F1F5F9' }}>
                                       <td style={{ padding: '5px 8px', fontWeight: '700' }}>{sb.size}</td>
                                       <td style={{ padding: '5px 8px', color: '#475569' }}>{sbPrice > 0 ? `₹${sbPrice}` : '-'}</td>
-                                      <td style={{ padding: '5px 8px' }}>{sb.orderedQty || 0} pcs</td>
-                                      <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
+                                      <td style={{ padding: '5px 8px' }}>{ordQty} pcs</td>
+                                      <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '600' }}>
+                                        {recQty} pcs {surplus > 0 ? `(+${surplus} Extra)` : ''}
+                                      </td>
                                       <td style={{ padding: '5px 8px', color: pending > 0 ? '#D97706' : '#059669', fontWeight: '600' }}>{pending > 0 ? `${pending} pcs` : 'Done'}</td>
                                       <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '700' }}>{rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}</td>
                                     </tr>
