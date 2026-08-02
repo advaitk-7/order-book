@@ -638,7 +638,6 @@ function App() {
   const [showInstallmentModal, setShowInstallmentModal] = useState(false)
   const [selectedOrderForInstallment, setSelectedOrderForInstallment] = useState(null)
   const [installmentFormData, setInstallmentFormData] = useState({
-    challanNumber: '',
     notes: '',
     items: []
   })
@@ -1743,7 +1742,6 @@ function App() {
     })
 
     setInstallmentFormData({
-      challanNumber: '',
       notes: '',
       items: initialItems
     })
@@ -1780,7 +1778,6 @@ function App() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          challanNumber: installmentFormData.challanNumber,
           items: itemsToSubmit,
           notes: installmentFormData.notes
         })
@@ -1832,7 +1829,6 @@ function App() {
     setEditingInstallment({
       orderId: order._id,
       installmentId: installment._id,
-      challanNumber: installment.challanNumber || '',
       notes: installment.notes || '',
       items
     })
@@ -1864,7 +1860,6 @@ function App() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          challanNumber: editingInstallment.challanNumber,
           items: itemsToSubmit,
           notes: editingInstallment.notes
         })
@@ -6273,11 +6268,6 @@ function App() {
                                             >
                                               Received {batchTotal} pcs
                                             </span>
-                                            {inst.challanNumber && (
-                                              <span style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>
-                                                Challan: <strong style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{inst.challanNumber}</strong>
-                                              </span>
-                                            )}
                                           </div>
 
                                           <div style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', lineHeight: '1.4' }}>
@@ -7966,17 +7956,6 @@ function App() {
             </p>
 
             <form onSubmit={handleLogInstallment}>
-              <div className="manage-input-group">
-                <label>
-                  Challan / Delivery Receipt Number (Optional)
-                  <input
-                    type="text"
-                    placeholder="e.g. CH-9821 or Bill #450"
-                    value={installmentFormData.challanNumber}
-                    onChange={(e) => setInstallmentFormData({ ...installmentFormData, challanNumber: e.target.value })}
-                  />
-                </label>
-              </div>
 
               <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
                 <label style={{ fontWeight: '700', fontSize: '13px', display: 'block', marginBottom: '10px' }}>
@@ -8063,17 +8042,6 @@ function App() {
             </p>
 
             <form onSubmit={handleUpdateInstallment}>
-              <div className="manage-input-group">
-                <label>
-                  Challan / Delivery Receipt Number (Optional)
-                  <input
-                    type="text"
-                    placeholder="e.g. CH-9821 or Bill #450"
-                    value={editingInstallment.challanNumber}
-                    onChange={(e) => setEditingInstallment({ ...editingInstallment, challanNumber: e.target.value })}
-                  />
-                </label>
-              </div>
 
               <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
                 <label style={{ fontWeight: '700', fontSize: '13px', display: 'block', marginBottom: '10px' }}>
