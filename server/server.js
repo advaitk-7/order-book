@@ -1463,6 +1463,7 @@ function recalculateOrderQuantities(order) {
 
   let grandTotalOrdered = 0;
   let grandTotalReceived = 0;
+  let totalPending = 0;
 
   // Reset receivedQty for all sizeBreakdowns across products
   (order.products || []).forEach(p => {
@@ -1494,10 +1495,6 @@ function recalculateOrderQuantities(order) {
       }
     });
   });
-
-  let grandTotalOrdered = 0;
-  let grandTotalReceived = 0;
-  let totalPending = 0;
 
   // Calculate totals and sort size breakdowns
   (order.products || []).forEach(p => {
