@@ -617,6 +617,8 @@ function App() {
   const [vendorOrders, setVendorOrders] = useState([])
   const [loadingVendorOrders, setLoadingVendorOrders] = useState(false)
   const [vendorOrderSearch, setVendorOrderSearch] = useState('')
+  const [vendorOrderSearchFocused, setVendorOrderSearchFocused] = useState(false)
+  const poSearchInputRef = useRef(null)
   const [vendorOrderPartyFilter, setVendorOrderPartyFilter] = useState('All')
   const [vendorOrderStatusFilter, setVendorOrderStatusFilter] = useState('All')
   const [vendorOrderSchoolFilter, setVendorOrderSchoolFilter] = useState('All')
@@ -1946,6 +1948,19 @@ function App() {
       fetchParties()
     }
   }, [vendorOrderPartyFilter, vendorOrderStatusFilter, activePage, token])
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        if (activePage === 'Supplier Restock' && poSearchInputRef.current) {
+          e.preventDefault()
+          poSearchInputRef.current.focus()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activePage])
 
   useEffect(() => {
     if (activePage === 'Stock Waitlist' && token) {
@@ -5735,23 +5750,30 @@ function App() {
                         width: '100%',
                         background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
                         borderRadius: '10px',
-                        border: `1px solid ${theme === 'dark' ? '#334155' : '#CBD5E1'}`,
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                        border: vendorOrderSearchFocused
+                          ? '1px solid #2563EB'
+                          : `1px solid ${theme === 'dark' ? '#334155' : '#CBD5E1'}`,
+                        boxShadow: vendorOrderSearchFocused
+                          ? '0 0 0 3px rgba(37, 99, 235, 0.2)'
+                          : '0 1px 3px rgba(0,0,0,0.05)',
                         transition: 'all 0.2s ease'
                       }}
                     >
-                      <span style={{ position: 'absolute', left: '14px', color: '#94A3B8', fontSize: '15px', pointerEvents: 'none' }}>
+                      <span style={{ position: 'absolute', left: '14px', color: vendorOrderSearchFocused ? '#2563EB' : '#94A3B8', fontSize: '15px', pointerEvents: 'none', transition: 'color 0.2s' }}>
                         {getSafeEmoji('🔍')}
                       </span>
                       <input
+                        ref={poSearchInputRef}
                         type="text"
-                        placeholder="Search PO number, Supplier, Product, School / Firm or Challan..."
+                        placeholder="Search PO#, Product, Size, Notes or Date..."
                         value={vendorOrderSearch}
+                        onFocus={() => setVendorOrderSearchFocused(true)}
+                        onBlur={() => setVendorOrderSearchFocused(false)}
                         onChange={(e) => setVendorOrderSearch(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
                         style={{
                           width: '100%',
-                          padding: '10px 38px 10px 38px',
+                          padding: '10px 70px 10px 38px',
                           fontSize: '13px',
                           fontWeight: '500',
                           border: 'none',
@@ -5761,76 +5783,128 @@ function App() {
                           borderRadius: '10px'
                         }}
                       />
-                      {vendorOrderSearch && (
-                        <button
-                          type="button"
-                          onClick={() => setVendorOrderSearch('')}
-                          style={{
-                            position: 'absolute',
-                            right: '12px',
-                            background: 'none',
-                            border: 'none',
-                            color: '#94A3B8',
-                            fontSize: '14px',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                          title="Clear search"
-                        >
-                          ✕
-                        </button>
-                      )}
+                      <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {vendorOrderSearch ? (
+                          <button
+                            type="button"
+                            onClick={() => setVendorOrderSearch('')}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#94A3B8',
+                              fontSize: '14px',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            title="Clear search (Esc)"
+                          >
+                            ✕
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#94A3B8', background: theme === 'dark' ? '#0F172A' : '#F1F5F9', border: '1px solid var(--border-color, #CBD5E1)', padding: '2px 6px', borderRadius: '4px' }}>
+                            ⌘K
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </form>
                   {/* Filter Dropdowns Row */}
-                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filter</span>
+                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filter</span>
 
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Supplier</span>
-                      <select
-                        value={vendorOrderPartyFilter}
-                        onChange={(e) => setVendorOrderPartyFilter(e.target.value)}
-                        style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
-                      >
-                        <option value="All">All Suppliers ({parties.length})</option>
-                        {parties.map(p => (
-                          <option key={p._id} value={p.name}>{p.name}</option>
-                        ))}
-                      </select>
-                    </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Supplier</span>
+                        <select
+                          value={vendorOrderPartyFilter}
+                          onChange={(e) => setVendorOrderPartyFilter(e.target.value)}
+                          style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
+                        >
+                          <option value="All">All Suppliers ({parties.length})</option>
+                          {parties.map(p => (
+                            <option key={p._id} value={p.name}>{p.name}</option>
+                          ))}
+                        </select>
+                      </label>
 
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>School / Firm</span>
-                      <select
-                        value={vendorOrderSchoolFilter}
-                        onChange={(e) => setVendorOrderSchoolFilter(e.target.value)}
-                        style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
-                      >
-                        <option value="All">All Schools / Firms</option>
-                        {Array.from(new Set(vendorOrders.flatMap(o => getNormalizedProducts(o).map(p => p.school)).filter(Boolean))).sort().map(school => (
-                          <option key={school} value={school}>{school}</option>
-                        ))}
-                      </select>
-                    </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>School / Firm</span>
+                        <select
+                          value={vendorOrderSchoolFilter}
+                          onChange={(e) => setVendorOrderSchoolFilter(e.target.value)}
+                          style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
+                        >
+                          <option value="All">All Schools / Firms</option>
+                          {Array.from(new Set(vendorOrders.flatMap(o => getNormalizedProducts(o).map(p => p.school)).filter(Boolean))).sort().map(school => (
+                            <option key={school} value={school}>{school}</option>
+                          ))}
+                        </select>
+                      </label>
 
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Status</span>
-                      <select
-                        value={vendorOrderStatusFilter}
-                        onChange={(e) => setVendorOrderStatusFilter(e.target.value)}
-                        style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
-                      >
-                        <option value="All">All Statuses</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Partial">Partial</option>
-                        <option value="Completed">Completed</option>
-                      </select>
-                    </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Status</span>
+                        <select
+                          value={vendorOrderStatusFilter}
+                          onChange={(e) => setVendorOrderStatusFilter(e.target.value)}
+                          style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
+                        >
+                          <option value="All">All Statuses</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Partial">Partial</option>
+                          <option value="Completed">Completed</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    {/* Live PO Counter Pill */}
+                    {(() => {
+                      const tempFiltered = vendorOrders.filter(o => {
+                        if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
+                        if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
+                        if (vendorOrderSchoolFilter !== 'All') {
+                          const prods = getNormalizedProducts(o)
+                          if (!prods.some(p => p.school === vendorOrderSchoolFilter)) return false
+                        }
+                        if (vendorOrderSearch && vendorOrderSearch.trim()) {
+                          const prods = getNormalizedProducts(o)
+                          const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
+                          const dates = [
+                            o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
+                            o.targetDate || '',
+                            ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
+                          ]
+                          const fields = [
+                            o.poNumber,
+                            o.notes,
+                            ...(prods.map(p => p.productName)),
+                            ...sizes,
+                            ...dates
+                          ]
+                          return checkFuzzyMatch(vendorOrderSearch, fields)
+                        }
+                        return true
+                      })
+                      return (
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            padding: '5px 12px',
+                            borderRadius: '20px',
+                            background: theme === 'dark' ? '#0F172A' : '#EFF6FF',
+                            color: theme === 'dark' ? '#38BDF8' : '#0284C7',
+                            border: theme === 'dark' ? '1px solid #0284C7' : '1px solid #BAE6FD',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          Showing {tempFiltered.length} of {vendorOrders.length} POs
+                        </span>
+                      )
+                    })()}
                   </div>
                 </div>
 
@@ -5846,13 +5920,18 @@ function App() {
                       }
                       if (vendorOrderSearch && vendorOrderSearch.trim()) {
                         const prods = getNormalizedProducts(o)
+                        const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
+                        const dates = [
+                          o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
+                          o.targetDate || '',
+                          ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
+                        ]
                         const fields = [
                           o.poNumber,
-                          o.partyName,
                           o.notes,
                           ...(prods.map(p => p.productName)),
-                          ...(prods.map(p => p.school)),
-                          ...(o.installments || []).map(i => i.challanNumber)
+                          ...sizes,
+                          ...dates
                         ]
                         return checkFuzzyMatch(vendorOrderSearch, fields)
                       }
