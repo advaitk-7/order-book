@@ -2211,12 +2211,13 @@ function App() {
       }
 
       if (order.installments && order.installments.length > 0) {
-        if (startY > 255) { doc.addPage(); startY = 16 }
-        doc.setFontSize(11)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(15, 23, 42)
-        doc.text(`Received Stock Installment History (Batches):`, 14, startY)
-        startY += 5
+        // Use a minimum space check: heading text (6mm) + table header (8mm) + first row (7mm) = ~21mm needed
+        const pageHeight = doc.internal.pageSize.getHeight()
+        const marginBottom = 15
+        if (startY + 21 > pageHeight - marginBottom) {
+          doc.addPage()
+          startY = 16
+        }
 
         const batchRows = []
         order.installments.forEach((inst, idx) => {
@@ -2238,15 +2239,30 @@ function App() {
           }
         })
 
+        // Draw heading on EVERY page the table spans via didDrawPage
+        const batchHeadingY = startY
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(15, 23, 42)
+        doc.text(`Received Stock Installment History (Batches):`, 14, batchHeadingY)
+
         doc.autoTable({
-          startY,
+          startY: batchHeadingY + 5,
           head: [['Batch #', 'Received Date', 'Total Qty', 'Product', 'Size & Qty', 'Notes']],
           body: batchRows,
           theme: 'striped',
           headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
           styles: { fontSize: 8.5, cellPadding: 2.5, overflow: 'linebreak' },
           rowPageBreak: 'avoid',
-          pageBreak: 'avoid'
+          didDrawPage: (data) => {
+            // Repeat heading on subsequent pages
+            if (data.pageNumber > 1) {
+              doc.setFontSize(10)
+              doc.setFont('helvetica', 'bold')
+              doc.setTextColor(15, 23, 42)
+              doc.text(`Received Stock Installment History (Batches) — continued:`, 14, 12)
+            }
+          }
         })
 
         startY = doc.lastAutoTable.finalY + 8
@@ -6409,38 +6425,6 @@ function App() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => exportVendorOrderCSV(order)}
-                                  style={{
-                                    background: '#2563EB',
-                                    color: '#FFFFFF',
-                                    border: 'none',
-                                    borderRadius: '20px',
-                                    padding: '6px 14px',
-                                    fontSize: '12px',
-                                    fontWeight: '600',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                  title="Export Excel (CSV) Spreadsheet"
-                                >
-                                  <span style={{ fontSize: '13px' }}>{getSafeEmoji('📊')}</span>
-                                  Export Excel (CSV)
-                                </button>
-                                <button
-                                  type="button"
-                                  className="secondary-btn"
-                                  title="Configure and Save as PDF"
-                                  onClick={() => handleOpenPOPDFModal(order)}
-                                  style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                >
-                                  {getSafeEmoji('📄')} Save as PDF
-                                </button>
-                                <button
-                                  type="button"
                                   className="icon-btn danger"
                                   title="Delete PO"
                                   onClick={() => handleDeleteVendorOrder(order._id, order.poNumber)}
@@ -6448,6 +6432,65 @@ function App() {
                                   {getSafeEmoji('🗑️')}
                                 </button>
                               </div>
+                            </div>
+
+                            {/* Export Actions Row */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '8px 12px',
+                              borderTop: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
+                              background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(37,99,235,0.03)',
+                              borderRadius: '0 0 10px 10px',
+                              flexWrap: 'wrap'
+                            }}>
+                              <span style={{ fontSize: '11px', fontWeight: '600', color: theme === 'dark' ? '#94A3B8' : '#64748B', marginRight: '2px' }}>Export:</span>
+                              <button
+                                type="button"
+                                onClick={() => exportVendorOrderCSV(order)}
+                                style={{
+                                  background: '#2563EB',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: '16px',
+                                  padding: '5px 13px',
+                                  fontSize: '11.5px',
+                                  fontWeight: '600',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 1px 4px rgba(37,99,235,0.25)',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                title="Export Excel (CSV) Spreadsheet"
+                              >
+                                <span style={{ fontSize: '13px' }}>{getSafeEmoji('📊')}</span>
+                                Export Excel (CSV)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPOPDFModal(order)}
+                                style={{
+                                  background: theme === 'dark' ? '#1E293B' : '#F1F5F9',
+                                  color: theme === 'dark' ? '#E2E8F0' : '#334155',
+                                  border: theme === 'dark' ? '1px solid #334155' : '1px solid #CBD5E1',
+                                  borderRadius: '16px',
+                                  padding: '5px 13px',
+                                  fontSize: '11.5px',
+                                  fontWeight: '600',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                title="Configure and Save as PDF"
+                              >
+                                <span style={{ fontSize: '13px' }}>{getSafeEmoji('📄')}</span>
+                                Save as PDF
+                              </button>
                             </div>
 
                             {/* Prominent Order Notes Callout Banner */}
