@@ -1960,7 +1960,7 @@ function App() {
     rows.push([])
 
     rows.push(['Product Breakdown'])
-    rows.push(['Product Name', 'School / Firm', 'Size', 'Ordered Qty', 'Received Qty', 'Pending Balance', 'Price / Unit (₹)', 'Product Cost (₹)'])
+    rows.push(['Product Name', 'School / Firm', 'Size', 'Ordered Qty', 'Received Qty', 'Pending Balance', 'Price / Unit (₹)'])
 
     let grandOrdered = 0
     let grandReceived = 0
@@ -1970,17 +1970,21 @@ function App() {
     prods.forEach((p, pIdx) => {
       const sorted = sortSizesAscending(p.sizeBreakdown || [])
       const pPrice = Number(p.unitPrice || 0)
+      let pOrdered = 0
+      let pReceived = 0
+      let pPending = 0
 
       sorted.forEach((sb, idx) => {
         const ordered = sb.orderedQty || 0
         const received = sb.receivedQty || 0
         const pending = Math.max(0, ordered - received)
-        const cost = pPrice > 0 ? received * pPrice : 0
 
+        pOrdered += ordered
+        pReceived += received
+        pPending += pending
         grandOrdered += ordered
         grandReceived += received
         grandPending += pending
-        grandCost += cost
 
         rows.push([
           idx === 0 ? p.productName : '',
@@ -1989,10 +1993,24 @@ function App() {
           `${ordered} pcs`,
           `${received} pcs`,
           pending > 0 ? `${pending} pcs` : 'Done',
-          pPrice > 0 ? `Rs. ${pPrice}` : '-',
-          cost > 0 ? `Rs. ${cost}` : '-'
+          pPrice > 0 ? `Rs. ${pPrice}` : '-'
         ])
       })
+
+      const pTotalCost = pPrice > 0 ? pReceived * pPrice : 0
+      if (pPrice > 0) {
+        grandCost += pTotalCost
+      }
+
+      rows.push([
+        `Total (${p.productName})`,
+        '',
+        '',
+        `${pOrdered} pcs`,
+        `${pReceived} pcs`,
+        pPending > 0 ? `${pPending} pcs` : 'Done',
+        pPrice > 0 ? `Total Product Cost: Rs. ${pTotalCost}` : '-'
+      ])
 
       if (pIdx < prods.length - 1) {
         rows.push([])
@@ -2001,12 +2019,11 @@ function App() {
 
     rows.push([])
     rows.push([
-      'TOTAL', '', '',
+      'TOTAL PO SUMMARY', '', '',
       `${grandOrdered} pcs`,
       `${grandReceived} pcs`,
       `${grandPending > 0 ? grandPending + ' pcs' : 'Done'}`,
-      '-',
-      grandCost > 0 ? `Rs. ${grandCost}` : '-'
+      grandCost > 0 ? `Total PO Value: Rs. ${grandCost}` : '-'
     ])
 
     if (order.notes) {
