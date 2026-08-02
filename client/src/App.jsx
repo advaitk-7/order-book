@@ -2043,6 +2043,10 @@ function App() {
             ])
           })
         }
+
+        if (idx < order.installments.length - 1) {
+          rows.push([])
+        }
       })
     }
 
