@@ -2018,17 +2018,31 @@ function App() {
     if (order.installments && order.installments.length > 0) {
       rows.push([])
       rows.push(['Received Stock Installment History (Batches)'])
-      rows.push(['Batch #', 'Received Date', 'Received Qty', 'Items Breakdown', 'Notes'])
+      rows.push(['Batch #', 'Received Date', 'Received Qty', 'Product', 'Size', 'Qty', 'Notes'])
       order.installments.forEach((inst, idx) => {
         const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
-        const itemsStr = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')
-        rows.push([
-          `Batch #${idx + 1}`,
-          new Date(inst.receivedAt).toLocaleDateString(),
-          `${bTotal} pcs`,
-          itemsStr,
-          inst.notes || '-'
-        ])
+        const items = inst.items || []
+        if (items.length === 0) {
+          rows.push([
+            `Batch #${idx + 1}`,
+            new Date(inst.receivedAt).toLocaleDateString(),
+            `${bTotal} pcs`,
+            '-', '-', '-',
+            inst.notes || '-'
+          ])
+        } else {
+          items.forEach((item, iIdx) => {
+            rows.push([
+              iIdx === 0 ? `Batch #${idx + 1}` : '',
+              iIdx === 0 ? new Date(inst.receivedAt).toLocaleDateString() : '',
+              iIdx === 0 ? `${bTotal} pcs` : '',
+              item.productName || '-',
+              `Size ${item.size}`,
+              `${item.qty} pcs`,
+              iIdx === 0 ? (inst.notes || '-') : ''
+            ])
+          })
+        }
       })
     }
 
@@ -2102,21 +2116,26 @@ function App() {
       let startY = order.targetDate ? 34 : 29
 
       prods.forEach((prod, pIdx) => {
+        if (startY > 240) { doc.addPage(); startY = 16 }
         doc.setFontSize(11)
         doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
-        doc.text(`Product ${pIdx + 1}: ${prod.productName} (School / Firm: ${prod.school || 'N/A'})`, 14, startY)
-        startY += 4
+        const prodUnitPrice = Number(prod.unitPrice || 0)
+        const priceLabel = prodUnitPrice > 0 ? `  |  Price / Unit: Rs.${prodUnitPrice}` : ''
+        doc.text(`Product ${pIdx + 1}: ${prod.productName} (${prod.school || 'N/A'})${priceLabel}`, 14, startY)
+        startY += 5
 
         const sorted = sortSizesAscending(prod.sizeBreakdown || [])
         const tableData = sorted.map(sb => {
           const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
+          const recCost = prodUnitPrice > 0 ? (sb.receivedQty || 0) * prodUnitPrice : null
           return [
             `Size ${sb.size}`,
             `${sb.orderedQty} pcs`,
             `${sb.receivedQty || 0} pcs`,
             pending > 0 ? `${pending} pcs` : 'Done',
-            sb.orderedQty > 0 ? `${Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100))}%` : '0%'
+            sb.orderedQty > 0 ? `${Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100))}%` : '0%',
+            recCost !== null ? `Rs.${recCost.toLocaleString('en-IN')}` : '-'
           ]
         })
 
@@ -2124,21 +2143,26 @@ function App() {
         const pReceived = sorted.reduce((s, b) => s + (b.receivedQty || 0), 0)
         const pPending = Math.max(0, pOrdered - pReceived)
         const pPct = pOrdered > 0 ? Math.round((pReceived / pOrdered) * 100) : 0
+        const pTotalCost = prodUnitPrice > 0 ? pReceived * prodUnitPrice : null
         tableData.push([
           'Total',
           `${pOrdered} pcs`,
           `${pReceived} pcs`,
           pPending > 0 ? `${pPending} pcs` : 'Done',
-          `${pPct}%`
+          `${pPct}%`,
+          pTotalCost !== null ? `Rs.${pTotalCost.toLocaleString('en-IN')}` : '-'
         ])
 
         doc.autoTable({
           startY,
-          head: [['Size', 'Ordered', 'Received', 'Pending Balance', 'Fulfillment']],
+          head: [['Size', 'Ordered', 'Received', 'Pending', 'Fulfillment', 'Production Cost']],
           body: tableData,
           theme: 'striped',
-          headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
-          styles: { fontSize: 9, cellPadding: 3 }
+          headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+          styles: { fontSize: 8.5, cellPadding: 2.5, overflow: 'linebreak' },
+          columnStyles: { 5: { fontStyle: 'bold', textColor: [5, 150, 105] } },
+          pageBreak: 'avoid',
+          rowPageBreak: 'avoid'
         })
 
         startY = doc.lastAutoTable.finalY + 8
@@ -2150,27 +2174,37 @@ function App() {
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
         doc.text(`Received Stock Installment History (Batches):`, 14, startY)
-        startY += 4
+        startY += 5
 
-        const batchRows = order.installments.map((inst, idx) => {
+        const batchRows = []
+        order.installments.forEach((inst, idx) => {
           const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
-          const itemsStr = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(', ')
-          return [
-            `Batch #${idx + 1}`,
-            new Date(inst.receivedAt).toLocaleDateString(),
-            `${bTotal} pcs`,
-            itemsStr,
-            inst.notes || '-'
-          ]
+          const items = inst.items || []
+          if (items.length === 0) {
+            batchRows.push([`Batch #${idx + 1}`, new Date(inst.receivedAt).toLocaleDateString(), `${bTotal} pcs`, '-', '-', inst.notes || '-'])
+          } else {
+            items.forEach((item, iIdx) => {
+              batchRows.push([
+                iIdx === 0 ? `Batch #${idx + 1}` : '',
+                iIdx === 0 ? new Date(inst.receivedAt).toLocaleDateString() : '',
+                iIdx === 0 ? `${bTotal} pcs` : '',
+                item.productName || '-',
+                `Size ${item.size}: ${item.qty} pcs`,
+                iIdx === 0 ? (inst.notes || '-') : ''
+              ])
+            })
+          }
         })
 
         doc.autoTable({
           startY,
-          head: [['Batch #', 'Received Date', 'Received Qty', 'Product & Size Breakdown', 'Notes']],
+          head: [['Batch #', 'Received Date', 'Total Qty', 'Product', 'Size & Qty', 'Notes']],
           body: batchRows,
           theme: 'striped',
-          headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
-          styles: { fontSize: 8.5, cellPadding: 3 }
+          headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+          styles: { fontSize: 8.5, cellPadding: 2.5, overflow: 'linebreak' },
+          rowPageBreak: 'avoid',
+          pageBreak: 'avoid'
         })
 
         startY = doc.lastAutoTable.finalY + 8
