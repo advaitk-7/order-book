@@ -234,34 +234,52 @@ const getNextPoNumber = (vendorOrders) => {
   return Math.max(...nums) + 1
 }
 
+const safeFormatDate = (dateVal, fallback = '-') => {
+  if (!dateVal) return fallback
+  try {
+    const d = new Date(dateVal)
+    if (isNaN(d.getTime())) return fallback
+    return d.toLocaleDateString()
+  } catch {
+    return fallback
+  }
+}
+
 // Gold-Standard Universal Search Matcher (Safe against null/undefined, supports Array, Object, String)
 const checkFuzzyMatch = (searchQuery, target) => {
-  if (!searchQuery || !String(searchQuery).trim()) return true
-  const rawQuery = String(searchQuery).trim().toLowerCase()
-  const cleanQuery = rawQuery.replace(/^#/, '').trim()
-  const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
-  if (queryTokens.length === 0) return true
+  try {
+    if (!searchQuery || !String(searchQuery).trim()) return true
+    const rawQuery = String(searchQuery).trim().toLowerCase()
+    const cleanQuery = rawQuery.replace(/^#/, '').trim()
+    const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
+    if (queryTokens.length === 0) return true
 
-  let textToSearch = ''
-  if (Array.isArray(target)) {
-    textToSearch = target.filter(Boolean).map(item => String(item).toLowerCase()).join(' ')
-  } else if (typeof target === 'object' && target !== null) {
-    textToSearch = Object.values(target).filter(Boolean).map(val => {
-      if (typeof val === 'object') return JSON.stringify(val).toLowerCase()
-      return String(val).toLowerCase()
-    }).join(' ')
-  } else {
-    textToSearch = String(target || '').toLowerCase()
-  }
-
-  for (const token of queryTokens) {
-    const cleanToken = token.replace(/^#/, '')
-    if (!textToSearch.includes(token) && !textToSearch.includes(cleanToken)) {
-      return false
+    let textToSearch = ''
+    if (Array.isArray(target)) {
+      textToSearch = target.filter(Boolean).map(item => String(item).toLowerCase()).join(' ')
+    } else if (typeof target === 'object' && target !== null) {
+      textToSearch = Object.values(target).filter(Boolean).map(val => {
+        if (typeof val === 'object') {
+          try { return JSON.stringify(val).toLowerCase() } catch { return '' }
+        }
+        return String(val).toLowerCase()
+      }).join(' ')
+    } else {
+      textToSearch = String(target || '').toLowerCase()
     }
-  }
 
-  return true
+    for (const token of queryTokens) {
+      const cleanToken = token.replace(/^#/, '')
+      if (!textToSearch.includes(token) && !textToSearch.includes(cleanToken)) {
+        return false
+      }
+    }
+
+    return true
+  } catch (err) {
+    console.error('Safe search match error caught:', err)
+    return true
+  }
 }
 
 function App() {
@@ -6142,7 +6160,8 @@ function App() {
 
                     {/* Live PO Counter Pill */}
                     {(() => {
-                      const tempFiltered = vendorOrders.filter(o => {
+                      const tempFiltered = (vendorOrders || []).filter(o => {
+                        if (!o) return false
                         if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
                         if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
                         if (vendorOrderSchoolFilter !== 'All') {
@@ -6153,9 +6172,9 @@ function App() {
                           const prods = getNormalizedProducts(o)
                           const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
                           const dates = [
-                            o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
+                            safeFormatDate(o.createdAt, ''),
                             o.targetDate || '',
-                            ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
+                            ...(o.installments || []).map(i => safeFormatDate(i.receivedAt, ''))
                           ]
                           const fields = [
                             o.poNumber,
@@ -6181,7 +6200,7 @@ function App() {
                             whiteSpace: 'nowrap'
                           }}
                         >
-                          Showing {tempFiltered.length} of {vendorOrders.length} POs
+                          Showing {tempFiltered.length} of {(vendorOrders || []).length} POs
                         </span>
                       )
                     })()}
@@ -6191,7 +6210,8 @@ function App() {
                 {/* Orders List View */}
                 <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
                   {(() => {
-                    const filteredOrders = vendorOrders.filter(o => {
+                    const filteredOrders = (vendorOrders || []).filter(o => {
+                      if (!o) return false
                       if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
                       if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
                       if (vendorOrderSchoolFilter !== 'All') {
@@ -6202,9 +6222,9 @@ function App() {
                         const prods = getNormalizedProducts(o)
                         const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
                         const dates = [
-                          o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
+                          safeFormatDate(o.createdAt, ''),
                           o.targetDate || '',
-                          ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
+                          ...(o.installments || []).map(i => safeFormatDate(i.receivedAt, ''))
                         ]
                         const fields = [
                           o.poNumber,
@@ -6294,9 +6314,9 @@ function App() {
                                 <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                                   <span>Products: <strong>{prods.length}</strong></span>
                                   {order.targetDate && <span>Target Date: <strong>{order.targetDate}</strong></span>}
-                                  <span>Created: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></span>
+                                  <span>Created: <strong>{safeFormatDate(order.createdAt)}</strong></span>
                                   <span style={{ fontWeight: '700', color: poHasAnyPrices ? (theme === 'dark' ? '#34D399' : '#059669') : '#64748B' }}>
-                                    Total PO Value: <strong>{poHasAnyPrices ? `₹${poTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
+                                    Total PO Value: <strong>{poHasAnyPrices ? `₹${(poTotalCost || 0).toLocaleString('en-IN')}` : '-'}</strong>
                                   </span>
                                 </div>
                               </div>
