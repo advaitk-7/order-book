@@ -6608,12 +6608,12 @@ function App() {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                       <thead>
                                         <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
-                                          <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', minWidth: '90px' }}>Size</th>
-                                          <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', minWidth: '110px' }}>Price / Unit</th>
-                                          <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>Ordered</th>
-                                          <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>Received</th>
-                                          <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>Pending Balance</th>
-                                          <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>Fulfillment</th>
+                                          <th style={{ padding: '8px 24px 8px 8px', whiteSpace: 'nowrap', minWidth: '95px' }}>Size</th>
+                                          <th style={{ padding: '8px 24px 8px 8px', whiteSpace: 'nowrap', minWidth: '115px' }}>Price / Unit</th>
+                                          <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Ordered</th>
+                                          <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Received</th>
+                                          <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Pending Balance</th>
+                                          <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Fulfillment</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -6623,16 +6623,16 @@ function App() {
                                           const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
                                           return (
                                             <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
-                                              <td style={{ padding: '8px 14px', fontWeight: '700', whiteSpace: 'nowrap' }}>Size {sb.size}</td>
-                                              <td style={{ padding: '8px 14px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                              <td style={{ padding: '8px 24px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap' }}>Size {sb.size}</td>
+                                              <td style={{ padding: '8px 24px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                                 {sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}
                                               </td>
-                                              <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>{sb.orderedQty} pcs</td>
-                                              <td style={{ padding: '8px 14px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>{sb.receivedQty || 0} pcs</td>
-                                              <td style={{ padding: '8px 14px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                              <td style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>{sb.orderedQty} pcs</td>
+                                              <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>{sb.receivedQty || 0} pcs</td>
+                                              <td style={{ padding: '8px 16px 8px 8px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                                 {pending > 0 ? `${pending} pcs` : 'Done'}
                                               </td>
-                                              <td style={{ padding: '8px 14px' }}>
+                                              <td style={{ padding: '6px 8px' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                   <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
                                                     <div style={{ height: '100%', width: `${sizePct}%`, background: sizePct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
@@ -6646,14 +6646,14 @@ function App() {
                                       </tbody>
                                       <tfoot style={{ borderTop: '2px solid var(--border-color, #CBD5E1)', fontWeight: '800', background: theme === 'dark' ? '#1E293B' : '#F8FAFC' }}>
                                         <tr>
-                                          <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>Total</td>
-                                          <td style={{ padding: '8px 14px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap' }}>-</td>
-                                          <td style={{ padding: '8px 14px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrdered} pcs</td>
-                                          <td style={{ padding: '8px 14px', color: '#10B981', whiteSpace: 'nowrap' }}>{totalProdReceived} pcs</td>
-                                          <td style={{ padding: '8px 14px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
+                                          <td style={{ padding: '8px 24px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap' }}>Total</td>
+                                          <td style={{ padding: '8px 24px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap' }}>-</td>
+                                          <td style={{ padding: '8px 16px 8px 8px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrdered} pcs</td>
+                                          <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>{totalProdReceived} pcs</td>
+                                          <td style={{ padding: '8px 16px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
                                             {totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}
                                           </td>
-                                          <td style={{ padding: '8px 14px' }}>
+                                          <td style={{ padding: '8px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                               <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
                                                 <div style={{ height: '100%', width: `${totalProdPct}%`, background: totalProdPct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
@@ -8910,12 +8910,12 @@ function App() {
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                               <thead>
                                 <tr style={{ background: '#2563EB', color: '#FFFFFF' }}>
-                                  <th style={{ padding: '6px 12px', textAlign: 'left', whiteSpace: 'nowrap', minWidth: '85px' }}>Size</th>
-                                  <th style={{ padding: '6px 12px', textAlign: 'left', whiteSpace: 'nowrap', minWidth: '100px' }}>Price / Unit</th>
-                                  <th style={{ padding: '6px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>Ordered</th>
-                                  <th style={{ padding: '6px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>Received</th>
-                                  <th style={{ padding: '6px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>Pending</th>
-                                  <th style={{ padding: '6px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>Row Cost</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Size</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Price / Unit</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Ordered</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Received</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Pending</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Row Cost</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -8925,24 +8925,24 @@ function App() {
                                   const rowCost = sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
                                   return (
                                     <tr key={sb.size} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                      <td style={{ padding: '6px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>Size {sb.size}</td>
-                                      <td style={{ padding: '6px 12px', color: '#475569', whiteSpace: 'nowrap' }}>{sbPrice > 0 ? `₹${sbPrice}` : '-'}</td>
-                                      <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>{sb.orderedQty || 0} pcs</td>
-                                      <td style={{ padding: '6px 12px', color: '#059669', fontWeight: '600', whiteSpace: 'nowrap' }}>{sb.receivedQty || 0} pcs</td>
-                                      <td style={{ padding: '6px 12px', color: pending > 0 ? '#D97706' : '#059669', fontWeight: '600', whiteSpace: 'nowrap' }}>{pending > 0 ? `${pending} pcs` : 'Done'}</td>
-                                      <td style={{ padding: '6px 12px', color: '#059669', fontWeight: '700', whiteSpace: 'nowrap' }}>{rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}</td>
+                                      <td style={{ padding: '5px 8px', fontWeight: '700' }}>Size {sb.size}</td>
+                                      <td style={{ padding: '5px 8px', color: '#475569' }}>{sbPrice > 0 ? `₹${sbPrice}` : '-'}</td>
+                                      <td style={{ padding: '5px 8px' }}>{sb.orderedQty || 0} pcs</td>
+                                      <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
+                                      <td style={{ padding: '5px 8px', color: pending > 0 ? '#D97706' : '#059669', fontWeight: '600' }}>{pending > 0 ? `${pending} pcs` : 'Done'}</td>
+                                      <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '700' }}>{rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}</td>
                                     </tr>
                                   )
                                 })}
                               </tbody>
                               <tfoot style={{ background: '#F8FAFC', fontWeight: '800', borderTop: '2px solid #CBD5E1' }}>
                                 <tr>
-                                  <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>Total</td>
-                                  <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>—</td>
-                                  <td style={{ padding: '6px 12px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrdered} pcs</td>
-                                  <td style={{ padding: '6px 12px', color: '#059669', whiteSpace: 'nowrap' }}>{totalProdReceived} pcs</td>
-                                  <td style={{ padding: '6px 12px', color: totalProdPending > 0 ? '#D97706' : '#059669', whiteSpace: 'nowrap' }}>{totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}</td>
-                                  <td style={{ padding: '6px 12px', color: '#059669', whiteSpace: 'nowrap' }}>{totalProdCost > 0 ? `₹${totalProdCost.toLocaleString('en-IN')}` : '-'}</td>
+                                  <td style={{ padding: '6px 8px' }}>Total</td>
+                                  <td style={{ padding: '6px 8px' }}>—</td>
+                                  <td style={{ padding: '6px 8px', color: '#2563EB' }}>{totalProdOrdered} pcs</td>
+                                  <td style={{ padding: '6px 8px', color: '#059669' }}>{totalProdReceived} pcs</td>
+                                  <td style={{ padding: '6px 8px', color: totalProdPending > 0 ? '#D97706' : '#059669' }}>{totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}</td>
+                                  <td style={{ padding: '6px 8px', color: '#059669' }}>{totalProdCost > 0 ? `₹${totalProdCost.toLocaleString('en-IN')}` : '-'}</td>
                                 </tr>
                               </tfoot>
                             </table>
