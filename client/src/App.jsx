@@ -6570,17 +6570,24 @@ function App() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                               {prods.map((prod, pIdx) => {
                                 const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
-                                const totalProdOrdered = sortedSizes.reduce((sum, sb) => sum + (sb.orderedQty || 0), 0)
-                                const totalProdReceived = sortedSizes.reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
-                                const totalProdPending = Math.max(0, totalProdOrdered - totalProdReceived)
-                                const totalProdPct = totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdReceived / totalProdOrdered) * 100)) : 0
+                                const legacyPrice = Number(prod.unitPrice || 0)
+                                let totalProdOrdered = 0
+                                let totalProdReceived = 0
+                                let totalProdPending = 0
+                                let totalProdCost = 0
 
-                                const prodUnitPrice = Number(prod.unitPrice || 0)
-                                const prodTotalCost = prodUnitPrice > 0 ? totalProdReceived * prodUnitPrice : 0
+                                sortedSizes.forEach(sb => {
+                                  const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                                  totalProdOrdered += (sb.orderedQty || 0)
+                                  totalProdReceived += (sb.receivedQty || 0)
+                                  totalProdPending += Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
+                                  totalProdCost += sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
+                                })
+                                const totalProdPct = totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdReceived / totalProdOrdered) * 100)) : 0
 
                                 return (
                                   <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                                       <div>
                                         <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '4px' }}>
                                           Product {pIdx + 1} &mdash; {prod.productName}
@@ -6592,19 +6599,17 @@ function App() {
                                         )}
                                       </div>
 
-                                      <div style={{ fontSize: '12px', textAlign: 'right' }}>
-                                        <div style={{ color: theme === 'dark' ? '#CBD5E1' : '#475569', fontWeight: '600' }}>
-                                          Price / Unit: <strong style={{ color: prodUnitPrice > 0 ? (theme === 'dark' ? '#34D399' : '#059669') : '#94A3B8' }}>{prodUnitPrice > 0 ? `₹${prodUnitPrice.toLocaleString('en-IN')}` : '-'}</strong>
+                                      {totalProdCost > 0 && (
+                                        <div style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#34D399' : '#059669' }}>
+                                          Total Product Cost: ₹{totalProdCost.toLocaleString('en-IN')}
                                         </div>
-                                        <div style={{ fontSize: '12px', fontWeight: '700', color: prodUnitPrice > 0 ? (theme === 'dark' ? '#34D399' : '#059669') : '#94A3B8', marginTop: '2px' }}>
-                                          Total Product Cost: {prodUnitPrice > 0 ? `₹${prodTotalCost.toLocaleString('en-IN')}` : '-'}
-                                        </div>
-                                      </div>
+                                      )}
                                     </div>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                       <thead>
                                         <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
                                           <th style={{ padding: '6px 8px' }}>Size</th>
+                                          <th style={{ padding: '6px 8px' }}>Price / Unit</th>
                                           <th style={{ padding: '6px 8px' }}>Ordered</th>
                                           <th style={{ padding: '6px 8px' }}>Received</th>
                                           <th style={{ padding: '6px 8px' }}>Pending Balance</th>
@@ -6613,11 +6618,15 @@ function App() {
                                       </thead>
                                       <tbody>
                                         {sortedSizes.map((sb) => {
+                                          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
                                           const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
                                           const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
                                           return (
                                             <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
                                               <td style={{ padding: '6px 8px', fontWeight: '700' }}>Size {sb.size}</td>
+                                              <td style={{ padding: '6px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600' }}>
+                                                {sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}
+                                              </td>
                                               <td style={{ padding: '6px 8px' }}>{sb.orderedQty} pcs</td>
                                               <td style={{ padding: '6px 8px', color: '#10B981', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
                                               <td style={{ padding: '6px 8px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600' }}>
@@ -6638,6 +6647,7 @@ function App() {
                                       <tfoot style={{ borderTop: '2px solid var(--border-color, #CBD5E1)', fontWeight: '800', background: theme === 'dark' ? '#1E293B' : '#F8FAFC' }}>
                                         <tr>
                                           <td style={{ padding: '8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Total</td>
+                                          <td style={{ padding: '8px', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>-</td>
                                           <td style={{ padding: '8px', color: '#2563EB' }}>{totalProdOrdered} pcs</td>
                                           <td style={{ padding: '8px', color: '#10B981' }}>{totalProdReceived} pcs</td>
                                           <td style={{ padding: '8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981' }}>
