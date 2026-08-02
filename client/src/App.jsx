@@ -1667,7 +1667,7 @@ function App() {
 
       const cleanBreakdown = sortSizesAscending(
         (p.sizeBreakdown || [])
-          .map(sb => ({ size: (sb.size || '').trim(), orderedQty: Number(sb.orderedQty || 0) }))
+          .map(sb => ({ size: (sb.size || '').trim(), orderedQty: Number(sb.orderedQty || 0), unitPrice: Math.max(0, Number(sb.unitPrice || 0)) }))
           .filter(sb => sb.size && sb.orderedQty > 0)
       )
 
@@ -1679,7 +1679,6 @@ function App() {
       cleanProducts.push({
         productName,
         school,
-        unitPrice: Math.max(0, Number(p.unitPrice || 0)),
         sizeBreakdown: cleanBreakdown
       })
     }
@@ -1960,7 +1959,7 @@ function App() {
     rows.push([])
 
     rows.push(['Product Breakdown'])
-    rows.push(['Product Name', 'School / Firm', 'Size', 'Ordered Qty', 'Received Qty', 'Pending Balance', 'Price / Unit (₹)'])
+    rows.push(['Product Name', 'School / Firm', 'Size', 'Price / Unit (₹)', 'Ordered Qty', 'Received Qty', 'Pending Balance', 'Row Cost (₹)'])
 
     let grandOrdered = 0
     let grandReceived = 0
@@ -1969,47 +1968,50 @@ function App() {
 
     prods.forEach((p, pIdx) => {
       const sorted = sortSizesAscending(p.sizeBreakdown || [])
-      const pPrice = Number(p.unitPrice || 0)
+      // Legacy fallback: product-level price if no per-size prices set
+      const legacyPrice = Number(p.unitPrice || 0)
       let pOrdered = 0
       let pReceived = 0
       let pPending = 0
+      let pTotalCost = 0
 
       sorted.forEach((sb, idx) => {
         const ordered = sb.orderedQty || 0
         const received = sb.receivedQty || 0
         const pending = Math.max(0, ordered - received)
+        const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+        const rowCost = sbPrice > 0 ? received * sbPrice : 0
 
         pOrdered += ordered
         pReceived += received
         pPending += pending
+        pTotalCost += rowCost
         grandOrdered += ordered
         grandReceived += received
         grandPending += pending
+        grandCost += rowCost
 
         rows.push([
           idx === 0 ? p.productName : '',
           idx === 0 ? p.school : '',
           `Size ${sb.size}`,
+          sbPrice > 0 ? `Rs. ${sbPrice}` : '-',
           `${ordered} pcs`,
           `${received} pcs`,
           pending > 0 ? `${pending} pcs` : 'Done',
-          pPrice > 0 ? `Rs. ${pPrice}` : '-'
+          rowCost > 0 ? `Rs. ${rowCost}` : '-'
         ])
       })
-
-      const pTotalCost = pPrice > 0 ? pReceived * pPrice : 0
-      if (pPrice > 0) {
-        grandCost += pTotalCost
-      }
 
       rows.push([
         `Total (${p.productName})`,
         '',
         '',
+        '',
         `${pOrdered} pcs`,
         `${pReceived} pcs`,
         pPending > 0 ? `${pPending} pcs` : 'Done',
-        pPrice > 0 ? `Total Product Cost: Rs. ${pTotalCost}` : '-'
+        pTotalCost > 0 ? `Total Product Cost: Rs. ${pTotalCost}` : '-'
       ])
 
       if (pIdx < prods.length - 1) {
@@ -2136,65 +2138,72 @@ function App() {
 
       let startY = order.targetDate ? 34 : 29
 
-      // Calculate grand PO total cost upfront
+      // Calculate grand PO total cost upfront (per-size pricing, legacy fallback)
       let grandPOCost = 0
       let grandPOHasCost = false
       prods.forEach(p => {
-        const price = Number(p.unitPrice || 0)
-        if (price > 0) {
-          const rec = (p.sizeBreakdown || []).reduce((s, sb) => s + (sb.receivedQty || 0), 0)
-          grandPOCost += rec * price
-          grandPOHasCost = true
-        }
+        const legacyPrice = Number(p.unitPrice || 0)
+        ;(p.sizeBreakdown || []).forEach(sb => {
+          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+          if (sbPrice > 0) {
+            grandPOCost += (sb.receivedQty || 0) * sbPrice
+            grandPOHasCost = true
+          }
+        })
       })
 
       prods.forEach((prod, pIdx) => {
         if (startY > 240) { doc.addPage(); startY = 16 }
         const prodUnitPrice = Number(prod.unitPrice || 0)
         const sorted = sortSizesAscending(prod.sizeBreakdown || [])
+        const legacyPrice = Number(prod.unitPrice || 0)
 
         // Product heading
         doc.setFontSize(10.5)
         doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
-        const priceLabel = prodUnitPrice > 0 ? `  |  Price / Unit: Rs.${prodUnitPrice}` : ''
-        doc.text(`Product ${pIdx + 1}: ${prod.productName} (${prod.school || 'N/A'})${priceLabel}`, 14, startY)
+        doc.text(`Product ${pIdx + 1}: ${prod.productName} (${prod.school || 'N/A'})`, 14, startY)
         startY += 5
 
-        // Size rows — no Production Cost column
+        // Size rows — Price/Unit per row, no Fulfillment%
+        let pTotalCost = 0
+        let pReceived = 0
+        let pOrdered = 0
         const tableData = sorted.map(sb => {
+          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
           const pending = Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
+          const rowCost = sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
+          pTotalCost += rowCost
+          pReceived += (sb.receivedQty || 0)
+          pOrdered += (sb.orderedQty || 0)
           return [
             `Size ${sb.size}`,
+            sbPrice > 0 ? `Rs.${sbPrice}` : '-',
             `${sb.orderedQty || 0} pcs`,
             `${sb.receivedQty || 0} pcs`,
             pending > 0 ? `${pending} pcs` : 'Done',
-            (sb.orderedQty || 0) > 0
-              ? `${Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100))}%`
-              : '0%'
+            rowCost > 0 ? `Rs.${rowCost.toLocaleString('en-IN')}` : '-'
           ]
         })
 
-        const pOrdered = sorted.reduce((s, b) => s + (b.orderedQty || 0), 0)
-        const pReceived = sorted.reduce((s, b) => s + (b.receivedQty || 0), 0)
         const pPending = Math.max(0, pOrdered - pReceived)
-        const pPct = pOrdered > 0 ? Math.round((pReceived / pOrdered) * 100) : 0
-
         tableData.push([
           'Total',
+          '',
           `${pOrdered} pcs`,
           `${pReceived} pcs`,
           pPending > 0 ? `${pPending} pcs` : 'Done',
-          `${pPct}%`
+          pTotalCost > 0 ? `Rs.${pTotalCost.toLocaleString('en-IN')}` : '-'
         ])
 
         doc.autoTable({
           startY,
-          head: [['Size', 'Ordered', 'Received', 'Pending', 'Fulfillment']],
+          head: [['Size', 'Price / Unit', 'Ordered', 'Received', 'Pending', 'Row Cost']],
           body: tableData,
           theme: 'striped',
           headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
           styles: { fontSize: 8.5, cellPadding: 3, overflow: 'linebreak' },
+          columnStyles: { 5: { fontStyle: 'bold', textColor: [5, 150, 105] } },
           rowPageBreak: 'avoid',
           pageBreak: 'avoid'
         })
@@ -2202,13 +2211,12 @@ function App() {
         startY = doc.lastAutoTable.finalY + 3
 
         // Total Product Cost summary line
-        if (prodUnitPrice > 0) {
-          const pTotalCost = pReceived * prodUnitPrice
+        if (pTotalCost > 0) {
           doc.setFontSize(9.5)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(5, 150, 105)
           doc.text(
-            `Total Product Cost (${prod.productName}): Rs.${pTotalCost.toLocaleString('en-IN')}  (${pReceived} pcs × Rs.${prodUnitPrice})`,
+            `Total Product Cost (${prod.productName}): Rs.${pTotalCost.toLocaleString('en-IN')}  (${pReceived} pcs received)`,
             14, startY
           )
           startY += 7
@@ -6330,13 +6338,13 @@ function App() {
                         let poHasAnyPrices = false
 
                         prods.forEach(p => {
-                          const pReceivedPcs = (p.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
-                          const pUnitPrice = Number(p.unitPrice || 0)
-                          if (pUnitPrice > 0) {
-                            poTotalCost += pReceivedPcs * pUnitPrice
-                            poHasAnyPrices = true
-                          }
                           (p.sizeBreakdown || []).forEach(sb => {
+                            // Per-size price (new) takes priority; fall back to product-level price (legacy)
+                            const sbPrice = Number(sb.unitPrice || 0) || Number(p.unitPrice || 0)
+                            if (sbPrice > 0) {
+                              poTotalCost += (sb.receivedQty || 0) * sbPrice
+                              poHasAnyPrices = true
+                            }
                             totalOrdered += (sb.orderedQty || 0)
                             totalReceived += (sb.receivedQty || 0)
                           })
@@ -6431,8 +6439,7 @@ function App() {
                                       products: prods.map(p => ({
                                         productName: p.productName,
                                         school: p.school,
-                                        unitPrice: p.unitPrice !== undefined && p.unitPrice !== null && p.unitPrice > 0 ? String(p.unitPrice) : '',
-                                        sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({ size: sb.size, orderedQty: sb.orderedQty }))
+                                        sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({ size: sb.size, orderedQty: sb.orderedQty, unitPrice: sb.unitPrice !== undefined ? sb.unitPrice : '' }))
                                       }))
                                     })
                                     setShowVendorOrderModal(true)
@@ -8229,26 +8236,8 @@ function App() {
                           style={{ padding: '8px 12px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
                         />
                       </div>
-
-                      <div style={{ flex: 1, minWidth: '140px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                        <label style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap' }}>
-                          Price / Unit (₹) (Optional)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          placeholder="e.g. 250"
-                          value={prod.unitPrice || ''}
-                          onChange={(e) => {
-                            const updatedProds = [...(vendorOrderFormData.products || [])]
-                            updatedProds[pIdx] = { ...updatedProds[pIdx], unitPrice: e.target.value }
-                            setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
-                          }}
-                          style={{ padding: '8px 12px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
-                        />
-                      </div>
                     </div>
+
 
                     {/* Size Breakdown per Product */}
                     <div style={{ background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)' }}>
@@ -8274,10 +8263,10 @@ function App() {
 
                       {(prod.sizeBreakdown || []).map((sb, sIdx) => (
                         <div key={sIdx} style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
-                          <div style={{ flex: 1 }}>
+                          <div style={{ flex: 1.2 }}>
                             <input
                               type="text"
-                              placeholder="Size (e.g. 28, 30, 32 or M, L)"
+                              placeholder="Size (e.g. 28, 30, M, L)"
                               value={sb.size}
                               onChange={(e) => {
                                 const updatedProds = [...(vendorOrderFormData.products || [])]
@@ -8287,14 +8276,14 @@ function App() {
                                 setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                               }}
                               required
-                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                           <div style={{ flex: 1 }}>
                             <input
                               type="number"
                               min="1"
-                              placeholder="Ordered Pcs Qty"
+                              placeholder="Ordered Qty"
                               value={sb.orderedQty}
                               onChange={(e) => {
                                 const updatedProds = [...(vendorOrderFormData.products || [])]
@@ -8304,7 +8293,24 @@ function App() {
                                 setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                               }}
                               required
-                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              placeholder="Price/Unit (₹)"
+                              value={sb.unitPrice !== undefined ? sb.unitPrice : ''}
+                              onChange={(e) => {
+                                const updatedProds = [...(vendorOrderFormData.products || [])]
+                                const updatedBreakdown = [...(updatedProds[pIdx].sizeBreakdown || [])]
+                                updatedBreakdown[sIdx] = { ...updatedBreakdown[sIdx], unitPrice: e.target.value }
+                                updatedProds[pIdx] = { ...updatedProds[pIdx], sizeBreakdown: updatedBreakdown }
+                                setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
+                              }}
+                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                           <button
@@ -8824,12 +8830,14 @@ function App() {
                   let poTotalCost = 0
                   let poHasAnyPrices = false
                   prods.forEach(p => {
-                    const pRec = (p.sizeBreakdown || []).reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
-                    const pPrice = Number(p.unitPrice || 0)
-                    if (pPrice > 0) {
-                      poTotalCost += pRec * pPrice
-                      poHasAnyPrices = true
-                    }
+                    const legacyPrice = Number(p.unitPrice || 0)
+                    ;(p.sizeBreakdown || []).forEach(sb => {
+                      const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                      if (sbPrice > 0) {
+                        poTotalCost += (sb.receivedQty || 0) * sbPrice
+                        poHasAnyPrices = true
+                      }
+                    })
                   })
 
                   return (
@@ -8869,42 +8877,50 @@ function App() {
                       {/* Product Tables */}
                       {prods.map((prod, pIdx) => {
                         const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
-                        const totalProdOrdered = sortedSizes.reduce((sum, sb) => sum + (sb.orderedQty || 0), 0)
-                        const totalProdReceived = sortedSizes.reduce((sum, sb) => sum + (sb.receivedQty || 0), 0)
-                        const totalProdPending = Math.max(0, totalProdOrdered - totalProdReceived)
-                        const totalProdPct = totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdReceived / totalProdOrdered) * 100)) : 0
+                        const legacyPrice = Number(prod.unitPrice || 0)
+                        let totalProdOrdered = 0
+                        let totalProdReceived = 0
+                        let totalProdPending = 0
+                        let totalProdCost = 0
 
-                        const prodUnitPrice = Number(prod.unitPrice || 0)
-                        const prodTotalCost = prodUnitPrice > 0 ? totalProdReceived * prodUnitPrice : 0
+                        sortedSizes.forEach(sb => {
+                          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                          totalProdOrdered += (sb.orderedQty || 0)
+                          totalProdReceived += (sb.receivedQty || 0)
+                          totalProdPending += Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
+                          totalProdCost += sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
+                        })
 
                         return (
                           <div key={pIdx} style={{ marginBottom: '16px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px' }}>
                             <div style={{ fontWeight: '800', fontSize: '13px', color: '#0284C7', marginBottom: '8px' }}>
                               Product {pIdx + 1} &mdash; {prod.productName} {prod.school ? `(School/Firm: ${prod.school})` : ''}
-                              {prodUnitPrice > 0 && <span style={{ fontWeight: '600', color: '#475569', marginLeft: '8px', fontSize: '11px' }}>| Price / Unit: ₹{prodUnitPrice}</span>}
                             </div>
 
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                               <thead>
                                 <tr style={{ background: '#2563EB', color: '#FFFFFF' }}>
                                   <th style={{ padding: '5px 8px', textAlign: 'left' }}>Size</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Price / Unit</th>
                                   <th style={{ padding: '5px 8px', textAlign: 'left' }}>Ordered</th>
                                   <th style={{ padding: '5px 8px', textAlign: 'left' }}>Received</th>
-                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Pending Balance</th>
-                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Fulfillment</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Pending</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Row Cost</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {sortedSizes.map((sb) => {
-                                  const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
-                                  const sizePct = sb.orderedQty > 0 ? Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100)) : 0
+                                  const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                                  const pending = Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
+                                  const rowCost = sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
                                   return (
                                     <tr key={sb.size} style={{ borderBottom: '1px solid #F1F5F9' }}>
                                       <td style={{ padding: '5px 8px', fontWeight: '700' }}>Size {sb.size}</td>
-                                      <td style={{ padding: '5px 8px' }}>{sb.orderedQty} pcs</td>
+                                      <td style={{ padding: '5px 8px', color: '#475569' }}>{sbPrice > 0 ? `₹${sbPrice}` : '-'}</td>
+                                      <td style={{ padding: '5px 8px' }}>{sb.orderedQty || 0} pcs</td>
                                       <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '600' }}>{sb.receivedQty || 0} pcs</td>
                                       <td style={{ padding: '5px 8px', color: pending > 0 ? '#D97706' : '#059669', fontWeight: '600' }}>{pending > 0 ? `${pending} pcs` : 'Done'}</td>
-                                      <td style={{ padding: '5px 8px' }}>{sizePct}%</td>
+                                      <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '700' }}>{rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}</td>
                                     </tr>
                                   )
                                 })}
@@ -8912,19 +8928,20 @@ function App() {
                               <tfoot style={{ background: '#F8FAFC', fontWeight: '800', borderTop: '2px solid #CBD5E1' }}>
                                 <tr>
                                   <td style={{ padding: '6px 8px' }}>Total</td>
+                                  <td style={{ padding: '6px 8px' }}>—</td>
                                   <td style={{ padding: '6px 8px', color: '#2563EB' }}>{totalProdOrdered} pcs</td>
                                   <td style={{ padding: '6px 8px', color: '#059669' }}>{totalProdReceived} pcs</td>
                                   <td style={{ padding: '6px 8px', color: totalProdPending > 0 ? '#D97706' : '#059669' }}>{totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}</td>
-                                  <td style={{ padding: '6px 8px' }}>{totalProdPct}%</td>
+                                  <td style={{ padding: '6px 8px', color: '#059669' }}>{totalProdCost > 0 ? `₹${totalProdCost.toLocaleString('en-IN')}` : '-'}</td>
                                 </tr>
                               </tfoot>
                             </table>
 
                             {/* Total Product Cost summary below table */}
-                            {prodUnitPrice > 0 && (
+                            {totalProdCost > 0 && (
                               <div style={{ marginTop: '6px', fontSize: '11px', fontWeight: '700', color: '#059669' }}>
-                                Total Product Cost: ₹{prodTotalCost.toLocaleString('en-IN')}
-                                <span style={{ fontWeight: '400', color: '#64748B', marginLeft: '6px' }}>({totalProdReceived} pcs × ₹{prodUnitPrice})</span>
+                                Total Product Cost: ₹{totalProdCost.toLocaleString('en-IN')}
+                                <span style={{ fontWeight: '400', color: '#64748B', marginLeft: '6px' }}>({totalProdReceived} pcs received)</span>
                               </div>
                             )}
                           </div>

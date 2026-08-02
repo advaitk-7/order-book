@@ -351,7 +351,8 @@ const vendorOrderSchema = new mongoose.Schema(
           {
             size: { type: String, required: true, trim: true },
             orderedQty: { type: Number, required: true, default: 0 },
-            receivedQty: { type: Number, required: true, default: 0 }
+            receivedQty: { type: Number, required: true, default: 0 },
+            unitPrice: { type: Number, default: 0 }
           }
         ]
       }
@@ -1706,7 +1707,8 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
         ? p.sizeBreakdown.map(sb => ({
             size: String(sb.size || '').trim(),
             orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
-            receivedQty: 0
+            receivedQty: 0,
+            unitPrice: Math.max(0, Number(sb.unitPrice || 0))
           })).filter(sb => sb.size && sb.orderedQty > 0)
         : [];
 
@@ -1719,7 +1721,6 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
       cleanProducts.push({
         productName,
         school,
-        unitPrice: Math.max(0, Number(p.unitPrice || 0)),
         sizeBreakdown: formattedBreakdown
       });
     }
@@ -1789,7 +1790,8 @@ app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
           return {
             size: cleanSize,
             orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
-            receivedQty: existingSb ? (existingSb.receivedQty || 0) : 0
+            receivedQty: existingSb ? (existingSb.receivedQty || 0) : 0,
+            unitPrice: Math.max(0, Number(sb.unitPrice !== undefined ? sb.unitPrice : (existingSb ? existingSb.unitPrice : 0)))
           };
         }).filter(sb => sb.size && sb.orderedQty > 0);
 
@@ -1797,7 +1799,6 @@ app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
           cleanProducts.push({
             productName,
             school,
-            unitPrice: Math.max(0, Number(p.unitPrice !== undefined ? p.unitPrice : (existingProd ? existingProd.unitPrice : 0))),
             sizeBreakdown: updatedBreakdown
           });
         }
