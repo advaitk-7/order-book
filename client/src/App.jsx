@@ -1968,7 +1968,7 @@ function App() {
     let grandPending = 0
     let grandCost = 0
 
-    prods.forEach(p => {
+    prods.forEach((p, pIdx) => {
       const sorted = sortSizesAscending(p.sizeBreakdown || [])
       const pPrice = Number(p.unitPrice || 0)
 
@@ -1994,8 +1994,13 @@ function App() {
           cost > 0 ? `Rs. ${cost}` : '-'
         ])
       })
+
+      if (pIdx < prods.length - 1) {
+        rows.push([])
+      }
     })
 
+    rows.push([])
     rows.push([
       'TOTAL', '', '',
       `${grandOrdered} pcs`,
