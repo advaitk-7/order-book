@@ -2119,27 +2119,42 @@ function App() {
 
       let startY = order.targetDate ? 34 : 29
 
+      // Calculate grand PO total cost upfront
+      let grandPOCost = 0
+      let grandPOHasCost = false
+      prods.forEach(p => {
+        const price = Number(p.unitPrice || 0)
+        if (price > 0) {
+          const rec = (p.sizeBreakdown || []).reduce((s, sb) => s + (sb.receivedQty || 0), 0)
+          grandPOCost += rec * price
+          grandPOHasCost = true
+        }
+      })
+
       prods.forEach((prod, pIdx) => {
         if (startY > 240) { doc.addPage(); startY = 16 }
-        doc.setFontSize(11)
+        const prodUnitPrice = Number(prod.unitPrice || 0)
+        const sorted = sortSizesAscending(prod.sizeBreakdown || [])
+
+        // Product heading
+        doc.setFontSize(10.5)
         doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
-        const prodUnitPrice = Number(prod.unitPrice || 0)
         const priceLabel = prodUnitPrice > 0 ? `  |  Price / Unit: Rs.${prodUnitPrice}` : ''
         doc.text(`Product ${pIdx + 1}: ${prod.productName} (${prod.school || 'N/A'})${priceLabel}`, 14, startY)
         startY += 5
 
-        const sorted = sortSizesAscending(prod.sizeBreakdown || [])
+        // Size rows — no Production Cost column
         const tableData = sorted.map(sb => {
-          const pending = Math.max(0, sb.orderedQty - (sb.receivedQty || 0))
-          const recCost = prodUnitPrice > 0 ? (sb.receivedQty || 0) * prodUnitPrice : null
+          const pending = Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
           return [
             `Size ${sb.size}`,
-            `${sb.orderedQty} pcs`,
+            `${sb.orderedQty || 0} pcs`,
             `${sb.receivedQty || 0} pcs`,
             pending > 0 ? `${pending} pcs` : 'Done',
-            sb.orderedQty > 0 ? `${Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100))}%` : '0%',
-            recCost !== null ? `Rs.${recCost.toLocaleString('en-IN')}` : '-'
+            (sb.orderedQty || 0) > 0
+              ? `${Math.min(100, Math.round(((sb.receivedQty || 0) / sb.orderedQty) * 100))}%`
+              : '0%'
           ]
         })
 
@@ -2147,33 +2162,56 @@ function App() {
         const pReceived = sorted.reduce((s, b) => s + (b.receivedQty || 0), 0)
         const pPending = Math.max(0, pOrdered - pReceived)
         const pPct = pOrdered > 0 ? Math.round((pReceived / pOrdered) * 100) : 0
-        const pTotalCost = prodUnitPrice > 0 ? pReceived * prodUnitPrice : null
+
         tableData.push([
           'Total',
           `${pOrdered} pcs`,
           `${pReceived} pcs`,
           pPending > 0 ? `${pPending} pcs` : 'Done',
-          `${pPct}%`,
-          pTotalCost !== null ? `Rs.${pTotalCost.toLocaleString('en-IN')}` : '-'
+          `${pPct}%`
         ])
 
         doc.autoTable({
           startY,
-          head: [['Size', 'Ordered', 'Received', 'Pending', 'Fulfillment', 'Production Cost']],
+          head: [['Size', 'Ordered', 'Received', 'Pending', 'Fulfillment']],
           body: tableData,
           theme: 'striped',
-          headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-          styles: { fontSize: 8.5, cellPadding: 2.5, overflow: 'linebreak' },
-          columnStyles: { 5: { fontStyle: 'bold', textColor: [5, 150, 105] } },
-          pageBreak: 'avoid',
-          rowPageBreak: 'avoid'
+          headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+          styles: { fontSize: 8.5, cellPadding: 3, overflow: 'linebreak' },
+          rowPageBreak: 'avoid',
+          pageBreak: 'avoid'
         })
 
-        startY = doc.lastAutoTable.finalY + 8
+        startY = doc.lastAutoTable.finalY + 3
+
+        // Total Product Cost summary line
+        if (prodUnitPrice > 0) {
+          const pTotalCost = pReceived * prodUnitPrice
+          doc.setFontSize(9.5)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(5, 150, 105)
+          doc.text(
+            `Total Product Cost (${prod.productName}): Rs.${pTotalCost.toLocaleString('en-IN')}  (${pReceived} pcs × Rs.${prodUnitPrice})`,
+            14, startY
+          )
+          startY += 7
+        } else {
+          startY += 4
+        }
       })
 
+      // Total PO Value summary
+      if (grandPOHasCost) {
+        if (startY > 255) { doc.addPage(); startY = 16 }
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(37, 99, 235)
+        doc.text(`Total PO Value: Rs.${grandPOCost.toLocaleString('en-IN')}`, 14, startY)
+        startY += 10
+      }
+
       if (order.installments && order.installments.length > 0) {
-        if (startY > 230) { doc.addPage(); startY = 16 }
+        if (startY > 255) { doc.addPage(); startY = 16 }
         doc.setFontSize(11)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(15, 23, 42)
@@ -8781,13 +8819,9 @@ function App() {
 
                         return (
                           <div key={pIdx} style={{ marginBottom: '16px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                              <div style={{ fontWeight: '800', fontSize: '13px', color: '#0284C7' }}>
-                                Product {pIdx + 1} &mdash; {prod.productName} {prod.school ? `(School/Firm: ${prod.school})` : ''}
-                              </div>
-                              <div style={{ fontSize: '11px', textAlign: 'right' }}>
-                                Price / Unit: <strong>{prodUnitPrice > 0 ? `₹${prodUnitPrice}` : '-'}</strong> &nbsp;|&nbsp; Total Cost: <strong style={{ color: prodUnitPrice > 0 ? '#059669' : '#64748B' }}>{prodUnitPrice > 0 ? `₹${prodTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
-                              </div>
+                            <div style={{ fontWeight: '800', fontSize: '13px', color: '#0284C7', marginBottom: '8px' }}>
+                              Product {pIdx + 1} &mdash; {prod.productName} {prod.school ? `(School/Firm: ${prod.school})` : ''}
+                              {prodUnitPrice > 0 && <span style={{ fontWeight: '600', color: '#475569', marginLeft: '8px', fontSize: '11px' }}>| Price / Unit: ₹{prodUnitPrice}</span>}
                             </div>
 
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
@@ -8825,10 +8859,25 @@ function App() {
                                 </tr>
                               </tfoot>
                             </table>
+
+                            {/* Total Product Cost summary below table */}
+                            {prodUnitPrice > 0 && (
+                              <div style={{ marginTop: '6px', fontSize: '11px', fontWeight: '700', color: '#059669' }}>
+                                Total Product Cost: ₹{prodTotalCost.toLocaleString('en-IN')}
+                                <span style={{ fontWeight: '400', color: '#64748B', marginLeft: '6px' }}>({totalProdReceived} pcs × ₹{prodUnitPrice})</span>
+                              </div>
+                            )}
                           </div>
                         )
                       })}
 
+                      {/* Total PO Value block */}
+                      {poHasAnyPrices && (
+                        <div style={{ background: '#EFF6FF', border: '2px solid #2563EB', borderRadius: '6px', padding: '10px 14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: '#1E40AF' }}>Total PO Value</span>
+                          <span style={{ fontSize: '15px', fontWeight: '800', color: '#2563EB' }}>₹{poTotalCost.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
                       {/* Received Stock Batches Section */}
                       {order.installments && order.installments.length > 0 && (
                         <div style={{ marginTop: '16px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px' }}>
