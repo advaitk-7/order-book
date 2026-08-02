@@ -8439,7 +8439,6 @@ function App() {
                       <input
                         type="number"
                         min="0"
-                        max={item.remainingQty}
                         placeholder="Qty received"
                         value={item.newQty}
                         onChange={(e) => {
@@ -8451,12 +8450,12 @@ function App() {
                           padding: '6px 10px',
                           fontSize: '13px',
                           textAlign: 'right',
-                          borderColor: Number(item.newQty || 0) > item.remainingQty ? '#EF4444' : undefined
+                          borderColor: Number(item.newQty || 0) > item.remainingQty ? '#2563EB' : undefined
                         }}
                       />
                       {Number(item.newQty || 0) > item.remainingQty && (
-                        <span style={{ color: '#EF4444', fontSize: '10px', display: 'block', textAlign: 'right' }}>
-                          Exceeds pending ({item.remainingQty})!
+                        <span style={{ color: '#2563EB', fontSize: '10px', display: 'block', textAlign: 'right', fontWeight: '600' }}>
+                          +{Number(item.newQty || 0) - item.remainingQty} Extra stock!
                         </span>
                       )}
                     </div>
@@ -8525,7 +8524,6 @@ function App() {
                       <input
                         type="number"
                         min="0"
-                        max={item.remainingQty}
                         placeholder="Qty"
                         value={item.qty}
                         onChange={(e) => {
@@ -8537,12 +8535,12 @@ function App() {
                           padding: '6px 10px',
                           fontSize: '13px',
                           textAlign: 'right',
-                          borderColor: Number(item.qty || 0) > item.remainingQty ? '#EF4444' : undefined
+                          borderColor: Number(item.qty || 0) > item.remainingQty ? '#2563EB' : undefined
                         }}
                       />
                       {Number(item.qty || 0) > item.remainingQty && (
-                        <span style={{ color: '#EF4444', fontSize: '10px', display: 'block', textAlign: 'right' }}>
-                          Exceeds max ({item.remainingQty})!
+                        <span style={{ color: '#2563EB', fontSize: '10px', display: 'block', textAlign: 'right', fontWeight: '600' }}>
+                          +{Number(item.qty || 0) - item.remainingQty} Extra stock!
                         </span>
                       )}
                     </div>
