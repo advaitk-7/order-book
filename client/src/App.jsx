@@ -7203,10 +7203,7 @@ function App() {
                                             borderRadius: '20px',
                                             background: theme === 'dark' ? '#312E81' : '#F3E8FF',
                                             color: theme === 'dark' ? '#C084FC' : '#7E22CE',
-                                            border: theme === 'dark' ? '1px solid #6B21A8' : '1px solid #E9D5FF',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
+                                            border: theme === 'dark' ? '1px solid #6B21A8' : '1px solid #E9D5FF'
                                           }}
                                         >
                                           {getSafeEmoji('⏱️')} Auto-deletes in {daysLeftForDeletion} {daysLeftForDeletion === 1 ? 'day' : 'days'}
@@ -7218,9 +7215,22 @@ function App() {
                                         className="primary-btn"
                                         onClick={() => handleOpenInstallmentModal(order)}
                                         disabled={order.status === 'Completed' || order.status === 'Cancelled'}
-                                        style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                        style={{
+                                          padding: '6px 12px',
+                                          fontSize: '12px',
+                                          borderRadius: '8px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          background: order.status === 'Completed' ? (theme === 'dark' ? '#334155' : '#E2E8F0') : '#2563EB',
+                                          color: order.status === 'Completed' ? (theme === 'dark' ? '#94A3B8' : '#475569') : '#FFFFFF',
+                                          border: order.status === 'Completed' ? (theme === 'dark' ? '1px solid #475569' : '1px solid #CBD5E1') : '1px solid #2563EB',
+                                          cursor: order.status === 'Completed' ? 'not-allowed' : 'pointer',
+                                          fontWeight: '700'
+                                        }}
+                                        title={order.status === 'Completed' ? 'All stock received for this order' : 'Receive stock batch for this order'}
                                       >
-                                        {getSafeEmoji('➕')} Receive Stock
+                                        {getSafeEmoji('➕')} {order.status === 'Completed' ? 'All Received' : 'Receive Stock'}
                                       </button>
                                       <button
                                         type="button"
@@ -7948,10 +7958,11 @@ function App() {
                                           display: 'flex',
                                           alignItems: 'center',
                                           gap: '4px',
-                                          opacity: order.status === 'Completed' ? 0.65 : 1,
-                                          background: order.status === 'Completed' ? '#94A3B8' : '#059669',
-                                          borderColor: order.status === 'Completed' ? '#94A3B8' : '#059669',
-                                          cursor: order.status === 'Completed' ? 'not-allowed' : 'pointer'
+                                          background: order.status === 'Completed' ? (theme === 'dark' ? '#334155' : '#E2E8F0') : '#059669',
+                                          color: order.status === 'Completed' ? (theme === 'dark' ? '#94A3B8' : '#475569') : '#FFFFFF',
+                                          border: order.status === 'Completed' ? (theme === 'dark' ? '1px solid #475569' : '1px solid #CBD5E1') : '1px solid #059669',
+                                          cursor: order.status === 'Completed' ? 'not-allowed' : 'pointer',
+                                          fontWeight: '700'
                                         }}
                                         title={order.status === 'Completed' ? 'All items fully dispatched' : 'Dispatch stock batch for this order'}
                                       >
