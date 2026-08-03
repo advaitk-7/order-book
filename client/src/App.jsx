@@ -7789,16 +7789,27 @@ function App() {
                                         {order.status === 'Completed' ? 'Completed (100%)' : order.status === 'Partial' ? `Partial (${totalPct}%)` : order.status}
                                       </span>
 
-                                      {order.status !== 'Completed' && order.status !== 'Cancelled' && (
-                                        <button
-                                          type="button"
-                                          className="primary-btn"
-                                          onClick={() => handleOpenDispatchModal(order)}
-                                          style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                        >
-                                          {getSafeEmoji('🚚')} Record Dispatch
-                                        </button>
-                                      )}
+                                      <button
+                                        type="button"
+                                        className="primary-btn"
+                                        onClick={() => handleOpenDispatchModal(order)}
+                                        disabled={order.status === 'Completed' || order.status === 'Cancelled'}
+                                        style={{
+                                          padding: '6px 12px',
+                                          fontSize: '12px',
+                                          borderRadius: '8px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          opacity: order.status === 'Completed' ? 0.65 : 1,
+                                          background: order.status === 'Completed' ? '#94A3B8' : '#059669',
+                                          borderColor: order.status === 'Completed' ? '#94A3B8' : '#059669',
+                                          cursor: order.status === 'Completed' ? 'not-allowed' : 'pointer'
+                                        }}
+                                        title={order.status === 'Completed' ? 'All items fully dispatched' : 'Dispatch stock batch for this order'}
+                                      >
+                                        {getSafeEmoji('🚚')} {order.status === 'Completed' ? 'All Dispatched' : 'Dispatch Stock'}
+                                      </button>
 
                                       <button
                                         type="button"
@@ -10877,7 +10888,7 @@ function App() {
             <button type="button" className="manage-modal-close" onClick={() => setShowDispatchModal(false)}>
               {getSafeEmoji('✕')}
             </button>
-            <p className="manage-modal-title">🚚 Record Stock Dispatch Batch</p>
+            <p className="manage-modal-title">🚚 Dispatch Stock Batch</p>
             <p className="manage-modal-subtitle">
               Order <strong>{selectedOrderForDispatch.boNumber}</strong> for Client <strong>{selectedOrderForDispatch.clientName}</strong>
             </p>
@@ -10947,7 +10958,7 @@ function App() {
                   Cancel
                 </button>
                 <button type="submit" className="primary-btn" style={{ background: '#059669', borderColor: '#059669' }}>
-                  Save Stock Dispatch
+                  Confirm Stock Dispatch
                 </button>
               </div>
             </form>
