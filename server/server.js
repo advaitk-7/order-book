@@ -2212,6 +2212,8 @@ app.post("/api/bulk-orders", authenticateJWT, async (req, res) => {
         productName,
         school,
         unitPrice: Math.max(0, Number(p.unitPrice || 0)),
+        frontLogoCost: Math.max(0, Number(p.frontLogoCost || 0)),
+        backLogoCost: Math.max(0, Number(p.backLogoCost || 0)),
         sizeBreakdown: formattedBreakdown
       });
     }
@@ -2295,6 +2297,8 @@ app.patch("/api/bulk-orders/:id", authenticateJWT, async (req, res) => {
             productName,
             school,
             unitPrice: Math.max(0, Number(p.unitPrice || 0)),
+            frontLogoCost: Math.max(0, Number(p.frontLogoCost || 0)),
+            backLogoCost: Math.max(0, Number(p.backLogoCost || 0)),
             sizeBreakdown: updatedBreakdown
           });
         }
