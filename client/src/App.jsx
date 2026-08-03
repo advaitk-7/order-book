@@ -668,6 +668,64 @@ function App() {
   const [editingInstallment, setEditingInstallment] = useState(null)
   const [selectedOldCycleOrder, setSelectedOldCycleOrder] = useState(null)
 
+  // Bulk Client Orders State
+  const [clients, setClients] = useState([])
+  const [loadingClients, setLoadingClients] = useState(false)
+  const [bulkOrders, setBulkOrders] = useState([])
+  const [loadingBulkOrders, setLoadingBulkOrders] = useState(false)
+  const [bulkOrderSearch, setBulkOrderSearch] = useState('')
+  const [bulkOrderSearchFocused, setBulkOrderSearchFocused] = useState(false)
+  const boSearchInputRef = useRef(null)
+  const [bulkOrderClientFilter, setBulkOrderClientFilter] = useState('All')
+  const [bulkOrderStatusFilter, setBulkOrderStatusFilter] = useState('All')
+  const [bulkOrderSchoolFilter, setBulkOrderSchoolFilter] = useState('All')
+
+  // Bulk Order Modals
+  const [showBulkOrderModal, setShowBulkOrderModal] = useState(false)
+  const [selectedBulkOrder, setSelectedBulkOrder] = useState(null)
+  const [bulkOrderFormData, setBulkOrderFormData] = useState({
+    boNumber: '',
+    clientName: '',
+    targetDate: '',
+    notes: '',
+    products: [{ productName: '', school: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
+  })
+
+  // Bulk Order PDF Export Modal State
+  const [showBOPDFModal, setShowBOPDFModal] = useState(false)
+  const [selectedBOForPDF, setSelectedBOForPDF] = useState(null)
+  const [boPdfFileName, setBoPdfFileName] = useState('')
+  const [boPdfOrientation, setBoPdfOrientation] = useState('landscape')
+  const [boPdfFormat, setBoPdfFormat] = useState('a4')
+  const [boPdfMargin, setBoPdfMargin] = useState('normal')
+  const [boPdfScale, setBoPdfScale] = useState('normal')
+  const [exportingBOPDF, setExportingBOPDF] = useState(false)
+  const boPdfPreviewSheetRef = useRef(null)
+
+  // Dispatch Stock Modal
+  const [showDispatchModal, setShowDispatchModal] = useState(false)
+  const [selectedOrderForDispatch, setSelectedOrderForDispatch] = useState(null)
+  const [dispatchFormData, setDispatchFormData] = useState({
+    challanNumber: '',
+    notes: '',
+    items: []
+  })
+
+  // Clients Directory Manager Modal
+  const [showClientManagerModal, setShowClientManagerModal] = useState(false)
+  const [editingClientId, setEditingClientId] = useState(null)
+  const [clientFormData, setClientFormData] = useState({
+    name: '',
+    contactNumber: '',
+    address: '',
+    email: '',
+    notes: ''
+  })
+
+  // Edit Dispatch Batch Modal State
+  const [showEditDispatchModal, setShowEditDispatchModal] = useState(false)
+  const [editingDispatch, setEditingDispatch] = useState(null)
+
   // Tailor Work Page Filters & Selections
   const [tailorStatusFilter, setTailorStatusFilter] = useState('Pending')
   const [tailorProductFilter, setTailorProductFilter] = useState('All')
@@ -850,7 +908,9 @@ function App() {
         fetchWaitlist('', 'All', 'All', true),
         fetchWaitlistSchools(),
         fetchParties(),
-        fetchVendorOrders('', 'All', 'All', true)
+        fetchVendorOrders('', 'All', 'All', true),
+        fetchClients(),
+        fetchBulkOrders('', 'All', 'All', true)
       ]).catch(() => { })
     } else {
       setOrders([])
@@ -859,6 +919,8 @@ function App() {
       setWaitlistSchools([])
       setParties([])
       setVendorOrders([])
+      setClients([])
+      setBulkOrders([])
     }
   }, [token])
 
@@ -1559,6 +1621,46 @@ function App() {
     }
   }
 
+  const fetchClients = async () => {
+    if (!token) return
+    setLoadingClients(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/clients`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setClients(data)
+      }
+    } catch (err) {
+      console.error('Failed to load clients', err)
+    } finally {
+      setLoadingClients(false)
+    }
+  }
+
+  const fetchBulkOrders = async (search = bulkOrderSearch, client = bulkOrderClientFilter, status = bulkOrderStatusFilter, silent = false) => {
+    if (!token) return
+    if (!silent && bulkOrders.length === 0) setLoadingBulkOrders(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/bulk-orders`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.status === 401 || response.status === 403) {
+        handleLogout()
+        return
+      }
+      if (response.ok) {
+        const data = await response.json()
+        setBulkOrders(data)
+      }
+    } catch (err) {
+      console.error('Failed to load bulk orders', err)
+    } finally {
+      setLoadingBulkOrders(false)
+    }
+  }
+
   const sortSizesAscending = (sizeArray) => {
     if (!Array.isArray(sizeArray)) return []
     return [...sizeArray].sort((a, b) => {
@@ -1934,6 +2036,370 @@ function App() {
     link.setAttribute('href', encodedUri)
     const today = new Date().toISOString().split('T')[0]
     link.setAttribute('download', `Supplier_Restock_Orders_${today}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const getNextBoNumber = (ordersList) => {
+    const list = Array.isArray(ordersList) ? ordersList : bulkOrders
+    const nums = list.map(o => {
+      const match = String(o.boNumber || '').match(/(\d+)$/)
+      return match ? parseInt(match[1], 10) : 0
+    }).filter(n => !isNaN(n))
+    return nums.length > 0 ? Math.max(...nums) + 1 : 1
+  }
+
+  const handleSaveClient = async (e) => {
+    e.preventDefault()
+    if (!clientFormData.name || !clientFormData.name.trim()) {
+      setMessage('Client name is required.')
+      return
+    }
+
+    const isEditing = Boolean(editingClientId)
+    const url = isEditing ? `${API_BASE}/api/clients/${editingClientId}` : `${API_BASE}/api/clients`
+    const method = isEditing ? 'PATCH' : 'POST'
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: clientFormData.name,
+          contactNumber: clientFormData.contactNumber,
+          address: clientFormData.address,
+          email: clientFormData.email,
+          notes: clientFormData.notes
+        })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(isEditing ? `Client '${data.name}' updated.` : `Client '${data.name}' added successfully.`)
+        setClientFormData({ name: '', contactNumber: '', address: '', email: '', notes: '' })
+        setEditingClientId(null)
+        fetchClients()
+      } else {
+        setMessage(data.message || 'Failed to save client.')
+      }
+    } catch (err) {
+      setMessage('Network error saving client.')
+    }
+  }
+
+  const handleDeleteClient = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete client "${name}"?`)) return
+    try {
+      const response = await fetch(`${API_BASE}/api/clients/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        setMessage(`Client '${name}' deleted.`)
+        if (editingClientId === id) setEditingClientId(null)
+        fetchClients()
+      }
+    } catch (err) {
+      console.error('Failed to delete client', err)
+    }
+  }
+
+  const handleSaveBulkOrder = async (e) => {
+    e.preventDefault()
+    if (!bulkOrderFormData.clientName || !bulkOrderFormData.clientName.trim()) {
+      setMessage('Client Name is required.')
+      return
+    }
+
+    if (!Array.isArray(bulkOrderFormData.products) || bulkOrderFormData.products.length === 0) {
+      setMessage('At least one product is required.')
+      return
+    }
+
+    const cleanProducts = []
+    for (const p of bulkOrderFormData.products) {
+      const productName = (p.productName || '').trim()
+      const school = (p.school || '').trim()
+      if (!productName) {
+        setMessage('Product Category / Name is required for all products.')
+        return
+      }
+
+      const cleanBreakdown = sortSizesAscending(
+        (p.sizeBreakdown || [])
+          .map(sb => ({
+            size: (sb.size || '').trim(),
+            orderedQty: Number(sb.orderedQty || 0),
+            unitPrice: Math.max(0, Number(sb.unitPrice || 0))
+          }))
+          .filter(sb => sb.size && sb.orderedQty > 0)
+      )
+
+      if (cleanBreakdown.length === 0) {
+        setMessage(`Product '${productName}' must have at least one size with ordered quantity > 0.`)
+        return
+      }
+
+      cleanProducts.push({
+        productName,
+        school: school || 'General',
+        unitPrice: Math.max(0, Number(p.unitPrice || 0)),
+        sizeBreakdown: cleanBreakdown
+      })
+    }
+
+    const isEditing = Boolean(selectedBulkOrder)
+    const url = isEditing ? `${API_BASE}/api/bulk-orders/${selectedBulkOrder._id}` : `${API_BASE}/api/bulk-orders`
+    const method = isEditing ? 'PATCH' : 'POST'
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          boNumber: !selectedBulkOrder ? `BO-${String(Number(bulkOrderFormData.boNumber) || getNextBoNumber(bulkOrders)).padStart(4, '0')}` : undefined,
+          clientName: bulkOrderFormData.clientName,
+          products: cleanProducts,
+          targetDate: bulkOrderFormData.targetDate,
+          notes: bulkOrderFormData.notes
+        })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(isEditing ? `Bulk Order ${data.boNumber} updated.` : `Bulk Order ${data.boNumber} created for client '${data.clientName}'.`)
+        setShowBulkOrderModal(false)
+        setSelectedBulkOrder(null)
+        fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
+      } else {
+        setMessage(data.message || 'Failed to save bulk order.')
+      }
+    } catch (err) {
+      setMessage('Network error saving bulk order.')
+    }
+  }
+
+  const handleDeleteBulkOrder = async (id, boNumber) => {
+    if (!window.confirm(`Delete Bulk Order ${boNumber}? This cannot be undone.`)) return
+    try {
+      const response = await fetch(`${API_BASE}/api/bulk-orders/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        setMessage(`Bulk Order ${boNumber} deleted.`)
+        fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
+      }
+    } catch (err) {
+      console.error('Failed to delete bulk order', err)
+    }
+  }
+
+  const handleOpenDispatchModal = (order) => {
+    setSelectedOrderForDispatch(order)
+    const prods = getNormalizedProducts(order)
+    const initialItems = []
+    prods.forEach(p => {
+      sortSizesAscending(p.sizeBreakdown || []).forEach(sb => {
+        const remainingQty = Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))
+        initialItems.push({
+          productName: p.productName,
+          school: p.school,
+          size: sb.size,
+          orderedQty: sb.orderedQty,
+          deliveredQty: sb.deliveredQty || 0,
+          remainingQty,
+          newQty: ''
+        })
+      })
+    })
+
+    setDispatchFormData({
+      challanNumber: '',
+      notes: '',
+      items: initialItems
+    })
+    setShowDispatchModal(true)
+  }
+
+  const handleLogDispatch = async (e) => {
+    e.preventDefault()
+    if (!selectedOrderForDispatch) return
+
+    const itemsToSubmit = (dispatchFormData.items || [])
+      .map(i => ({ productName: i.productName, size: i.size, qty: Number(i.newQty || 0) }))
+      .filter(i => i.size && i.qty > 0)
+
+    if (itemsToSubmit.length === 0) {
+      setMessage('Please enter quantity > 0 for at least one product size.')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/bulk-orders/${selectedOrderForDispatch._id}/dispatches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          challanNumber: dispatchFormData.challanNumber,
+          items: itemsToSubmit,
+          notes: dispatchFormData.notes
+        })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(`Stock dispatch logged for Order ${data.boNumber}.`)
+        setShowDispatchModal(false)
+        setSelectedOrderForDispatch(null)
+        fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
+      } else {
+        setMessage(data.message || 'Failed to log dispatch batch.')
+      }
+    } catch (err) {
+      setMessage('Network error logging dispatch batch.')
+    }
+  }
+
+  const handleOpenEditDispatch = (order, dispatch) => {
+    setSelectedOrderForDispatch(order)
+    const prods = getNormalizedProducts(order)
+    const items = []
+    prods.forEach(p => {
+      sortSizesAscending(p.sizeBreakdown || []).forEach(sb => {
+        const instItem = (dispatch.items || []).find(i => (!i.productName || i.productName === p.productName) && i.size === sb.size)
+        let otherDelivered = 0
+        ;(order.dispatches || []).forEach(otherInst => {
+          if (String(otherInst._id) !== String(dispatch._id)) {
+            ;(otherInst.items || []).forEach(oi => {
+              if ((!oi.productName || oi.productName === p.productName) && oi.size === sb.size) {
+                otherDelivered += (oi.qty || 0)
+              }
+            })
+          }
+        })
+        const remainingQty = Math.max(0, (sb.orderedQty || 0) - otherDelivered)
+        items.push({
+          productName: p.productName,
+          school: p.school,
+          size: sb.size,
+          orderedQty: sb.orderedQty,
+          remainingQty,
+          qty: instItem ? String(instItem.qty || 0) : '0'
+        })
+      })
+    })
+
+    setEditingDispatch({
+      orderId: order._id,
+      dispatchId: dispatch._id,
+      challanNumber: dispatch.challanNumber || '',
+      notes: dispatch.notes || '',
+      items
+    })
+    setShowEditDispatchModal(true)
+  }
+
+  const handleUpdateDispatch = async (e) => {
+    e.preventDefault()
+    if (!editingDispatch) return
+
+    const itemsToSubmit = (editingDispatch.items || [])
+      .map(i => ({ productName: i.productName, size: i.size, qty: Number(i.qty || 0) }))
+      .filter(i => i.size && i.qty >= 0)
+
+    try {
+      const response = await fetch(`${API_BASE}/api/bulk-orders/${editingDispatch.orderId}/dispatches/${editingDispatch.dispatchId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          challanNumber: editingDispatch.challanNumber,
+          items: itemsToSubmit,
+          notes: editingDispatch.notes
+        })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(`Stock dispatch updated for Order ${data.boNumber}.`)
+        setShowEditDispatchModal(false)
+        setEditingDispatch(null)
+        fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
+      } else {
+        setMessage(data.message || 'Failed to update dispatch batch.')
+      }
+    } catch (err) {
+      setMessage('Network error updating dispatch batch.')
+    }
+  }
+
+  const handleDeleteDispatch = async (order, dispatchId) => {
+    if (!window.confirm('Delete this logged stock dispatch batch? Stock totals will be recalculated automatically.')) return
+    try {
+      const response = await fetch(`${API_BASE}/api/bulk-orders/${order._id}/dispatches/${dispatchId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        setMessage(`Stock dispatch batch deleted for Order ${order.boNumber}.`)
+        fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
+      }
+    } catch (err) {
+      console.error('Failed to delete dispatch batch', err)
+    }
+  }
+
+  const exportBulkOrdersCSV = () => {
+    if (bulkOrders.length === 0) {
+      alert('No bulk client orders available to export.')
+      return
+    }
+
+    const headers = ['BO Number', 'Client Name', 'Products Summary', 'Target Delivery Date', 'Status', 'Total Ordered', 'Total Dispatched', 'Pending Delivery Balance', 'Notes']
+    const rows = bulkOrders.map(bo => {
+      const prods = getNormalizedProducts(bo)
+      const prodsSummary = prods.map(p => `${p.productName} (${p.school})`).join(' | ')
+      let totalOrdered = 0
+      let totalDelivered = 0
+      let pendingBalance = 0
+      prods.forEach(p => {
+        (p.sizeBreakdown || []).forEach(s => {
+          const ord = s.orderedQty || 0
+          const del = s.deliveredQty || 0
+          totalOrdered += ord
+          totalDelivered += del
+          if (del < ord) {
+            pendingBalance += (ord - del)
+          }
+        })
+      })
+      return [
+        bo.boNumber,
+        `"${(bo.clientName || '').replace(/"/g, '""')}"`,
+        `"${prodsSummary.replace(/"/g, '""')}"`,
+        bo.targetDate || '-',
+        bo.status || 'Pending',
+        totalOrdered,
+        totalDelivered,
+        pendingBalance,
+        `"${(bo.notes || '').replace(/"/g, '""')}"`
+      ]
+    })
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    const today = new Date().toISOString().split('T')[0]
+    link.setAttribute('download', `Bulk_Client_Orders_${today}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -6971,27 +7437,725 @@ function App() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
                       <span style={{ fontSize: '12px', fontWeight: '800', background: '#ECFDF5', color: '#059669', padding: '4px 12px', borderRadius: '6px' }}>
-                        {getSafeEmoji('🏢')} Corporate &amp; Bulk Orders
+                        {getSafeEmoji('🏢')} Bulk Client Orders
                       </span>
                     </div>
                   </div>
 
+                  {/* Summary Metric Cards */}
+                  {(() => {
+                    const ordersForStats = bulkOrderClientFilter === 'All'
+                      ? bulkOrders
+                      : bulkOrders.filter(o => o.clientName === bulkOrderClientFilter)
+
+                    return (
+                      <div className="stats-grid grid-4" style={{ marginBottom: '24px' }}>
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('🏢')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Active Bulk Orders</p>
+                            <p className="stat-value">{ordersForStats.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
+                            <p className="stat-desc">
+                              {bulkOrderClientFilter === 'All' ? 'In-progress client orders' : `Active orders for ${bulkOrderClientFilter}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('📦')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Total Ordered Pcs</p>
+                            <p className="stat-value">
+                              {ordersForStats.reduce((acc, o) => {
+                                const prods = getNormalizedProducts(o)
+                                let ord = 0
+                                prods.forEach(p => {
+                                  (p.sizeBreakdown || []).forEach(sb => { ord += (sb.orderedQty || 0) })
+                                })
+                                return acc + ord
+                              }, 0)}
+                            </p>
+                            <p className="stat-desc">
+                              {bulkOrderClientFilter === 'All' ? 'Total client contract pcs' : `Ordered by ${bulkOrderClientFilter}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('⏳')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Pending Delivery Balance</p>
+                            <p className="stat-value" style={{ color: '#D97706' }}>
+                              {ordersForStats.reduce((acc, o) => {
+                                const prods = getNormalizedProducts(o)
+                                let pend = 0
+                                prods.forEach(p => {
+                                  (p.sizeBreakdown || []).forEach(sb => {
+                                    pend += Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))
+                                  })
+                                })
+                                return acc + pend
+                              }, 0)}
+                            </p>
+                            <p className="stat-desc">Awaiting dispatch to clients</p>
+                          </div>
+                        </div>
+
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('🚚')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Dispatched Stock Pcs</p>
+                            <p className="stat-value" style={{ color: '#059669' }}>
+                              {ordersForStats.reduce((acc, o) => {
+                                const prods = getNormalizedProducts(o)
+                                let del = 0
+                                prods.forEach(p => {
+                                  (p.sizeBreakdown || []).forEach(sb => { del += (sb.deliveredQty || 0) })
+                                })
+                                return acc + del
+                              }, 0)}
+                            </p>
+                            <p className="stat-desc">
+                              {bulkOrderClientFilter === 'All' ? 'Total stock delivered to clients' : `Stock delivered to ${bulkOrderClientFilter}`}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Main Panel Card */}
                   <div className="card card-panel">
                     <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <h2 className="card-title">{getSafeEmoji('🏢')} Corporate &amp; Bulk Client Orders</h2>
-                        <p className="card-subtitle">Manage bulk uniform supply contracts, firm requisitions, and commercial client orders.</p>
+                        <h2 className="card-title">{getSafeEmoji('🏢')} Bulk Client Sales Orders</h2>
+                        <p className="card-subtitle">Manage uniform supply contracts, commercial client orders, size-wise dispatch batches, and delivery balances.</p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => {
+                            setEditingClientId(null)
+                            setClientFormData({ name: '', contactNumber: '', address: '', email: '', notes: '' })
+                            setShowClientManagerModal(true)
+                          }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
+                        >
+                          <span>{getSafeEmoji('🏢')}</span> Clients Directory ({clients.length})
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={exportBulkOrdersCSV}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
+                        >
+                          <span>{getSafeEmoji('📊')}</span> Export Excel (CSV)
+                        </button>
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          onClick={() => {
+                            setSelectedBulkOrder(null)
+                            setBulkOrderFormData({
+                              boNumber: String(getNextBoNumber(bulkOrders)),
+                              clientName: clients.length > 0 ? clients[0].name : '',
+                              targetDate: '',
+                              notes: '',
+                              products: [{ productName: '', school: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
+                            })
+                            setShowBulkOrderModal(true)
+                          }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
+                        >
+                          <span>{getSafeEmoji('➕')}</span> + Create Bulk Order
+                        </button>
                       </div>
                     </div>
 
-                    <div style={{ padding: '48px 20px', textAlign: 'center', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', borderRadius: '12px', border: '1px dashed var(--border-color, #CBD5E1)', margin: '16px 0' }}>
-                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>{getSafeEmoji('🏢')}</div>
-                      <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '6px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
-                        Corporate &amp; Bulk Orders Management
-                      </h3>
-                      <p style={{ fontSize: '13px', color: theme === 'dark' ? '#94A3B8' : '#64748B', maxWidth: '520px', margin: '0 auto 20px', lineHeight: '1.5' }}>
-                        This section is dedicated to taking and managing inbound bulk supply orders from firms, corporates, factories, schools, and institutions.
-                      </p>
+                    {/* Client Sub-section Cards Header (Horizontal Scroll) */}
+                    <div style={{ margin: '16px 24px 0', overflowX: 'auto', paddingBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 'max-content' }}>
+                        {/* All Clients Card */}
+                        <div
+                          onClick={() => setBulkOrderClientFilter('All')}
+                          style={{
+                            minWidth: '160px',
+                            padding: '12px 14px',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            border: bulkOrderClientFilter === 'All' ? '2px solid #059669' : '1px solid var(--border-color, #E2E8F0)',
+                            background: bulkOrderClientFilter === 'All' ? (theme === 'dark' ? '#064E3B' : '#ECFDF5') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
+                            boxShadow: bulkOrderClientFilter === 'All' ? '0 2px 8px rgba(5, 150, 105, 0.15)' : 'none',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <div style={{ fontWeight: '800', fontSize: '13px', color: bulkOrderClientFilter === 'All' ? '#059669' : 'inherit' }}>
+                            {getSafeEmoji('🏢')} All Clients
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                            {clients.length} Registered Clients
+                          </div>
+                        </div>
+
+                        {/* Individual Client Sub-section Cards */}
+                        {clients.map(c => {
+                          const isSelected = bulkOrderClientFilter === c.name
+                          const clientOrders = bulkOrders.filter(o => o.clientName === c.name)
+                          let clientPendingPcs = 0
+                          clientOrders.forEach(o => {
+                            const prods = getNormalizedProducts(o)
+                            prods.forEach(pr => {
+                              (pr.sizeBreakdown || []).forEach(sb => {
+                                clientPendingPcs += Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))
+                              })
+                            })
+                          })
+
+                          return (
+                            <div
+                              key={c._id}
+                              onClick={() => setBulkOrderClientFilter(c.name)}
+                              style={{
+                                minWidth: '180px',
+                                padding: '12px 14px',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                border: isSelected ? '2px solid #059669' : '1px solid var(--border-color, #E2E8F0)',
+                                background: isSelected ? (theme === 'dark' ? '#064E3B' : '#ECFDF5') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
+                                boxShadow: isSelected ? '0 2px 8px rgba(5, 150, 105, 0.15)' : 'none',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                <div style={{ fontWeight: '800', fontSize: '13px', color: isSelected ? '#059669' : 'inherit', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  🏢 {c.name}
+                                </div>
+                                <span style={{ fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '10px', background: clientPendingPcs > 0 ? '#FEF3C7' : '#D1FAE5', color: clientPendingPcs > 0 ? '#D97706' : '#059669' }}>
+                                  {clientOrders.length} BOs
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Pending Delivery:</span>
+                                <strong style={{ color: clientPendingPcs > 0 ? '#D97706' : '#059669' }}>{clientPendingPcs} pcs</strong>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Filter Controls */}
+                    <div style={{ margin: '20px 24px 16px' }}>
+                      {/* Search Bar */}
+                      <form onSubmit={(e) => e.preventDefault()} style={{ marginBottom: '14px' }}>
+                        <div
+                          style={{
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            width: '100%',
+                            background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                            borderRadius: '10px',
+                            border: bulkOrderSearchFocused
+                              ? '1px solid #059669'
+                              : `1px solid ${theme === 'dark' ? '#334155' : '#CBD5E1'}`,
+                            boxShadow: bulkOrderSearchFocused
+                              ? '0 0 0 3px rgba(5, 150, 105, 0.2)'
+                              : '0 1px 3px rgba(0,0,0,0.05)',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <span style={{ position: 'absolute', left: '14px', color: bulkOrderSearchFocused ? '#059669' : '#94A3B8', fontSize: '15px', pointerEvents: 'none', transition: 'color 0.2s' }}>
+                            {getSafeEmoji('🔍')}
+                          </span>
+                          <input
+                            ref={boSearchInputRef}
+                            type="text"
+                            placeholder="Search by BO #, Client Name, Product, Size, Notes, Date..."
+                            value={bulkOrderSearch}
+                            onChange={(e) => setBulkOrderSearch(e.target.value)}
+                            onFocus={() => setBulkOrderSearchFocused(true)}
+                            onBlur={() => setBulkOrderSearchFocused(false)}
+                            style={{
+                              width: '100%',
+                              padding: '11px 40px 11px 42px',
+                              background: 'transparent',
+                              border: 'none',
+                              outline: 'none',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              color: 'inherit'
+                            }}
+                          />
+                          {bulkOrderSearch && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBulkOrderSearch('')
+                                if (boSearchInputRef.current) boSearchInputRef.current.focus()
+                              }}
+                              style={{
+                                position: 'absolute',
+                                right: '12px',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                color: '#94A3B8',
+                                padding: '4px'
+                              }}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </form>
+
+                      {/* Dropdown Filters */}
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <select
+                          value={bulkOrderStatusFilter}
+                          onChange={(e) => setBulkOrderStatusFilter(e.target.value)}
+                          className="filter-select"
+                          style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '700' }}
+                        >
+                          <option value="All">All Statuses</option>
+                          <option value="Pending">Pending (0% Dispatched)</option>
+                          <option value="Partial">Partial (Dispatched In Progress)</option>
+                          <option value="Completed">Completed (100% Dispatched)</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Orders List View */}
+                    <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
+                      {(() => {
+                        const filteredOrders = bulkOrders.filter(o => {
+                          if (bulkOrderClientFilter !== 'All' && o.clientName !== bulkOrderClientFilter) return false
+                          if (bulkOrderStatusFilter !== 'All' && o.status !== bulkOrderStatusFilter) return false
+                          if (bulkOrderSearch && bulkOrderSearch.trim()) {
+                            const prods = getNormalizedProducts(o)
+                            const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
+                            const dates = [
+                              o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
+                              o.targetDate || '',
+                              ...(o.dispatches || []).map(inst => inst.dispatchedAt ? new Date(inst.dispatchedAt).toLocaleDateString() : '')
+                            ]
+                            const fields = [
+                              o.boNumber,
+                              o.clientName,
+                              o.notes,
+                              o.status,
+                              ...prods.map(p => p.productName),
+                              ...prods.map(p => p.school),
+                              ...sizes,
+                              ...dates,
+                              ...(o.dispatches || []).map(inst => inst.challanNumber || ''),
+                              ...(o.dispatches || []).map(inst => inst.notes || '')
+                            ]
+                            return checkFuzzyMatch(bulkOrderSearch, fields)
+                          }
+                          return true
+                        })
+
+                        filteredOrders.sort((a, b) => {
+                          const numA = parseInt(String(a.boNumber || '').replace(/\D/g, ''), 10) || 0
+                          const numB = parseInt(String(b.boNumber || '').replace(/\D/g, ''), 10) || 0
+                          if (numA !== numB) return numA - numB
+                          return String(a.boNumber || '').localeCompare(String(b.boNumber || ''), undefined, { numeric: true, sensitivity: 'base' })
+                        })
+
+                        if (loadingBulkOrders) {
+                          return <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading bulk client orders...</div>
+                        }
+
+                        if (filteredOrders.length === 0) {
+                          return (
+                            <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                              No bulk client orders found for this view. Click "+ Create Bulk Order" above to place a new order!
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {filteredOrders.map((order) => {
+                              const prods = getNormalizedProducts(order)
+                              let totalOrdered = 0
+                              let totalDelivered = 0
+                              let pendingBalance = 0
+                              let orderTotalCost = 0
+
+                              prods.forEach(p => {
+                                (p.sizeBreakdown || []).forEach(sb => {
+                                  const sbPrice = Number(sb.unitPrice || 0) || Number(p.unitPrice || 0)
+                                  if (sbPrice > 0) {
+                                    orderTotalCost += (sb.deliveredQty || 0) * sbPrice
+                                  }
+                                  const ord = sb.orderedQty || 0
+                                  const del = sb.deliveredQty || 0
+                                  totalOrdered += ord
+                                  totalDelivered += del
+                                  if (del < ord) {
+                                    pendingBalance += (ord - del)
+                                  }
+                                })
+                              })
+
+                              const totalPct = totalOrdered > 0 ? Math.round((totalDelivered / totalOrdered) * 100) : 0
+
+                              return (
+                                <div
+                                  key={order._id}
+                                  className="card card-panel"
+                                  style={{
+                                    borderLeft: order.status === 'Completed'
+                                      ? '4px solid #10B981'
+                                      : (order.status === 'Partial' ? '4px solid #3B82F6' : '4px solid #F59E0B'),
+                                    padding: '20px'
+                                  }}
+                                >
+                                  {/* Card Top Row */}
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                      <div style={{ fontSize: '18px', fontWeight: '900', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span>{order.boNumber}</span>
+                                        <button
+                                          type="button"
+                                          title="Copy BO Number"
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(order.boNumber)
+                                            setMessage(`Copied ${order.boNumber} to clipboard!`)
+                                          }}
+                                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#64748B' }}
+                                        >
+                                          📋
+                                        </button>
+                                      </div>
+
+                                      <span style={{ fontSize: '12px', fontWeight: '800', background: '#ECFDF5', color: '#059669', padding: '4px 12px', borderRadius: '20px', border: '1px solid #A7F3D0' }}>
+                                        🏢 {order.clientName}
+                                      </span>
+
+                                      {/* Status Badge */}
+                                      <span
+                                        style={{
+                                          fontSize: '11px',
+                                          fontWeight: '800',
+                                          padding: '4px 10px',
+                                          borderRadius: '12px',
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.5px',
+                                          background: order.status === 'Completed' ? '#D1FAE5' : (order.status === 'Partial' ? '#EFF6FF' : '#FEF3C7'),
+                                          color: order.status === 'Completed' ? '#059669' : (order.status === 'Partial' ? '#2563EB' : '#D97706'),
+                                          border: order.status === 'Completed' ? '1px solid #6EE7B7' : (order.status === 'Partial' ? '1px solid #93C5FD' : '1px solid #FCD34D')
+                                        }}
+                                      >
+                                        {order.status}
+                                      </span>
+
+                                      {/* Target Delivery Date */}
+                                      {order.targetDate && (
+                                        <span style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                          🎯 Target: <strong>{order.targetDate}</strong>
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                      {order.status !== 'Completed' && (
+                                        <button
+                                          type="button"
+                                          className="primary-btn"
+                                          onClick={() => handleOpenDispatchModal(order)}
+                                          style={{ fontSize: '12px', padding: '6px 12px', background: '#059669', borderColor: '#059669' }}
+                                        >
+                                          🚚 Dispatch Stock
+                                        </button>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        className="secondary-btn"
+                                        onClick={() => {
+                                          setSelectedBulkOrder(order)
+                                          const boNumOnly = String(order.boNumber || '').replace(/\D/g, '')
+                                          const formattedProducts = getNormalizedProducts(order).map(p => ({
+                                            productName: p.productName,
+                                            school: p.school,
+                                            sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({
+                                              size: sb.size,
+                                              orderedQty: String(sb.orderedQty || ''),
+                                              unitPrice: String(sb.unitPrice || p.unitPrice || '')
+                                            }))
+                                          }))
+
+                                          setBulkOrderFormData({
+                                            boNumber: boNumOnly,
+                                            clientName: order.clientName,
+                                            targetDate: order.targetDate || '',
+                                            notes: order.notes || '',
+                                            products: formattedProducts.length > 0 ? formattedProducts : [{ productName: '', school: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
+                                          })
+                                          setShowBulkOrderModal(true)
+                                        }}
+                                        style={{ fontSize: '12px', padding: '6px 12px' }}
+                                      >
+                                        ✏️ Edit
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        className="secondary-btn"
+                                        onClick={() => {
+                                          setSelectedBOForPDF(order)
+                                          setBoPdfFileName(`${order.boNumber}_${(order.clientName || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}_DeliveryOrder`)
+                                          setShowBOPDFModal(true)
+                                        }}
+                                        style={{ fontSize: '12px', padding: '6px 12px' }}
+                                      >
+                                        📄 Print Delivery Order
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        className="secondary-btn"
+                                        onClick={() => handleDeleteBulkOrder(order._id, order.boNumber)}
+                                        style={{ fontSize: '12px', padding: '6px 12px', color: '#EF4444' }}
+                                      >
+                                        🗑️ Delete
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Fulfillment Progress Bar */}
+                                  <div style={{ background: theme === 'dark' ? '#1E293B' : '#F1F5F9', padding: '12px 16px', borderRadius: '10px', marginBottom: '16px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', fontWeight: '700' }}>
+                                      <span>Dispatch Progress: Dispatched {totalDelivered} / {totalOrdered} Pcs ({totalPct}%)</span>
+                                      <span style={{ color: pendingBalance > 0 ? '#D97706' : '#059669' }}>
+                                        {pendingBalance > 0 ? `⏳ Pending Delivery: ${pendingBalance} Pcs` : '✅ 100% Fully Dispatched'}
+                                      </span>
+                                    </div>
+                                    <div style={{ height: '8px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
+                                      <div
+                                        style={{
+                                          height: '100%',
+                                          width: `${Math.min(100, totalPct)}%`,
+                                          background: totalPct === 100 ? '#10B981' : (totalPct > 0 ? '#3B82F6' : '#F59E0B'),
+                                          borderRadius: '4px',
+                                          transition: 'width 0.3s ease'
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Products & Size Breakdown Tables */}
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    {prods.map((prod, pIdx) => {
+                                      const sortedBreakdown = sortSizesAscending(prod.sizeBreakdown || [])
+                                      let totalProdOrd = 0
+                                      let totalProdDel = 0
+                                      let totalProdCost = 0
+
+                                      sortedBreakdown.forEach(sb => {
+                                        const sbPrice = Number(sb.unitPrice || 0) || Number(prod.unitPrice || 0)
+                                        const ord = sb.orderedQty || 0
+                                        const del = sb.deliveredQty || 0
+                                        totalProdOrd += ord
+                                        totalProdDel += del
+                                        totalProdCost += del * sbPrice
+                                      })
+
+                                      const totalProdPct = totalProdOrd > 0 ? Math.round((totalProdDel / totalProdOrd) * 100) : 0
+
+                                      return (
+                                        <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FAFAFA', borderRadius: '10px', padding: '14px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                                            <div style={{ fontWeight: '800', fontSize: '14px', color: theme === 'dark' ? '#38BDF8' : '#0284C7' }}>
+                                              📦 {prod.productName} <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748B' }}>({prod.school || 'General'})</span>
+                                            </div>
+                                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748B' }}>
+                                              Product Summary: Dispatched {totalProdDel} / {totalProdOrd} pcs ({totalProdPct}%)
+                                            </div>
+                                          </div>
+
+                                          <table className="mini-table" style={{ width: '100%', fontSize: '12px' }}>
+                                            <thead>
+                                              <tr>
+                                                <th>Size</th>
+                                                <th>Unit Price (₹)</th>
+                                                <th>Ordered Qty</th>
+                                                <th>Dispatched Qty</th>
+                                                <th>Pending Balance</th>
+                                                <th>Row Value (₹)</th>
+                                                <th>Progress</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {sortedBreakdown.map((sb, sbIdx) => {
+                                                const ord = sb.orderedQty || 0
+                                                const del = sb.deliveredQty || 0
+                                                const pend = Math.max(0, ord - del)
+                                                const sbPrice = Number(sb.unitPrice || 0) || Number(prod.unitPrice || 0)
+                                                const rowCost = del * sbPrice
+                                                const pct = ord > 0 ? Math.round((del / ord) * 100) : 0
+
+                                                return (
+                                                  <tr key={sbIdx}>
+                                                    <td><strong>Size {sb.size}</strong></td>
+                                                    <td>{sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}</td>
+                                                    <td>{ord} pcs</td>
+                                                    <td style={{ color: '#059669', fontWeight: '800' }}>{del} pcs</td>
+                                                    <td style={{ color: pend > 0 ? '#D97706' : '#64748B', fontWeight: pend > 0 ? '800' : 'normal' }}>
+                                                      {pend > 0 ? `${pend} pcs` : '0 (Complete)'}
+                                                    </td>
+                                                    <td style={{ fontWeight: '700' }}>
+                                                      {rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}
+                                                    </td>
+                                                    <td>
+                                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <div style={{ flex: 1, height: '6px', background: '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                          <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: pct === 100 ? '#10B981' : '#3B82F6' }} />
+                                                        </div>
+                                                        <span style={{ fontSize: '11px', width: '32px', textAlign: 'right' }}>{pct}%</span>
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                )
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+
+                                  {/* Dispatched History Log Accordion */}
+                                  {order.dispatches && order.dispatches.length > 0 && (
+                                    <div style={{ marginTop: '16px', borderTop: '1px dashed var(--border-color, #CBD5E1)', paddingTop: '14px' }}>
+                                      <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#34D399' : '#059669', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span>{getSafeEmoji('🚚')}</span> Dispatched Stock Batches ({order.dispatches.length} {order.dispatches.length === 1 ? 'Batch' : 'Batches'}):
+                                      </div>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        {order.dispatches.map((inst, idx) => {
+                                          const batchTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+                                          return (
+                                            <div
+                                              key={inst._id || idx}
+                                              style={{
+                                                background: theme === 'dark' ? '#0F172A' : '#FFFFFF',
+                                                padding: '12px 16px',
+                                                borderRadius: '10px',
+                                                border: theme === 'dark' ? '1px solid #334155' : '1px solid #CBD5E1',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'flex-start',
+                                                gap: '12px',
+                                                flexWrap: 'wrap'
+                                              }}
+                                            >
+                                              <div style={{ flex: 1, minWidth: '240px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                                                  <span style={{ fontWeight: '800', fontSize: '13px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                                                    Dispatch Batch #{idx + 1} ({new Date(inst.dispatchedAt).toLocaleDateString()})
+                                                  </span>
+                                                  <span
+                                                    style={{
+                                                      fontSize: '12px',
+                                                      fontWeight: '800',
+                                                      padding: '2px 8px',
+                                                      borderRadius: '6px',
+                                                      background: theme === 'dark' ? '#064E3B' : '#D1FAE5',
+                                                      color: theme === 'dark' ? '#34D399' : '#059669',
+                                                      border: theme === 'dark' ? '1px solid #059669' : '1px solid #6EE7B7'
+                                                    }}
+                                                  >
+                                                    Total: {batchTotal} pcs dispatched
+                                                  </span>
+                                                  {inst.challanNumber && (
+                                                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '700' }}>
+                                                      Delivery Challan / Invoice: <strong>{inst.challanNumber}</strong>
+                                                    </span>
+                                                  )}
+                                                </div>
+
+                                                {/* Items breakdown pills */}
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                                                  {(inst.items || []).map((item, itemIdx) => (
+                                                    <span
+                                                      key={itemIdx}
+                                                      style={{
+                                                        fontSize: '11px',
+                                                        fontWeight: '700',
+                                                        background: theme === 'dark' ? '#1E293B' : '#F1F5F9',
+                                                        padding: '3px 8px',
+                                                        borderRadius: '6px',
+                                                        color: theme === 'dark' ? '#94A3B8' : '#475569'
+                                                      }}
+                                                    >
+                                                      {item.productName ? `${item.productName} - ` : ''}Size {item.size}: <strong>{item.qty} pcs</strong>
+                                                    </span>
+                                                  ))}
+                                                </div>
+
+                                                {inst.notes && (
+                                                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px', fontStyle: 'italic' }}>
+                                                    Notes: {inst.notes}
+                                                  </div>
+                                                )}
+                                              </div>
+
+                                              {/* Action Buttons for Dispatch Batch */}
+                                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenEditDispatch(order, inst)}
+                                                  style={{
+                                                    fontSize: '11px',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '6px',
+                                                    background: theme === 'dark' ? '#1E293B' : '#EFF6FF',
+                                                    color: '#2563EB',
+                                                    border: '1px solid #93C5FD',
+                                                    cursor: 'pointer',
+                                                    fontWeight: '700'
+                                                  }}
+                                                >
+                                                  ✏️ Edit Batch
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleDeleteDispatch(order, inst._id)}
+                                                  style={{
+                                                    fontSize: '11px',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '6px',
+                                                    background: theme === 'dark' ? '#450A0A' : '#FEE2E2',
+                                                    color: '#EF4444',
+                                                    border: '1px solid #FCA5A5',
+                                                    cursor: 'pointer',
+                                                    fontWeight: '700'
+                                                  }}
+                                                >
+                                                  🗑️ Delete
+                                                </button>
+                                              </div>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -9257,6 +10421,658 @@ function App() {
         </div>
       )}
 
+      {/* Bulk Order Modal */}
+      {showBulkOrderModal && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button type="button" className="manage-modal-close" onClick={() => setShowBulkOrderModal(false)}>
+              {getSafeEmoji('✕')}
+            </button>
+            <p className="manage-modal-title">
+              {selectedBulkOrder ? `${getSafeEmoji('✏️')} Edit Bulk Order ${selectedBulkOrder.boNumber}` : `${getSafeEmoji('➕')} Create Bulk Order`}
+            </p>
+            <p className="manage-modal-subtitle">
+              Issue a bulk supply order to a client with products, school/firm details, and size-wise target quantities.
+            </p>
+
+            <form onSubmit={handleSaveBulkOrder}>
+              {/* BO Number Row */}
+              <div className="manage-input-group">
+                <label>
+                  Bulk Order Number
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '800', color: '#059669', letterSpacing: '0.02em' }}>
+                      BO-
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="9999"
+                      value={bulkOrderFormData.boNumber}
+                      onChange={(e) => setBulkOrderFormData({ ...bulkOrderFormData, boNumber: e.target.value })}
+                      disabled={Boolean(selectedBulkOrder)}
+                      style={{ width: '100px', fontWeight: '700', fontSize: '14px' }}
+                      placeholder="e.g. 1"
+                    />
+                    {!selectedBulkOrder && (
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>
+                        → Will be saved as <strong>BO-{String(Number(bulkOrderFormData.boNumber) || getNextBoNumber(bulkOrders)).padStart(4, '0')}</strong>
+                      </span>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              {/* Client Selection */}
+              <div className="manage-input-group">
+                <label>
+                  Client Firm / Customer Name *
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
+                      value={bulkOrderFormData.clientName}
+                      onChange={(e) => setBulkOrderFormData({ ...bulkOrderFormData, clientName: e.target.value })}
+                      required
+                      style={{ flex: 1, padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: '700' }}
+                    >
+                      {clients.length === 0 ? (
+                        <option value="">No registered clients. Type client name below or add via directory.</option>
+                      ) : (
+                        clients.map(c => (
+                          <option key={c._id} value={c.name}>{c.name}</option>
+                        ))
+                      )}
+                    </select>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => {
+                        setEditingClientId(null)
+                        setClientFormData({ name: '', contactNumber: '', address: '', email: '', notes: '' })
+                        setShowClientManagerModal(true)
+                      }}
+                      style={{ padding: '8px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                    >
+                      + New Client
+                    </button>
+                  </div>
+                </label>
+              </div>
+
+              {/* Target Delivery Date */}
+              <div className="manage-input-group">
+                <label>
+                  Target Delivery Date (Optional)
+                  <input
+                    type="date"
+                    value={bulkOrderFormData.targetDate}
+                    onChange={(e) => setBulkOrderFormData({ ...bulkOrderFormData, targetDate: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              {/* Products Section */}
+              <div style={{ marginTop: '16px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '800' }}>Products & Size Breakdown</span>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => {
+                      setBulkOrderFormData({
+                        ...bulkOrderFormData,
+                        products: [
+                          ...(bulkOrderFormData.products || []),
+                          { productName: '', school: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }
+                        ]
+                      })
+                    }}
+                    style={{ fontSize: '12px', padding: '4px 10px' }}
+                  >
+                    + Add Product
+                  </button>
+                </div>
+
+                {(bulkOrderFormData.products || []).map((p, pIdx) => (
+                  <div key={pIdx} style={{ background: theme === 'dark' ? '#1E293B' : '#F8FAFC', padding: '14px', borderRadius: '10px', marginBottom: '12px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '800', color: '#059669' }}>Product #{pIdx + 1}</span>
+                      {bulkOrderFormData.products.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newProds = bulkOrderFormData.products.filter((_, idx) => idx !== pIdx)
+                            setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                          }}
+                          style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
+                        >
+                          ✕ Remove Product
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Product Category / Name *</label>
+                        <input
+                          type="text"
+                          value={p.productName}
+                          onChange={(e) => {
+                            const newProds = [...bulkOrderFormData.products]
+                            newProds[pIdx].productName = e.target.value
+                            setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                          }}
+                          placeholder="e.g. Blazer, Trackpant, Shirt"
+                          required
+                          style={{ fontSize: '13px', padding: '8px' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>School / Tag Name *</label>
+                        <input
+                          type="text"
+                          value={p.school}
+                          onChange={(e) => {
+                            const newProds = [...bulkOrderFormData.products]
+                            newProds[pIdx].school = e.target.value
+                            setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                          }}
+                          placeholder="e.g. St. Xavier or General"
+                          required
+                          style={{ fontSize: '13px', padding: '8px' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Size Breakdown Rows */}
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '6px' }}>Sizes, Quantities & Prices:</div>
+                      {(p.sizeBreakdown || []).map((sb, sbIdx) => (
+                        <div key={sbIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <input
+                            type="text"
+                            value={sb.size}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx].sizeBreakdown[sbIdx].size = e.target.value
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="Size e.g. 28"
+                            style={{ width: '80px', padding: '6px', fontSize: '12px' }}
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            value={sb.orderedQty}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx].sizeBreakdown[sbIdx].orderedQty = e.target.value
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="Qty"
+                            style={{ width: '90px', padding: '6px', fontSize: '12px' }}
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={sb.unitPrice || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx].sizeBreakdown[sbIdx].unitPrice = e.target.value
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="Unit Price ₹"
+                            style={{ width: '100px', padding: '6px', fontSize: '12px' }}
+                          />
+                          {p.sizeBreakdown.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newProds = [...bulkOrderFormData.products]
+                                newProds[pIdx].sizeBreakdown = newProds[pIdx].sizeBreakdown.filter((_, idx) => idx !== sbIdx)
+                                setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                              }}
+                              style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '12px', cursor: 'pointer' }}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newProds = [...bulkOrderFormData.products]
+                          newProds[pIdx].sizeBreakdown.push({ size: '', orderedQty: '', unitPrice: '' })
+                          setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                        }}
+                        style={{ fontSize: '11px', background: 'none', border: 'none', color: '#059669', cursor: 'pointer', fontWeight: '700', marginTop: '4px' }}
+                      >
+                        + Add Size Row
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Special Notes */}
+              <div className="manage-input-group">
+                <label>
+                  Special Notes / Instructions
+                  <textarea
+                    rows={2}
+                    value={bulkOrderFormData.notes}
+                    onChange={(e) => setBulkOrderFormData({ ...bulkOrderFormData, notes: e.target.value })}
+                    placeholder="Enter special instructions or remarks..."
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button type="button" className="secondary-btn" onClick={() => setShowBulkOrderModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn" style={{ background: '#059669', borderColor: '#059669' }}>
+                  {selectedBulkOrder ? 'Save Changes' : 'Create Bulk Order'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Clients Directory Manager Modal */}
+      {showClientManagerModal && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button type="button" className="manage-modal-close" onClick={() => setShowClientManagerModal(false)}>
+              {getSafeEmoji('✕')}
+            </button>
+            <p className="manage-modal-title">🏢 Clients Directory</p>
+            <p className="manage-modal-subtitle">Manage corporate and commercial client directory for bulk uniform supply orders.</p>
+
+            <form onSubmit={handleSaveClient} style={{ background: theme === 'dark' ? '#1E293B' : '#F8FAFC', padding: '16px', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+              <div style={{ fontWeight: '800', fontSize: '13px', marginBottom: '10px' }}>
+                {editingClientId ? '✏️ Edit Client Details' : '➕ Add New Client'}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Client Name *</label>
+                  <input
+                    type="text"
+                    value={clientFormData.name}
+                    onChange={(e) => setClientFormData({ ...clientFormData, name: e.target.value })}
+                    placeholder="e.g. Reliance Industries"
+                    required
+                    style={{ fontSize: '13px', padding: '8px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Contact Number</label>
+                  <input
+                    type="text"
+                    value={clientFormData.contactNumber}
+                    onChange={(e) => setClientFormData({ ...clientFormData, contactNumber: e.target.value })}
+                    placeholder="e.g. 9876543210"
+                    style={{ fontSize: '13px', padding: '8px' }}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Email Address</label>
+                  <input
+                    type="email"
+                    value={clientFormData.email}
+                    onChange={(e) => setClientFormData({ ...clientFormData, email: e.target.value })}
+                    placeholder="e.g. contact@client.com"
+                    style={{ fontSize: '13px', padding: '8px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Address / Location</label>
+                  <input
+                    type="text"
+                    value={clientFormData.address}
+                    onChange={(e) => setClientFormData({ ...clientFormData, address: e.target.value })}
+                    placeholder="e.g. Mumbai, MH"
+                    style={{ fontSize: '13px', padding: '8px' }}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                {editingClientId && (
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => {
+                      setEditingClientId(null)
+                      setClientFormData({ name: '', contactNumber: '', address: '', email: '', notes: '' })
+                    }}
+                    style={{ fontSize: '12px', padding: '6px 12px' }}
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button type="submit" className="primary-btn" style={{ fontSize: '12px', padding: '6px 14px', background: '#059669', borderColor: '#059669' }}>
+                  {editingClientId ? 'Save Changes' : 'Add Client'}
+                </button>
+              </div>
+            </form>
+
+            {/* List of Registered Clients */}
+            <div style={{ fontWeight: '800', fontSize: '13px', marginBottom: '10px' }}>Registered Clients ({clients.length}):</div>
+            {clients.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#64748B', padding: '20px', fontSize: '13px' }}>No clients added yet.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {clients.map(c => (
+                  <div key={c._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: theme === 'dark' ? '#0F172A' : '#FAFAFA', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                    <div>
+                      <div style={{ fontWeight: '800', fontSize: '13px' }}>🏢 {c.name}</div>
+                      <div style={{ fontSize: '11px', color: '#64748B' }}>
+                        {c.contactNumber && `📞 ${c.contactNumber}`} {c.email && ` | ✉️ ${c.email}`} {c.address && ` | 📍 ${c.address}`}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingClientId(c._id)
+                          setClientFormData({
+                            name: c.name || '',
+                            contactNumber: c.contactNumber || '',
+                            address: c.address || '',
+                            email: c.email || '',
+                            notes: c.notes || ''
+                          })
+                        }}
+                        style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', background: '#EFF6FF', color: '#2563EB', border: '1px solid #93C5FD', cursor: 'pointer', fontWeight: '700' }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClient(c._id, c.name)}
+                        style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700' }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Dispatch Stock Batch Modal */}
+      {showDispatchModal && selectedOrderForDispatch && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button type="button" className="manage-modal-close" onClick={() => setShowDispatchModal(false)}>
+              {getSafeEmoji('✕')}
+            </button>
+            <p className="manage-modal-title">🚚 Record Stock Dispatch Batch</p>
+            <p className="manage-modal-subtitle">
+              Order <strong>{selectedOrderForDispatch.boNumber}</strong> for Client <strong>{selectedOrderForDispatch.clientName}</strong>
+            </p>
+
+            <form onSubmit={handleLogDispatch}>
+              <div className="manage-input-group">
+                <label>
+                  Delivery Challan / Invoice # (Optional)
+                  <input
+                    type="text"
+                    value={dispatchFormData.challanNumber}
+                    onChange={(e) => setDispatchFormData({ ...dispatchFormData, challanNumber: e.target.value })}
+                    placeholder="e.g. DC-1024 or INV-889"
+                  />
+                </label>
+              </div>
+
+              {/* Items Table */}
+              <div style={{ marginTop: '14px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px' }}>Dispatched Stock Quantities by Size:</div>
+                <table className="mini-table" style={{ width: '100%', fontSize: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th>Product &amp; Size</th>
+                      <th>Ordered</th>
+                      <th>Previously Dispatched</th>
+                      <th>Pending Balance</th>
+                      <th>New Dispatched Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(dispatchFormData.items || []).map((item, idx) => (
+                      <tr key={idx}>
+                        <td><strong>{item.productName} - Size {item.size}</strong></td>
+                        <td>{item.orderedQty} pcs</td>
+                        <td style={{ color: '#059669' }}>{item.deliveredQty} pcs</td>
+                        <td style={{ color: item.remainingQty > 0 ? '#D97706' : '#64748B', fontWeight: item.remainingQty > 0 ? '700' : 'normal' }}>
+                          {item.remainingQty} pcs
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.newQty}
+                            onChange={(e) => {
+                              const newItems = [...dispatchFormData.items]
+                              newItems[idx].newQty = e.target.value
+                              setDispatchFormData({ ...dispatchFormData, items: newItems })
+                            }}
+                            placeholder="0"
+                            style={{ width: '80px', padding: '4px 6px', fontSize: '12px', fontWeight: '800' }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  Batch Notes / Remarks
+                  <textarea
+                    rows={2}
+                    value={dispatchFormData.notes}
+                    onChange={(e) => setDispatchFormData({ ...dispatchFormData, notes: e.target.value })}
+                    placeholder="e.g. Dispatched 50 pcs via Speed Post / Delivery Van..."
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+                <button type="button" className="secondary-btn" onClick={() => setShowDispatchModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn" style={{ background: '#059669', borderColor: '#059669' }}>
+                  Save Stock Dispatch
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Dispatch Batch Modal */}
+      {showEditDispatchModal && editingDispatch && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button type="button" className="manage-modal-close" onClick={() => setShowEditDispatchModal(false)}>
+              {getSafeEmoji('✕')}
+            </button>
+            <p className="manage-modal-title">✏️ Edit Stock Dispatch Batch</p>
+
+            <form onSubmit={handleUpdateDispatch}>
+              <div className="manage-input-group">
+                <label>
+                  Delivery Challan / Invoice #
+                  <input
+                    type="text"
+                    value={editingDispatch.challanNumber}
+                    onChange={(e) => setEditingDispatch({ ...editingDispatch, challanNumber: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div style={{ marginTop: '14px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px' }}>Dispatched Quantities:</div>
+                <table className="mini-table" style={{ width: '100%', fontSize: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th>Product &amp; Size</th>
+                      <th>Ordered</th>
+                      <th>Dispatched Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(editingDispatch.items || []).map((item, idx) => (
+                      <tr key={idx}>
+                        <td><strong>{item.productName} - Size {item.size}</strong></td>
+                        <td>{item.orderedQty} pcs</td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.qty}
+                            onChange={(e) => {
+                              const newItems = [...editingDispatch.items]
+                              newItems[idx].qty = e.target.value
+                              setEditingDispatch({ ...editingDispatch, items: newItems })
+                            }}
+                            style={{ width: '80px', padding: '4px 6px', fontSize: '12px', fontWeight: '800' }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="manage-input-group">
+                <label>
+                  Batch Notes
+                  <textarea
+                    rows={2}
+                    value={editingDispatch.notes}
+                    onChange={(e) => setEditingDispatch({ ...editingDispatch, notes: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+                <button type="button" className="secondary-btn" onClick={() => setShowEditDispatchModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary-btn" style={{ background: '#059669', borderColor: '#059669' }}>
+                  Save Dispatch Batch
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Order PDF Modal */}
+      {showBOPDFModal && selectedBOForPDF && (
+        <div className="manage-modal-backdrop">
+          <div className="manage-modal-card" style={{ maxWidth: '850px', width: '90vw', maxHeight: '95vh', overflowY: 'auto' }}>
+            <button type="button" className="manage-modal-close" onClick={() => setShowBOPDFModal(false)}>
+              {getSafeEmoji('✕')}
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <p className="manage-modal-title">📄 Bulk Order Delivery Order / Invoice</p>
+                <p className="manage-modal-subtitle">Official printable delivery document for {selectedBOForPDF.boNumber}</p>
+              </div>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={() => {
+                  window.print()
+                }}
+                style={{ background: '#059669', borderColor: '#059669' }}
+              >
+                🖨️ Print Document
+              </button>
+            </div>
+
+            {/* Document Printable View */}
+            <div style={{ background: '#FFFFFF', color: '#0F172A', padding: '30px', borderRadius: '12px', border: '1px solid #CBD5E1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #059669', paddingBottom: '16px', marginBottom: '20px' }}>
+                <div>
+                  <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#059669', margin: 0 }}>BULK SALES DELIVERY ORDER</h1>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>School Uniform Order Book &amp; Supply Hub</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#059669' }}>{selectedBOForPDF.boNumber}</div>
+                  <div style={{ fontSize: '12px', color: '#64748B' }}>Date: {new Date(selectedBOForPDF.createdAt).toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px', background: '#F8FAFC', padding: '14px', borderRadius: '8px' }}>
+                <div>
+                  <strong style={{ fontSize: '12px', color: '#64748B', textTransform: 'uppercase' }}>CLIENT DETAILS:</strong>
+                  <div style={{ fontSize: '16px', fontWeight: '800', marginTop: '4px', color: '#0F172A' }}>🏢 {selectedBOForPDF.clientName}</div>
+                </div>
+                <div>
+                  <strong style={{ fontSize: '12px', color: '#64748B', textTransform: 'uppercase' }}>ORDER STATUS:</strong>
+                  <div style={{ fontSize: '14px', fontWeight: '800', marginTop: '4px', color: selectedBOForPDF.status === 'Completed' ? '#059669' : '#D97706' }}>
+                    {selectedBOForPDF.status}
+                  </div>
+                  {selectedBOForPDF.targetDate && (
+                    <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Target: {selectedBOForPDF.targetDate}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Product tables */}
+              {getNormalizedProducts(selectedBOForPDF).map((p, idx) => (
+                <div key={idx} style={{ marginBottom: '16px' }}>
+                  <div style={{ fontWeight: '800', fontSize: '13px', color: '#0284C7', marginBottom: '6px' }}>
+                    📦 {p.productName} ({p.school || 'General'})
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: '#059669', color: '#FFFFFF' }}>
+                        <th style={{ padding: '6px', textAlign: 'left' }}>Size</th>
+                        <th style={{ padding: '6px', textAlign: 'center' }}>Ordered Qty</th>
+                        <th style={{ padding: '6px', textAlign: 'center' }}>Dispatched Qty</th>
+                        <th style={{ padding: '6px', textAlign: 'center' }}>Pending Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(p.sizeBreakdown || []).map((sb, sbIdx) => (
+                        <tr key={sbIdx} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                          <td style={{ padding: '6px' }}>Size {sb.size}</td>
+                          <td style={{ padding: '6px', textAlign: 'center' }}>{sb.orderedQty || 0} pcs</td>
+                          <td style={{ padding: '6px', textAlign: 'center', color: '#059669', fontWeight: '700' }}>{sb.deliveredQty || 0} pcs</td>
+                          <td style={{ padding: '6px', textAlign: 'center', color: (sb.orderedQty - sb.deliveredQty) > 0 ? '#D97706' : '#059669' }}>
+                            {Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))} pcs
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+
+              {selectedBOForPDF.notes && (
+                <div style={{ marginTop: '16px', background: '#FEF3C7', border: '1px solid #FCD34D', padding: '10px', borderRadius: '6px', fontSize: '12px', color: '#92400E' }}>
+                  <strong>Notes / Remarks:</strong> {selectedBOForPDF.notes}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
