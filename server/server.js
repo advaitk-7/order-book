@@ -398,6 +398,7 @@ const clientSchema = new mongoose.Schema(
     name: { type: String, required: true, unique: true, trim: true },
     contactNumber: { type: String, default: "", trim: true },
     address: { type: String, default: "", trim: true },
+    gstNumber: { type: String, default: "", trim: true },
     email: { type: String, default: "", trim: true },
     notes: { type: String, default: "" }
   },
@@ -2067,7 +2068,7 @@ app.get("/api/clients", authenticateJWT, async (req, res) => {
 
 app.post("/api/clients", authenticateJWT, async (req, res) => {
   try {
-    const { name, contactNumber, address, email, notes } = req.body;
+    const { name, contactNumber, address, gstNumber, email, notes } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: "Client name is required." });
     }
@@ -2081,6 +2082,7 @@ app.post("/api/clients", authenticateJWT, async (req, res) => {
       name: name.trim(),
       contactNumber: (contactNumber || "").trim(),
       address: (address || "").trim(),
+      gstNumber: (gstNumber || "").trim(),
       email: (email || "").trim(),
       notes: (notes || "").trim()
     });
@@ -2095,7 +2097,7 @@ app.post("/api/clients", authenticateJWT, async (req, res) => {
 
 app.patch("/api/clients/:id", authenticateJWT, async (req, res) => {
   try {
-    const { name, contactNumber, address, email, notes } = req.body;
+    const { name, contactNumber, address, gstNumber, email, notes } = req.body;
     const client = await Client.findById(req.params.id);
     if (!client) {
       return res.status(404).json({ message: "Client not found" });
@@ -2114,6 +2116,7 @@ app.patch("/api/clients/:id", authenticateJWT, async (req, res) => {
 
     if (contactNumber !== undefined) client.contactNumber = contactNumber.trim();
     if (address !== undefined) client.address = address.trim();
+    if (gstNumber !== undefined) client.gstNumber = gstNumber.trim();
     if (email !== undefined) client.email = email.trim();
     if (notes !== undefined) client.notes = notes.trim();
 

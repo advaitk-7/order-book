@@ -718,6 +718,7 @@ function App() {
     name: '',
     contactNumber: '',
     address: '',
+    gstNumber: '',
     email: '',
     notes: ''
   })
@@ -2072,6 +2073,7 @@ function App() {
           name: clientFormData.name,
           contactNumber: clientFormData.contactNumber,
           address: clientFormData.address,
+          gstNumber: clientFormData.gstNumber,
           email: clientFormData.email,
           notes: clientFormData.notes
         })
@@ -2079,7 +2081,7 @@ function App() {
       const data = await response.json()
       if (response.ok) {
         setMessage(isEditing ? `Client '${data.name}' updated.` : `Client '${data.name}' added successfully.`)
-        setClientFormData({ name: '', contactNumber: '', address: '', email: '', notes: '' })
+        setClientFormData({ name: '', contactNumber: '', address: '', gstNumber: '', email: '', notes: '' })
         setEditingClientId(null)
         fetchClients()
       } else {
@@ -7537,7 +7539,7 @@ function App() {
                           className="secondary-btn"
                           onClick={() => {
                             setEditingClientId(null)
-                            setClientFormData({ name: '', contactNumber: '', address: '', email: '', notes: '' })
+                            setClientFormData({ name: '', contactNumber: '', address: '', gstNumber: '', email: '', notes: '' })
                             setShowClientManagerModal(true)
                           }}
                           style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
@@ -7570,78 +7572,6 @@ function App() {
                         >
                           <span>{getSafeEmoji('➕')}</span> + Create Bulk Order
                         </button>
-                      </div>
-                    </div>
-
-                    {/* Client Sub-section Cards Header (Horizontal Scroll) */}
-                    <div style={{ margin: '16px 24px 0', overflowX: 'auto', paddingBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 'max-content' }}>
-                        {/* All Clients Card */}
-                        <div
-                          onClick={() => setBulkOrderClientFilter('All')}
-                          style={{
-                            minWidth: '160px',
-                            padding: '12px 14px',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            border: bulkOrderClientFilter === 'All' ? '2px solid #059669' : '1px solid var(--border-color, #E2E8F0)',
-                            background: bulkOrderClientFilter === 'All' ? (theme === 'dark' ? '#064E3B' : '#ECFDF5') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
-                            boxShadow: bulkOrderClientFilter === 'All' ? '0 2px 8px rgba(5, 150, 105, 0.15)' : 'none',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          <div style={{ fontWeight: '800', fontSize: '13px', color: bulkOrderClientFilter === 'All' ? '#059669' : 'inherit' }}>
-                            {getSafeEmoji('🏢')} All Clients
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
-                            {clients.length} Registered Clients
-                          </div>
-                        </div>
-
-                        {/* Individual Client Sub-section Cards */}
-                        {clients.map(c => {
-                          const isSelected = bulkOrderClientFilter === c.name
-                          const clientOrders = bulkOrders.filter(o => o.clientName === c.name)
-                          let clientPendingPcs = 0
-                          clientOrders.forEach(o => {
-                            const prods = getNormalizedProducts(o)
-                            prods.forEach(pr => {
-                              (pr.sizeBreakdown || []).forEach(sb => {
-                                clientPendingPcs += Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))
-                              })
-                            })
-                          })
-
-                          return (
-                            <div
-                              key={c._id}
-                              onClick={() => setBulkOrderClientFilter(c.name)}
-                              style={{
-                                minWidth: '180px',
-                                padding: '12px 14px',
-                                borderRadius: '10px',
-                                cursor: 'pointer',
-                                border: isSelected ? '2px solid #059669' : '1px solid var(--border-color, #E2E8F0)',
-                                background: isSelected ? (theme === 'dark' ? '#064E3B' : '#ECFDF5') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
-                                boxShadow: isSelected ? '0 2px 8px rgba(5, 150, 105, 0.15)' : 'none',
-                                transition: 'all 0.2s ease'
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                                <div style={{ fontWeight: '800', fontSize: '13px', color: isSelected ? '#059669' : 'inherit', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  🏢 {c.name}
-                                </div>
-                                <span style={{ fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '10px', background: clientPendingPcs > 0 ? '#FEF3C7' : '#D1FAE5', color: clientPendingPcs > 0 ? '#D97706' : '#059669' }}>
-                                  {clientOrders.length} BOs
-                                </span>
-                              </div>
-                              <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Pending Delivery:</span>
-                                <strong style={{ color: clientPendingPcs > 0 ? '#D97706' : '#059669' }}>{clientPendingPcs} pcs</strong>
-                              </div>
-                            </div>
-                          )
-                        })}
                       </div>
                     </div>
 
@@ -7714,6 +7644,20 @@ function App() {
 
                       {/* Dropdown Filters */}
                       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {/* Client Filter Dropdown */}
+                        <select
+                          value={bulkOrderClientFilter}
+                          onChange={(e) => setBulkOrderClientFilter(e.target.value)}
+                          className="filter-select"
+                          style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', minWidth: '180px' }}
+                        >
+                          <option value="All">All Clients ({clients.length})</option>
+                          {clients.map(c => (
+                            <option key={c._id} value={c.name}>🏢 {c.name}</option>
+                          ))}
+                        </select>
+
+                        {/* Status Filter Dropdown */}
                         <select
                           value={bulkOrderStatusFilter}
                           onChange={(e) => setBulkOrderStatusFilter(e.target.value)}
@@ -10722,12 +10666,12 @@ function App() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Email Address</label>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>GST Number (GSTIN)</label>
                   <input
-                    type="email"
-                    value={clientFormData.email}
-                    onChange={(e) => setClientFormData({ ...clientFormData, email: e.target.value })}
-                    placeholder="e.g. contact@client.com"
+                    type="text"
+                    value={clientFormData.gstNumber}
+                    onChange={(e) => setClientFormData({ ...clientFormData, gstNumber: e.target.value })}
+                    placeholder="e.g. 27AAAAA0000A1Z5"
                     style={{ fontSize: '13px', padding: '8px' }}
                   />
                 </div>
@@ -10749,7 +10693,7 @@ function App() {
                     className="secondary-btn"
                     onClick={() => {
                       setEditingClientId(null)
-                      setClientFormData({ name: '', contactNumber: '', address: '', email: '', notes: '' })
+                      setClientFormData({ name: '', contactNumber: '', address: '', gstNumber: '', email: '', notes: '' })
                     }}
                     style={{ fontSize: '12px', padding: '6px 12px' }}
                   >
@@ -10773,7 +10717,7 @@ function App() {
                     <div>
                       <div style={{ fontWeight: '800', fontSize: '13px' }}>🏢 {c.name}</div>
                       <div style={{ fontSize: '11px', color: '#64748B' }}>
-                        {c.contactNumber && `📞 ${c.contactNumber}`} {c.email && ` | ✉️ ${c.email}`} {c.address && ` | 📍 ${c.address}`}
+                        {c.contactNumber && `📞 ${c.contactNumber}`} {c.gstNumber && ` | 📑 GSTIN: ${c.gstNumber}`} {c.address && ` | 📍 ${c.address}`}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '6px' }}>
@@ -10785,6 +10729,7 @@ function App() {
                             name: c.name || '',
                             contactNumber: c.contactNumber || '',
                             address: c.address || '',
+                            gstNumber: c.gstNumber || '',
                             email: c.email || '',
                             notes: c.notes || ''
                           })
