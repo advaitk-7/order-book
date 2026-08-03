@@ -7940,7 +7940,7 @@ function App() {
                                             <thead>
                                               <tr>
                                                 <th>Size</th>
-                                                <th>Unit Price (₹)</th>
+                                                <th>Cost / Unit (₹)</th>
                                                 <th>Ordered Qty</th>
                                                 <th>Dispatched Qty</th>
                                                 <th>Pending Balance</th>
@@ -10576,7 +10576,7 @@ function App() {
 
                     {/* Size Breakdown Rows */}
                     <div>
-                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '6px' }}>Sizes, Quantities & Prices:</div>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '6px' }}>Sizes, Quantities & Costs:</div>
                       {(p.sizeBreakdown || []).map((sb, sbIdx) => (
                         <div key={sbIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                           <input
@@ -10612,7 +10612,7 @@ function App() {
                               newProds[pIdx].sizeBreakdown[sbIdx].unitPrice = e.target.value
                               setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                             }}
-                            placeholder="Unit Price ₹"
+                            placeholder="Cost/Unit ₹"
                             style={{ width: '100px', padding: '6px', fontSize: '12px' }}
                           />
                           {p.sizeBreakdown.length > 1 && (
