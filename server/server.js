@@ -2464,7 +2464,7 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
       };
     }
 
-    const logs = await AuditLog.find(query).sort({ createdAt: -1 }).limit(1000).lean();
+    const logs = await AuditLog.find(query).sort({ createdAt: -1 }).lean();
     res.json(logs);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch audit logs", error: error.message });
