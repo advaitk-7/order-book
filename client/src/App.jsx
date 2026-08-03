@@ -8015,7 +8015,14 @@ function App() {
                                                 <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap', minWidth: '120px' }}>Total</td>
                                                 <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap', minWidth: '140px' }}>-</td>
                                                 <td style={{ padding: '8px 16px 8px 8px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrd} pcs</td>
-                                                <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>{totalProdDel} pcs</td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>
+                                                  {totalProdDel} pcs
+                                                  {totalProdDel > totalProdOrd && (
+                                                    <span style={{ marginLeft: '4px', fontSize: '11px', color: theme === 'dark' ? '#34D399' : '#047857', fontWeight: '700' }}>
+                                                      (+{totalProdDel - totalProdOrd} Extra)
+                                                    </span>
+                                                  )}
+                                                </td>
                                                 <td style={{ padding: '8px 16px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
                                                   {totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}
                                                 </td>
@@ -10911,6 +10918,11 @@ function App() {
                             placeholder="0"
                             style={{ width: '80px', padding: '4px 6px', fontSize: '12px', fontWeight: '800' }}
                           />
+                          {Number(item.newQty || 0) > item.remainingQty && (
+                            <span style={{ color: '#2563EB', fontSize: '10px', display: 'block', fontWeight: '600' }}>
+                              +{Number(item.newQty || 0) - item.remainingQty} Extra stock!
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
