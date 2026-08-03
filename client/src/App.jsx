@@ -264,6 +264,21 @@ const checkFuzzyMatch = (searchQuery, target) => {
   return true
 }
 
+const getNormalizedProducts = (order) => {
+  if (!order) return []
+  if (Array.isArray(order.products) && order.products.length > 0) {
+    return order.products
+  }
+  if (order.itemType && Array.isArray(order.sizeBreakdown)) {
+    return [{
+      productName: order.itemType,
+      school: order.school || 'General',
+      sizeBreakdown: order.sizeBreakdown
+    }]
+  }
+  return []
+}
+
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('token') || '')
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
@@ -1810,21 +1825,6 @@ function App() {
     } catch (err) {
       console.error('Failed to delete supplier', err)
     }
-  }
-
-  const getNormalizedProducts = (order) => {
-    if (!order) return []
-    if (Array.isArray(order.products) && order.products.length > 0) {
-      return order.products
-    }
-    if (order.itemType && Array.isArray(order.sizeBreakdown)) {
-      return [{
-        productName: order.itemType,
-        school: order.school || 'General',
-        sizeBreakdown: order.sizeBreakdown
-      }]
-    }
-    return []
   }
 
   const handleSaveVendorOrder = async (e) => {
