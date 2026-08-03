@@ -417,6 +417,8 @@ const bulkOrderSchema = new mongoose.Schema(
         productName: { type: String, required: true, trim: true },
         school: { type: String, required: true, trim: true },
         unitPrice: { type: Number, default: 0 },
+        frontLogoCost: { type: Number, default: 0 },
+        backLogoCost: { type: Number, default: 0 },
         sizeBreakdown: [
           {
             size: { type: String, required: true, trim: true },
