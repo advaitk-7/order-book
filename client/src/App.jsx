@@ -1937,6 +1937,7 @@ function App() {
     setEditingInstallment({
       orderId: order._id,
       installmentId: installment._id,
+      challanNumber: installment.challanNumber || '',
       notes: installment.notes || '',
       items
     })
@@ -1961,6 +1962,7 @@ function App() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          challanNumber: editingInstallment.challanNumber || '',
           items: itemsToSubmit,
           notes: editingInstallment.notes
         })
@@ -9774,71 +9776,78 @@ function App() {
       {/* Log Stock Installment Modal */}
       {showInstallmentModal && selectedOrderForInstallment && (
         <div className="manage-modal-backdrop">
-          <div className="manage-modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => setShowInstallmentModal(false)}>
               {getSafeEmoji('✕')}
             </button>
-            <p className="manage-modal-title">
-              {getSafeEmoji('➕')} Receive Stock Installment for {selectedOrderForInstallment.poNumber}
-            </p>
+            <p className="manage-modal-title">📦 Record Stock Delivery Batch</p>
             <p className="manage-modal-subtitle">
-              Log incoming stock shipment from <strong>{selectedOrderForInstallment.partyName}</strong>.
+              Order <strong>{selectedOrderForInstallment.poNumber}</strong> for Supplier <strong>{selectedOrderForInstallment.partyName}</strong>
             </p>
 
             <form onSubmit={handleLogInstallment}>
-
-              <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
-                <label style={{ fontWeight: '700', fontSize: '13px', display: 'block', marginBottom: '10px' }}>
-                  Quantities Received in this Batch (Per Product & Size):
+              <div className="manage-input-group">
+                <label>
+                  Delivery Challan / Invoice # (Optional)
+                  <input
+                    type="text"
+                    value={installmentFormData.challanNumber || ''}
+                    onChange={(e) => setInstallmentFormData({ ...installmentFormData, challanNumber: e.target.value })}
+                    placeholder="e.g. DC-1024 or INV-889"
+                  />
                 </label>
+              </div>
 
-                {(installmentFormData.items || []).map((item, idx) => (
-                  <div key={`${item.productName}-${item.size}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '10px', fontSize: '13px' }}>
-                    <div style={{ flex: 1 }}>
-                      <strong>{item.productName} ({item.school}) - Size {item.size}</strong>
-                      <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>
-                        (Ordered: {item.orderedQty} | Rec'd so far: {item.receivedQty} | Pending: <strong style={{ color: item.remainingQty > 0 ? '#D97706' : '#10B981' }}>{item.remainingQty} pcs</strong>)
-                      </span>
-                    </div>
-                    <div style={{ width: '120px' }}>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Qty received"
-                        value={item.newQty}
-                        onChange={(e) => {
-                          const updated = [...(installmentFormData.items || [])]
-                          updated[idx] = { ...updated[idx], newQty: e.target.value }
-                          setInstallmentFormData({ ...installmentFormData, items: updated })
-                        }}
-                        style={{
-                          padding: '6px 10px',
-                          fontSize: '13px',
-                          textAlign: 'right',
-                          borderColor: Number(item.newQty || 0) > item.remainingQty ? '#2563EB' : undefined
-                        }}
-                      />
-                      {Number(item.newQty || 0) > item.remainingQty && (
-                        <span style={{ color: '#2563EB', fontSize: '10px', display: 'block', textAlign: 'right', fontWeight: '600' }}>
-                          +{Number(item.newQty || 0) - item.remainingQty} Extra stock!
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: '700', marginTop: '8px', color: '#10B981' }}>
-                  Batch Total: {(installmentFormData.items || []).reduce((s, i) => s + Number(i.newQty || 0), 0)} pcs
-                </div>
+              {/* Items Table */}
+              <div style={{ marginTop: '14px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px' }}>Received Stock Quantities by Size:</div>
+                <table className="mini-table" style={{ width: '100%', fontSize: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th>Product &amp; Size</th>
+                      <th>Ordered</th>
+                      <th>Previously Received</th>
+                      <th>Pending Balance</th>
+                      <th>New Received Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(installmentFormData.items || []).map((item, idx) => (
+                      <tr key={idx}>
+                        <td><strong>{item.productName} - Size {item.size}</strong></td>
+                        <td>{item.orderedQty} pcs</td>
+                        <td style={{ color: '#059669', fontWeight: '700' }}>{item.receivedQty} pcs</td>
+                        <td style={{ color: item.remainingQty > 0 ? '#D97706' : '#64748B', fontWeight: item.remainingQty > 0 ? '700' : 'normal' }}>
+                          {item.remainingQty} pcs
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.newQty}
+                            onChange={(e) => {
+                              const updated = [...(installmentFormData.items || [])]
+                              updated[idx] = { ...updated[idx], newQty: e.target.value }
+                              setInstallmentFormData({ ...installmentFormData, items: updated })
+                            }}
+                            placeholder="0"
+                            style={{ width: '80px', padding: '4px 6px', fontSize: '12px', fontWeight: '800' }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
               <div className="manage-input-group">
                 <label>
-                  Installment Notes (Optional)
-                  <input
-                    type="text"
+                  Batch Notes / Remarks
+                  <textarea
+                    rows={2}
                     value={installmentFormData.notes}
                     onChange={(e) => setInstallmentFormData({ ...installmentFormData, notes: e.target.value })}
-                    placeholder="e.g. Delivered by driver John / Batch 1 of 3"
+                    placeholder="e.g. Received 50 pcs via Speed Post / Supplier Delivery Van..."
                   />
                 </label>
               </div>
@@ -9847,7 +9856,7 @@ function App() {
                 <button type="button" className="secondary-btn" onClick={() => setShowInstallmentModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="primary-btn">
+                <button type="submit" className="primary-btn" style={{ background: '#059669', borderColor: '#059669' }}>
                   Confirm Stock Receipt
                 </button>
               </div>
@@ -9859,71 +9868,74 @@ function App() {
       {/* Edit Stock Installment Modal */}
       {showEditInstallmentModal && editingInstallment && (
         <div className="manage-modal-backdrop">
-          <div className="manage-modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => setShowEditInstallmentModal(false)}>
               {getSafeEmoji('✕')}
             </button>
-            <p className="manage-modal-title">
-              {getSafeEmoji('✏️')} Edit Stock Installment Batch
-            </p>
+            <p className="manage-modal-title">✏️ Edit Stock Delivery Batch</p>
             <p className="manage-modal-subtitle">
-              Modify or reduce stock quantities received in this batch log.
+              Modify or adjust received stock quantities for this batch log.
             </p>
 
             <form onSubmit={handleUpdateInstallment}>
-
-              <div style={{ margin: '16px 0', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
-                <label style={{ fontWeight: '700', fontSize: '13px', display: 'block', marginBottom: '10px' }}>
-                  Adjust Received Quantities (Per Product & Size):
+              <div className="manage-input-group">
+                <label>
+                  Delivery Challan / Invoice # (Optional)
+                  <input
+                    type="text"
+                    value={editingInstallment.challanNumber || ''}
+                    onChange={(e) => setEditingInstallment({ ...editingInstallment, challanNumber: e.target.value })}
+                    placeholder="e.g. DC-1024 or INV-889"
+                  />
                 </label>
+              </div>
 
-                {(editingInstallment.items || []).map((item, idx) => (
-                  <div key={`${item.productName}-${item.size}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '10px', fontSize: '13px' }}>
-                    <div style={{ flex: 1 }}>
-                      <strong>{item.productName} ({item.school}) - Size {item.size}</strong>
-                      <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>
-                        (Max allowed pending limit for this batch: <strong>{item.remainingQty} pcs</strong>)
-                      </span>
-                    </div>
-                    <div style={{ width: '120px' }}>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Qty"
-                        value={item.qty}
-                        onChange={(e) => {
-                          const updated = [...(editingInstallment.items || [])]
-                          updated[idx] = { ...updated[idx], qty: e.target.value }
-                          setEditingInstallment({ ...editingInstallment, items: updated })
-                        }}
-                        style={{
-                          padding: '6px 10px',
-                          fontSize: '13px',
-                          textAlign: 'right',
-                          borderColor: Number(item.qty || 0) > item.remainingQty ? '#2563EB' : undefined
-                        }}
-                      />
-                      {Number(item.qty || 0) > item.remainingQty && (
-                        <span style={{ color: '#2563EB', fontSize: '10px', display: 'block', textAlign: 'right', fontWeight: '600' }}>
-                          +{Number(item.qty || 0) - item.remainingQty} Extra stock!
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: '700', marginTop: '8px', color: '#10B981' }}>
-                  Updated Batch Total: {(editingInstallment.items || []).reduce((s, i) => s + Number(i.qty || 0), 0)} pcs
-                </div>
+              {/* Items Table */}
+              <div style={{ marginTop: '14px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px' }}>Adjust Received Stock Quantities:</div>
+                <table className="mini-table" style={{ width: '100%', fontSize: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th>Product &amp; Size</th>
+                      <th>Ordered</th>
+                      <th>Pending Limit</th>
+                      <th>Qty Received in Batch</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(editingInstallment.items || []).map((item, idx) => (
+                      <tr key={idx}>
+                        <td><strong>{item.productName} - Size {item.size}</strong></td>
+                        <td>{item.orderedQty} pcs</td>
+                        <td style={{ color: '#D97706', fontWeight: '700' }}>{item.remainingQty} pcs max</td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.qty}
+                            onChange={(e) => {
+                              const updated = [...(editingInstallment.items || [])]
+                              updated[idx] = { ...updated[idx], qty: e.target.value }
+                              setEditingInstallment({ ...editingInstallment, items: updated })
+                            }}
+                            placeholder="0"
+                            style={{ width: '80px', padding: '4px 6px', fontSize: '12px', fontWeight: '800' }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
               <div className="manage-input-group">
                 <label>
-                  Installment Notes (Optional)
-                  <input
-                    type="text"
+                  Batch Notes / Remarks
+                  <textarea
+                    rows={2}
                     value={editingInstallment.notes}
                     onChange={(e) => setEditingInstallment({ ...editingInstallment, notes: e.target.value })}
-                    placeholder="e.g. Delivered by driver John"
+                    placeholder="e.g. Updated batch count after physical audit"
                   />
                 </label>
               </div>
@@ -9932,8 +9944,8 @@ function App() {
                 <button type="button" className="secondary-btn" onClick={() => setShowEditInstallmentModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="primary-btn">
-                  Save Installment Changes
+                <button type="submit" className="primary-btn" style={{ background: '#059669', borderColor: '#059669' }}>
+                  Save Batch Changes
                 </button>
               </div>
             </form>
