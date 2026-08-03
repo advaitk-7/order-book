@@ -393,6 +393,70 @@ vendorOrderSchema.index({ createdAt: -1 });
 
 const VendorOrder = mongoose.model("VendorOrder", vendorOrderSchema);
 
+// Client Directory Schema for Bulk Client Orders
+const clientSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true, unique: true },
+    phone: { type: String, default: "", trim: true },
+    email: { type: String, default: "", trim: true },
+    address: { type: String, default: "", trim: true },
+    notes: { type: String, default: "" }
+  },
+  { timestamps: true }
+);
+
+clientSchema.index({ name: 1 });
+const Client = mongoose.model("Client", clientSchema);
+
+// Bulk Client Order Schema
+const bulkOrderProductSchema = new mongoose.Schema({
+  productName: { type: String, required: true, trim: true },
+  school: { type: String, default: "General", trim: true },
+  unitPrice: { type: Number, default: 0 },
+  sizeBreakdown: [
+    {
+      size: { type: String, required: true, trim: true },
+      orderedQty: { type: Number, required: true, default: 0 },
+      deliveredQty: { type: Number, required: true, default: 0 },
+      unitPrice: { type: Number, default: 0 }
+    }
+  ]
+});
+
+const bulkOrderDispatchSchema = new mongoose.Schema({
+  dispatchedAt: { type: Date, default: Date.now },
+  challanNumber: { type: String, default: "", trim: true },
+  items: [
+    {
+      productName: { type: String, default: "", trim: true },
+      size: { type: String, required: true, trim: true },
+      qty: { type: Number, required: true, default: 0 }
+    }
+  ],
+  notes: { type: String, default: "" }
+});
+
+const bulkOrderSchema = new mongoose.Schema(
+  {
+    boNumber: { type: String, required: true, trim: true, unique: true },
+    clientName: { type: String, required: true, trim: true },
+    targetDate: { type: String, default: "" },
+    status: { type: String, enum: ["Pending", "Partial", "Completed", "Cancelled"], default: "Pending" },
+    products: [bulkOrderProductSchema],
+    dispatches: [bulkOrderDispatchSchema],
+    notes: { type: String, default: "" },
+    completedAt: { type: Date, default: null }
+  },
+  { timestamps: true }
+);
+
+bulkOrderSchema.index({ boNumber: 1 });
+bulkOrderSchema.index({ clientName: 1 });
+bulkOrderSchema.index({ status: 1 });
+bulkOrderSchema.index({ createdAt: -1 });
+
+const BulkOrder = mongoose.model("BulkOrder", bulkOrderSchema);
+
 // 75-day TTL index removed in favor of 100-block rolling cycle cleanup
 
 if (process.env.NODE_ENV !== "production") {
@@ -1532,6 +1596,73 @@ function recalculateOrderQuantities(order) {
   }
 }
 
+function recalculateBulkOrderQuantities(order) {
+  if (!order) return;
+
+  // Reset deliveredQty for all sizeBreakdowns across products
+  (order.products || []).forEach(p => {
+    (p.sizeBreakdown || []).forEach(sb => {
+      sb.deliveredQty = 0;
+    });
+  });
+
+  // Re-sum delivered quantities from all active dispatches
+  (order.dispatches || []).forEach(disp => {
+    (disp.items || []).forEach(item => {
+      const prodName = String(item.productName || '').trim();
+      let matchedProd = (order.products || []).find(p => p.productName === prodName);
+      if (!matchedProd && (order.products || []).length > 0) {
+        matchedProd = order.products[0];
+      }
+
+      if (matchedProd) {
+        let sb = (matchedProd.sizeBreakdown || []).find(s => s.size === item.size);
+        if (sb) {
+          sb.deliveredQty = (sb.deliveredQty || 0) + (item.qty || 0);
+        } else {
+          matchedProd.sizeBreakdown.push({
+            size: item.size,
+            orderedQty: item.qty || 0,
+            deliveredQty: item.qty || 0
+          });
+        }
+      }
+    });
+  });
+
+  let grandTotalOrdered = 0;
+  let grandTotalDelivered = 0;
+  let totalPending = 0;
+
+  (order.products || []).forEach(p => {
+    sortSizeBreakdown(p.sizeBreakdown || []);
+    (p.sizeBreakdown || []).forEach(sb => {
+      const ord = (sb.orderedQty || 0);
+      const del = (sb.deliveredQty || 0);
+      grandTotalOrdered += ord;
+      grandTotalDelivered += del;
+      if (del < ord) {
+        totalPending += (ord - del);
+      }
+    });
+  });
+
+  // Recalculate status & completion timestamp:
+  // Order is ONLY Completed if every size item has delivered >= ordered (totalPending === 0)
+  if (totalPending === 0 && grandTotalOrdered > 0) {
+    order.status = "Completed";
+    if (!order.completedAt) {
+      order.completedAt = new Date();
+    }
+  } else if (grandTotalDelivered > 0) {
+    order.status = "Partial";
+    order.completedAt = null;
+  } else {
+    order.status = "Pending";
+    order.completedAt = null;
+  }
+}
+
 // Automatic daily cleanup for Vendor Restock Orders completed more than 90 days ago
 async function autoCleanupExpiredVendorOrders() {
   try {
@@ -1942,6 +2073,350 @@ app.delete("/api/vendor-orders/:id/installments/:installmentId", authenticateJWT
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: "Failed to delete installment", error: error.message });
+  }
+});
+
+// ==================== CLIENT DIRECTORY ENDPOINTS ====================
+app.get("/api/clients", authenticateJWT, async (req, res) => {
+  try {
+    const clients = await Client.find({}).sort({ name: 1 });
+    res.json(clients);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch clients", error: error.message });
+  }
+});
+
+app.post("/api/clients", authenticateJWT, async (req, res) => {
+  try {
+    const { name, phone, email, address, notes } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: "Client name is required." });
+    }
+
+    const cleanName = name.trim();
+    const existing = await Client.findOne({ name: { $regex: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
+    if (existing) {
+      return res.status(400).json({ message: "A client with this name already exists." });
+    }
+
+    const newClient = new Client({
+      name: cleanName,
+      phone: (phone || "").trim(),
+      email: (email || "").trim(),
+      address: (address || "").trim(),
+      notes: (notes || "").trim()
+    });
+
+    await newClient.save();
+    await logAudit(null, "System", "Client Added", `Added client '${cleanName}'`);
+    res.status(201).json(newClient);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create client", error: error.message });
+  }
+});
+
+app.delete("/api/clients/:id", authenticateJWT, async (req, res) => {
+  try {
+    const client = await Client.findByIdAndDelete(req.params.id);
+    if (!client) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    await logAudit(null, "System", "Client Deleted", `Deleted client '${client.name}'`);
+    res.json({ message: "Client deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete client", error: error.message });
+  }
+});
+
+// ==================== BULK CLIENT ORDERS ENDPOINTS ====================
+app.get("/api/bulk-orders", authenticateJWT, async (req, res) => {
+  try {
+    const { search, clientName, status } = req.query;
+    const query = {};
+
+    if (clientName && clientName !== "All") {
+      query.clientName = clientName;
+    }
+
+    if (status && status !== "All") {
+      query.status = status;
+    }
+
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), "i");
+      query.$or = [
+        { boNumber: regex },
+        { clientName: regex },
+        { "products.productName": regex },
+        { "products.school": regex }
+      ];
+    }
+
+    const orders = await BulkOrder.find(query).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch bulk client orders", error: error.message });
+  }
+});
+
+app.post("/api/bulk-orders", authenticateJWT, async (req, res) => {
+  try {
+    const { clientName, products, targetDate, notes } = req.body;
+    let boNumberInput = (req.body.boNumber || "").trim();
+
+    if (!clientName || !clientName.trim()) {
+      return res.status(400).json({ message: "Client name is required." });
+    }
+
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ message: "At least one product with size breakdown is required." });
+    }
+
+    // Auto-generate BO Number if not provided
+    let boNumber = boNumberInput;
+    if (!boNumber) {
+      const lastOrder = await BulkOrder.findOne({}).sort({ createdAt: -1 });
+      let nextNum = 1;
+      if (lastOrder && lastOrder.boNumber) {
+        const match = lastOrder.boNumber.match(/BO-(\d+)/i);
+        if (match) {
+          nextNum = parseInt(match[1], 10) + 1;
+        }
+      }
+      boNumber = `BO-${String(nextNum).padStart(3, '0')}`;
+    } else if (!/^BO-/i.test(boNumber)) {
+      boNumber = `BO-${boNumber.padStart(3, '0')}`;
+    }
+
+    const existingPO = await BulkOrder.findOne({ boNumber });
+    if (existingPO) {
+      return res.status(400).json({ message: `Bulk Order number ${boNumber} already exists.` });
+    }
+
+    const cleanProducts = [];
+    for (const p of products) {
+      const productName = String(p.productName || '').trim();
+      const school = String(p.school || 'General').trim();
+      const pUnitPrice = Math.max(0, Number(p.unitPrice || 0));
+      if (!productName) continue;
+
+      const sizeBreakdown = (p.sizeBreakdown || []).map(sb => ({
+        size: String(sb.size || '').trim(),
+        orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
+        deliveredQty: 0,
+        unitPrice: sb.unitPrice !== undefined && sb.unitPrice !== '' ? Math.max(0, Number(sb.unitPrice || 0)) : pUnitPrice
+      })).filter(sb => sb.size && sb.orderedQty > 0);
+
+      if (sizeBreakdown.length > 0) {
+        cleanProducts.push({
+          productName,
+          school,
+          unitPrice: pUnitPrice,
+          sizeBreakdown
+        });
+      }
+    }
+
+    if (cleanProducts.length === 0) {
+      return res.status(400).json({ message: "Valid products with size quantities are required." });
+    }
+
+    const newOrder = new BulkOrder({
+      boNumber,
+      clientName: clientName.trim(),
+      products: cleanProducts,
+      targetDate: (targetDate || "").trim(),
+      status: "Pending",
+      dispatches: [],
+      notes: (notes || "").trim()
+    });
+
+    recalculateBulkOrderQuantities(newOrder);
+    await newOrder.save();
+
+    await logAudit(null, "System", "Bulk Client Order Created", `Order ${boNumber} created for client '${clientName.trim()}' with ${cleanProducts.length} product(s)`);
+    res.status(201).json(newOrder);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create bulk order", error: error.message });
+  }
+});
+
+app.patch("/api/bulk-orders/:id", authenticateJWT, async (req, res) => {
+  try {
+    const { clientName, products, targetDate, notes, status } = req.body;
+    const order = await BulkOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Bulk order not found" });
+    }
+
+    if (clientName) order.clientName = clientName.trim();
+    if (targetDate !== undefined) order.targetDate = targetDate.trim();
+    if (notes !== undefined) order.notes = notes.trim();
+
+    if (Array.isArray(products) && products.length > 0) {
+      const cleanProducts = [];
+      for (const p of products) {
+        const productName = String(p.productName || '').trim();
+        const school = String(p.school || 'General').trim();
+        const pUnitPrice = Math.max(0, Number(p.unitPrice || 0));
+        if (!productName) continue;
+
+        const existingProd = (order.products || []).find(ep => ep.productName === productName);
+
+        const updatedBreakdown = (p.sizeBreakdown || []).map(sb => {
+          const cleanSize = String(sb.size || '').trim();
+          const existingSb = existingProd ? (existingProd.sizeBreakdown || []).find(e => e.size === cleanSize) : null;
+          return {
+            size: cleanSize,
+            orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
+            deliveredQty: existingSb ? (existingSb.deliveredQty || 0) : 0,
+            unitPrice: sb.unitPrice !== undefined && sb.unitPrice !== '' ? Math.max(0, Number(sb.unitPrice || 0)) : pUnitPrice
+          };
+        }).filter(sb => sb.size && sb.orderedQty >= 0);
+
+        if (updatedBreakdown.length > 0) {
+          cleanProducts.push({
+            productName,
+            school,
+            unitPrice: pUnitPrice,
+            sizeBreakdown: updatedBreakdown
+          });
+        }
+      }
+      if (cleanProducts.length > 0) {
+        order.products = cleanProducts;
+      }
+    }
+
+    if (status && ["Pending", "Partial", "Completed", "Cancelled"].includes(status)) {
+      order.status = status;
+    }
+
+    recalculateBulkOrderQuantities(order);
+    await order.save();
+
+    await logAudit(null, "System", "Bulk Client Order Updated", `Updated order ${order.boNumber}`);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update bulk order", error: error.message });
+  }
+});
+
+app.delete("/api/bulk-orders/:id", authenticateJWT, async (req, res) => {
+  try {
+    const order = await BulkOrder.findByIdAndDelete(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Bulk order not found" });
+    }
+    await logAudit(null, "System", "Bulk Client Order Deleted", `Deleted Bulk Order ${order.boNumber} for '${order.clientName}'`);
+    res.json({ message: "Bulk order deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete bulk order", error: error.message });
+  }
+});
+
+// Add stock dispatch batch
+app.post("/api/bulk-orders/:id/dispatches", authenticateJWT, async (req, res) => {
+  try {
+    const { challanNumber, items, notes } = req.body;
+    const order = await BulkOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Bulk order not found" });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Dispatch batch items are required." });
+    }
+
+    const cleanItems = items.map(i => ({
+      productName: String(i.productName || '').trim(),
+      size: String(i.size || '').trim(),
+      qty: Math.max(0, Number(i.qty || 0))
+    })).filter(i => i.size && i.qty > 0);
+
+    if (cleanItems.length === 0) {
+      return res.status(400).json({ message: "Valid size quantities are required to dispatch stock." });
+    }
+
+    const newDispatch = {
+      dispatchedAt: new Date(),
+      challanNumber: (challanNumber || "").trim(),
+      items: cleanItems,
+      notes: (notes || "").trim()
+    };
+    order.dispatches.push(newDispatch);
+
+    recalculateBulkOrderQuantities(order);
+    await order.save();
+
+    const batchTotal = cleanItems.reduce((sum, i) => sum + i.qty, 0);
+    await logAudit(null, "System", "Stock Dispatched to Client", `Dispatched ${batchTotal} pcs for Order ${order.boNumber} to '${order.clientName}' (Challan: ${challanNumber || "N/A"})`);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to record dispatch", error: error.message });
+  }
+});
+
+// Edit dispatch batch
+app.patch("/api/bulk-orders/:id/dispatches/:dispatchId", authenticateJWT, async (req, res) => {
+  try {
+    const { challanNumber, items, notes } = req.body;
+    const order = await BulkOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Bulk order not found" });
+    }
+
+    const disp = order.dispatches.id(req.params.dispatchId);
+    if (!disp) {
+      return res.status(404).json({ message: "Dispatch batch not found" });
+    }
+
+    if (challanNumber !== undefined) disp.challanNumber = challanNumber.trim();
+    if (notes !== undefined) disp.notes = notes.trim();
+
+    if (Array.isArray(items) && items.length > 0) {
+      const cleanItems = items.map(i => ({
+        productName: String(i.productName || '').trim(),
+        size: String(i.size || '').trim(),
+        qty: Math.max(0, Number(i.qty || 0))
+      })).filter(i => i.size && i.qty > 0);
+
+      if (cleanItems.length > 0) {
+        disp.items = cleanItems;
+      }
+    }
+
+    recalculateBulkOrderQuantities(order);
+    await order.save();
+
+    await logAudit(null, "System", "Stock Dispatch Updated", `Updated dispatch batch in Order ${order.boNumber}`);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update dispatch", error: error.message });
+  }
+});
+
+// Delete dispatch batch
+app.delete("/api/bulk-orders/:id/dispatches/:dispatchId", authenticateJWT, async (req, res) => {
+  try {
+    const order = await BulkOrder.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Bulk order not found" });
+    }
+
+    const disp = order.dispatches.id(req.params.dispatchId);
+    if (!disp) {
+      return res.status(404).json({ message: "Dispatch batch not found" });
+    }
+
+    disp.deleteOne();
+    recalculateBulkOrderQuantities(order);
+    await order.save();
+
+    await logAudit(null, "System", "Stock Dispatch Deleted", `Deleted dispatch batch from Order ${order.boNumber}`);
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete dispatch", error: error.message });
   }
 });
 

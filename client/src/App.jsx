@@ -646,13 +646,55 @@ function App() {
   const [exportingPOPDF, setExportingPOPDF] = useState(false)
   const poPdfPreviewSheetRef = useRef(null)
 
-  // Installment Modal
-  const [showInstallmentModal, setShowInstallmentModal] = useState(false)
-  const [selectedOrderForInstallment, setSelectedOrderForInstallment] = useState(null)
-  const [installmentFormData, setInstallmentFormData] = useState({
+
+
+  // Bulk Client Orders State
+  const [clients, setClients] = useState([])
+  const [loadingClients, setLoadingClients] = useState(false)
+  const [bulkOrders, setBulkOrders] = useState([])
+  const [loadingBulkOrders, setLoadingBulkOrders] = useState(false)
+  const [bulkOrderSearch, setBulkOrderSearch] = useState('')
+  const [bulkOrderSearchFocused, setBulkOrderSearchFocused] = useState(false)
+  const boSearchInputRef = useRef(null)
+  const [bulkOrderClientFilter, setBulkOrderClientFilter] = useState('All')
+  const [bulkOrderStatusFilter, setBulkOrderStatusFilter] = useState('All')
+
+  // Bulk Order Modals
+  const [showBulkOrderModal, setShowBulkOrderModal] = useState(false)
+  const [selectedBulkOrder, setSelectedBulkOrder] = useState(null)
+  const [bulkOrderFormData, setBulkOrderFormData] = useState({
+    boNumber: '',
+    clientName: '',
+    targetDate: '',
+    notes: '',
+    products: [{ productName: '', school: 'General', unitPrice: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
+  })
+
+  // Client Directory Modal
+  const [showClientModal, setShowClientModal] = useState(false)
+  const [clientFormData, setClientFormData] = useState({ name: '', phone: '', email: '', address: '', notes: '' })
+
+  // Dispatch Stock Modal
+  const [showDispatchModal, setShowDispatchModal] = useState(false)
+  const [selectedOrderForDispatch, setSelectedOrderForDispatch] = useState(null)
+  const [editingDispatch, setEditingDispatch] = useState(null)
+  const [dispatchFormData, setDispatchFormData] = useState({
+    challanNumber: '',
     notes: '',
     items: []
   })
+  const [expandedDispatches, setExpandedDispatches] = useState({})
+
+  // BO PDF Export Modal State
+  const [showBOPDFModal, setShowBOPDFModal] = useState(false)
+  const [selectedBOForPDF, setSelectedBOForPDF] = useState(null)
+  const [boPdfFileName, setBoPdfFileName] = useState('')
+  const [boPdfOrientation, setBoPdfOrientation] = useState('landscape')
+  const [boPdfFormat, setBoPdfFormat] = useState('a4')
+  const [boPdfMargin, setBoPdfMargin] = useState('normal')
+  const [boPdfScale, setBoPdfScale] = useState('normal')
+  const [exportingBOPDF, setExportingBOPDF] = useState(false)
+  const boPdfPreviewSheetRef = useRef(null)
 
   // Supplier Manager Modal
   const [showPartyManagerModal, setShowPartyManagerModal] = useState(false)
@@ -1809,15 +1851,15 @@ function App() {
         const instItem = (installment.items || []).find(i => (!i.productName || i.productName === p.productName) && i.size === sb.size)
         // Calculate received from all OTHER installments
         let otherReceived = 0
-        ;(order.installments || []).forEach(otherInst => {
-          if (String(otherInst._id) !== String(installment._id)) {
-            ;(otherInst.items || []).forEach(oi => {
-              if ((!oi.productName || oi.productName === p.productName) && oi.size === sb.size) {
-                otherReceived += (oi.qty || 0)
-              }
-            })
-          }
-        })
+          ; (order.installments || []).forEach(otherInst => {
+            if (String(otherInst._id) !== String(installment._id)) {
+              ; (otherInst.items || []).forEach(oi => {
+                if ((!oi.productName || oi.productName === p.productName) && oi.size === sb.size) {
+                  otherReceived += (oi.qty || 0)
+                }
+              })
+            }
+          })
         const remainingQty = Math.max(0, (sb.orderedQty || 0) - otherReceived)
         items.push({
           productName: p.productName,
@@ -2144,13 +2186,13 @@ function App() {
       let grandPOHasCost = false
       prods.forEach(p => {
         const legacyPrice = Number(p.unitPrice || 0)
-        ;(p.sizeBreakdown || []).forEach(sb => {
-          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-          if (sbPrice > 0) {
-            grandPOCost += (sb.receivedQty || 0) * sbPrice
-            grandPOHasCost = true
-          }
-        })
+          ; (p.sizeBreakdown || []).forEach(sb => {
+            const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+            if (sbPrice > 0) {
+              grandPOCost += (sb.receivedQty || 0) * sbPrice
+              grandPOHasCost = true
+            }
+          })
       })
 
       prods.forEach((prod, pIdx) => {
@@ -2337,8 +2379,281 @@ function App() {
     if ((activePage === 'Restock & Bulk Orders' || activePage === 'Supplier Restock') && token) {
       fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, vendorOrders.length > 0)
       fetchParties()
+      fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, bulkOrders.length > 0)
+      fetchClients()
     }
-  }, [vendorOrderPartyFilter, vendorOrderStatusFilter, activePage, token])
+  }, [vendorOrderPartyFilter, vendorOrderStatusFilter, bulkOrderClientFilter, bulkOrderStatusFilter, activePage, token])
+
+  const fetchClients = async () => {
+    if (!token) return
+    setLoadingClients(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/clients`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setClients(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch clients:', err)
+    } finally {
+      setLoadingClients(false)
+    }
+  }
+
+  const fetchBulkOrders = async (search = '', clientName = 'All', status = 'All', silent = false) => {
+    if (!token) return
+    if (!silent) setLoadingBulkOrders(true)
+    try {
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      if (clientName && clientName !== 'All') params.append('clientName', clientName)
+      if (status && status !== 'All') params.append('status', status)
+
+      const response = await fetch(`${API_BASE}/api/bulk-orders?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setBulkOrders(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch bulk client orders:', err)
+    } finally {
+      setLoadingBulkOrders(false)
+    }
+  }
+
+  const handleCreateClient = async (e) => {
+    e.preventDefault()
+    if (!clientFormData.name.trim()) return
+    try {
+      const response = await fetch(`${API_BASE}/api/clients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(clientFormData)
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(`Client '${data.name}' created successfully.`)
+        setClientFormData({ name: '', phone: '', email: '', address: '', notes: '' })
+        fetchClients()
+      } else {
+        alert(data.message || 'Failed to create client')
+      }
+    } catch (err) {
+      console.error('Failed to create client:', err)
+    }
+  }
+
+  const handleDeleteClient = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete client '${name}'?`)) return
+    try {
+      const response = await fetch(`${API_BASE}/api/clients/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        setMessage(`Client '${name}' deleted successfully.`)
+        fetchClients()
+      }
+    } catch (err) {
+      console.error('Failed to delete client:', err)
+    }
+  }
+
+  const handleCreateOrUpdateBulkOrder = async (e) => {
+    e.preventDefault()
+    if (!bulkOrderFormData.clientName.trim()) {
+      alert('Please select or enter a client name.')
+      return
+    }
+
+    const cleanProducts = (bulkOrderFormData.products || []).map(p => {
+      const productName = String(p.productName || '').trim()
+      const school = String(p.school || 'General').trim()
+      const unitPrice = Math.max(0, Number(p.unitPrice || 0))
+      const sizeBreakdown = (p.sizeBreakdown || [])
+        .map(sb => ({
+          size: String(sb.size || '').trim(),
+          orderedQty: Math.max(0, Number(sb.orderedQty || 0)),
+          unitPrice: sb.unitPrice !== undefined && sb.unitPrice !== '' ? Math.max(0, Number(sb.unitPrice || 0)) : unitPrice
+        }))
+        .filter(sb => sb.size && sb.orderedQty >= 0)
+      return { productName, school, unitPrice, sizeBreakdown }
+    }).filter(p => p.productName && p.sizeBreakdown.length > 0)
+
+    if (cleanProducts.length === 0) {
+      alert('Please add at least one product with size breakdown.')
+      return
+    }
+
+    const payload = {
+      boNumber: bulkOrderFormData.boNumber,
+      clientName: bulkOrderFormData.clientName,
+      targetDate: bulkOrderFormData.targetDate,
+      notes: bulkOrderFormData.notes,
+      products: cleanProducts
+    }
+
+    try {
+      const url = selectedBulkOrder ? `${API_BASE}/api/bulk-orders/${selectedBulkOrder._id}` : `${API_BASE}/api/bulk-orders`
+      const method = selectedBulkOrder ? 'PATCH' : 'POST'
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(`Bulk Order ${data.boNumber} ${selectedBulkOrder ? 'updated' : 'created'} successfully!`)
+        setShowBulkOrderModal(false)
+        setSelectedBulkOrder(null)
+        fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
+      } else {
+        alert(data.message || 'Failed to save Bulk Order')
+      }
+    } catch (err) {
+      console.error('Failed to save Bulk Order:', err)
+    }
+  }
+
+  const handleDeleteBulkOrder = async (id, boNumber) => {
+    if (!window.confirm(`Are you sure you want to delete Bulk Order ${boNumber}?`)) return
+    try {
+      const response = await fetch(`${API_BASE}/api/bulk-orders/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        setMessage(`Bulk Order ${boNumber} deleted successfully.`)
+        fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
+      }
+    } catch (err) {
+      console.error('Failed to delete Bulk Order:', err)
+    }
+  }
+
+  const handleOpenDispatchModal = (order) => {
+    setSelectedOrderForDispatch(order)
+    setEditingDispatch(null)
+    const prods = getNormalizedProducts(order)
+    const items = []
+    prods.forEach(p => {
+      (p.sizeBreakdown || []).forEach(sb => {
+        const otherDelivered = (order.dispatches || [])
+          .flatMap(d => d.items || [])
+          .filter(i => (i.productName ? i.productName === p.productName : true) && i.size === sb.size)
+          .reduce((sum, i) => sum + (i.qty || 0), 0)
+        const remainingQty = Math.max(0, (sb.orderedQty || 0) - otherDelivered)
+        items.push({
+          productName: p.productName,
+          school: p.school,
+          size: sb.size,
+          orderedQty: sb.orderedQty,
+          remainingQty,
+          qty: ''
+        })
+      })
+    })
+
+    setDispatchFormData({
+      challanNumber: '',
+      notes: '',
+      items
+    })
+    setShowDispatchModal(true)
+  }
+
+  const handleCreateDispatch = async (e) => {
+    e.preventDefault()
+    if (!selectedOrderForDispatch) return
+
+    const itemsToSubmit = (dispatchFormData.items || [])
+      .map(i => ({ productName: i.productName, size: i.size, qty: Number(i.qty || 0) }))
+      .filter(i => i.size && i.qty > 0)
+
+    if (itemsToSubmit.length === 0) {
+      alert('Please enter at least one size quantity to dispatch stock.')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/bulk-orders/${selectedOrderForDispatch._id}/dispatches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          challanNumber: dispatchFormData.challanNumber,
+          items: itemsToSubmit,
+          notes: dispatchFormData.notes
+        })
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setMessage(`Stock dispatched successfully for Order ${data.boNumber}.`)
+        setShowDispatchModal(false)
+        setSelectedOrderForDispatch(null)
+        fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
+      } else {
+        alert(data.message || 'Failed to dispatch stock')
+      }
+    } catch (err) {
+      console.error('Failed to dispatch stock:', err)
+    }
+  }
+
+  const toggleDispatchHistory = (orderId) => {
+    setExpandedDispatches(prev => ({ ...prev, [orderId]: !prev[orderId] }))
+  }
+
+  const exportBulkOrdersCSV = () => {
+    if (bulkOrders.length === 0) {
+      alert('No bulk client orders available to export.')
+      return
+    }
+
+    const headers = ['Bulk Order Number', 'Client Name', 'Products & Schools Summary', 'Target Delivery Date', 'Status', 'Total Ordered Pcs', 'Total Dispatched Pcs', 'Pending Delivery Balance', 'Notes']
+    const rows = bulkOrders.map(bo => {
+      const prods = getNormalizedProducts(bo)
+      const prodsSummary = prods.map(p => `${p.productName} (${p.school})`).join(' | ')
+      let totalOrdered = 0
+      let totalDelivered = 0
+      let pendingBalance = 0
+      prods.forEach(p => {
+        (p.sizeBreakdown || []).forEach(s => {
+          const ord = s.orderedQty || 0
+          const del = s.deliveredQty || 0
+          totalOrdered += ord
+          totalDelivered += del
+          if (del < ord) {
+            pendingBalance += (ord - del)
+          }
+        })
+      })
+      return [
+        bo.boNumber,
+        `"${(bo.clientName || '').replace(/"/g, '""')}"`,
+        `"${prodsSummary.replace(/"/g, '""')}"`,
+        bo.targetDate || '-',
+        bo.status || 'Pending',
+        totalOrdered,
+        totalDelivered,
+        pendingBalance,
+        `"${(bo.notes || '').replace(/"/g, '""')}"`
+      ]
+    })
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    const today = new Date().toISOString().split('T')[0]
+    link.setAttribute('download', `Bulk_Client_Orders_${today}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -6056,906 +6371,907 @@ function App() {
                       </span>
                     </div>
                   </div>
-              {/* Summary Metric Cards */}
-              {(() => {
-                const ordersForStats = vendorOrderPartyFilter === 'All'
-                  ? vendorOrders
-                  : vendorOrders.filter(o => o.partyName === vendorOrderPartyFilter)
+                  {/* Summary Metric Cards */}
+                  {(() => {
+                    const ordersForStats = vendorOrderPartyFilter === 'All'
+                      ? vendorOrders
+                      : vendorOrders.filter(o => o.partyName === vendorOrderPartyFilter)
 
-                return (
-                  <div className="stats-grid grid-4" style={{ marginBottom: '24px' }}>
-                    <div className="stat-card">
-                      <span className="stat-icon">{getSafeEmoji('🏬')}</span>
-                      <div className="stat-info">
-                        <p className="stat-label">Active Restock POs</p>
-                        <p className="stat-value">{ordersForStats.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
-                        <p className="stat-desc">
-                          {vendorOrderPartyFilter === 'All' ? 'In-progress supplier orders' : `Active orders for ${vendorOrderPartyFilter}`}
-                        </p>
+                    return (
+                      <div className="stats-grid grid-4" style={{ marginBottom: '24px' }}>
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('🏬')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Active Restock POs</p>
+                            <p className="stat-value">{ordersForStats.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
+                            <p className="stat-desc">
+                              {vendorOrderPartyFilter === 'All' ? 'In-progress supplier orders' : `Active orders for ${vendorOrderPartyFilter}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('📦')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Total Ordered Pcs</p>
+                            <p className="stat-value">
+                              {ordersForStats.reduce((acc, o) => {
+                                const prods = getNormalizedProducts(o)
+                                let ord = 0
+                                prods.forEach(p => {
+                                  (p.sizeBreakdown || []).forEach(sb => { ord += (sb.orderedQty || 0) })
+                                })
+                                return acc + ord
+                              }, 0)}
+                            </p>
+                            <p className="stat-desc">
+                              {vendorOrderPartyFilter === 'All' ? 'Across all supplier orders' : `Total ordered from ${vendorOrderPartyFilter}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('⏳')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Pending Balance Pcs</p>
+                            <p className="stat-value" style={{ color: '#EAB308' }}>
+                              {ordersForStats.reduce((acc, o) => {
+                                const prods = getNormalizedProducts(o)
+                                let ord = 0, rec = 0
+                                prods.forEach(p => {
+                                  (p.sizeBreakdown || []).forEach(sb => {
+                                    ord += (sb.orderedQty || 0)
+                                    rec += (sb.receivedQty || 0)
+                                  })
+                                })
+                                return acc + Math.max(0, ord - rec)
+                              }, 0)}
+                            </p>
+                            <p className="stat-desc">
+                              {vendorOrderPartyFilter === 'All' ? 'Awaiting arrival from suppliers' : `Pending arrival from ${vendorOrderPartyFilter}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('✅')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Received Stock Pcs</p>
+                            <p className="stat-value" style={{ color: '#10B981' }}>
+                              {ordersForStats.reduce((acc, o) => {
+                                const prods = getNormalizedProducts(o)
+                                let rec = 0
+                                prods.forEach(p => {
+                                  (p.sizeBreakdown || []).forEach(sb => { rec += (sb.receivedQty || 0) })
+                                })
+                                return acc + rec
+                              }, 0)}
+                            </p>
+                            <p className="stat-desc">
+                              {vendorOrderPartyFilter === 'All' ? 'Total stock arrived in shop' : `Stock received from ${vendorOrderPartyFilter}`}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-icon">{getSafeEmoji('📦')}</span>
-                      <div className="stat-info">
-                        <p className="stat-label">Total Ordered Pcs</p>
-                        <p className="stat-value">
-                          {ordersForStats.reduce((acc, o) => {
-                            const prods = getNormalizedProducts(o)
-                            let ord = 0
-                            prods.forEach(p => {
-                              (p.sizeBreakdown || []).forEach(sb => { ord += (sb.orderedQty || 0) })
-                            })
-                            return acc + ord
-                          }, 0)}
-                        </p>
-                        <p className="stat-desc">
-                          {vendorOrderPartyFilter === 'All' ? 'Across all supplier orders' : `Total ordered from ${vendorOrderPartyFilter}`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-icon">{getSafeEmoji('⏳')}</span>
-                      <div className="stat-info">
-                        <p className="stat-label">Pending Balance Pcs</p>
-                        <p className="stat-value" style={{ color: '#EAB308' }}>
-                          {ordersForStats.reduce((acc, o) => {
-                            const prods = getNormalizedProducts(o)
-                            let ord = 0, rec = 0
-                            prods.forEach(p => {
-                              (p.sizeBreakdown || []).forEach(sb => {
-                                ord += (sb.orderedQty || 0)
-                                rec += (sb.receivedQty || 0)
-                              })
-                            })
-                            return acc + Math.max(0, ord - rec)
-                          }, 0)}
-                        </p>
-                        <p className="stat-desc">
-                          {vendorOrderPartyFilter === 'All' ? 'Awaiting arrival from suppliers' : `Pending arrival from ${vendorOrderPartyFilter}`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-icon">{getSafeEmoji('✅')}</span>
-                      <div className="stat-info">
-                        <p className="stat-label">Received Stock Pcs</p>
-                        <p className="stat-value" style={{ color: '#10B981' }}>
-                          {ordersForStats.reduce((acc, o) => {
-                            const prods = getNormalizedProducts(o)
-                            let rec = 0
-                            prods.forEach(p => {
-                              (p.sizeBreakdown || []).forEach(sb => { rec += (sb.receivedQty || 0) })
-                            })
-                            return acc + rec
-                          }, 0)}
-                        </p>
-                        <p className="stat-desc">
-                          {vendorOrderPartyFilter === 'All' ? 'Total stock arrived in shop' : `Stock received from ${vendorOrderPartyFilter}`}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
+                    )
+                  })()}
 
-              {/* Main Panel Card */}
-              <div className="card card-panel">
-                <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
-                  <div>
-                    <h2 className="card-title">{getSafeEmoji('🏬')} Supplier Restock & Orders</h2>
-                    <p className="card-subtitle">Track bulk manufacturing orders, supplier details, and size-wise partial stock installments.</p>
-                  </div>
+                  {/* Main Panel Card */}
+                  <div className="card card-panel">
+                    <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <h2 className="card-title">{getSafeEmoji('🏬')} Supplier Restock & Orders</h2>
+                        <p className="card-subtitle">Track bulk manufacturing orders, supplier details, and size-wise partial stock installments.</p>
+                      </div>
 
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className="primary-btn"
-                      onClick={() => {
-                        setSelectedVendorOrder(null)
-                        const nextNum = getNextPoNumber(vendorOrders)
-                        setVendorOrderFormData({
-                          poNumber: String(nextNum),
-                          partyName: '',
-                          targetDate: '',
-                          notes: '',
-                          products: [
-                            {
-                              productName: '',
-                              school: '',
-                              sizeBreakdown: [
-                                { size: '28', orderedQty: '' },
-                                { size: '30', orderedQty: '' },
-                                { size: '32', orderedQty: '' },
-                                { size: '34', orderedQty: '' },
-                                { size: '36', orderedQty: '' }
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          onClick={() => {
+                            setSelectedVendorOrder(null)
+                            const nextNum = getNextPoNumber(vendorOrders)
+                            setVendorOrderFormData({
+                              poNumber: String(nextNum),
+                              partyName: '',
+                              targetDate: '',
+                              notes: '',
+                              products: [
+                                {
+                                  productName: '',
+                                  school: '',
+                                  sizeBreakdown: [
+                                    { size: '28', orderedQty: '' },
+                                    { size: '30', orderedQty: '' },
+                                    { size: '32', orderedQty: '' },
+                                    { size: '34', orderedQty: '' },
+                                    { size: '36', orderedQty: '' }
+                                  ]
+                                }
                               ]
-                            }
-                          ]
-                        })
-                        setShowVendorOrderModal(true)
-                      }}
-                      style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <span>{getSafeEmoji('➕')}</span> New Restock PO
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={() => setShowPartyManagerModal(true)}
-                      style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      {getSafeEmoji('🏭')} Manage Suppliers ({parties.length})
-                    </button>
-                  </div>
-                </div>
-
-                {/* Supplier Directory Hub Bar (Subsections Selector) */}
-                <div style={{ margin: '16px 24px 0 24px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>
-                      Select Supplier Sub-section:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowPartyManagerModal(true)}
-                      style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
-                    >
-                      {getSafeEmoji('⚙️')} Manage Supplier Profiles
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
-                    {/* All Suppliers Tab/Card */}
-                    <div
-                      onClick={() => setVendorOrderPartyFilter('All')}
-                      style={{
-                        minWidth: '160px',
-                        padding: '12px 14px',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        border: vendorOrderPartyFilter === 'All' ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
-                        background: vendorOrderPartyFilter === 'All' ? (theme === 'dark' ? '#1E293B' : '#EFF6FF') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
-                        boxShadow: vendorOrderPartyFilter === 'All' ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      <div style={{ fontWeight: '800', fontSize: '13px', color: vendorOrderPartyFilter === 'All' ? '#2563EB' : 'inherit' }}>
-                        {getSafeEmoji('🏬')} All Suppliers
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
-                        {parties.length} Registered Suppliers
+                            })
+                            setShowVendorOrderModal(true)
+                          }}
+                          style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <span>{getSafeEmoji('➕')}</span> New Restock PO
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => setShowPartyManagerModal(true)}
+                          style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          {getSafeEmoji('🏭')} Manage Suppliers ({parties.length})
+                        </button>
                       </div>
                     </div>
 
-                    {/* Individual Supplier Sub-section Cards */}
-                    {parties.map(p => {
-                      const isSelected = vendorOrderPartyFilter === p.name
-                      const partyOrders = vendorOrders.filter(o => o.partyName === p.name)
-                      let partyPendingPcs = 0
-                      partyOrders.forEach(o => {
-                        const prods = getNormalizedProducts(o)
-                        prods.forEach(pr => {
-                          (pr.sizeBreakdown || []).forEach(sb => {
-                            partyPendingPcs += Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
-                          })
-                        })
-                      })
+                    {/* Supplier Directory Hub Bar (Subsections Selector) */}
+                    <div style={{ margin: '16px 24px 0 24px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>
+                          Select Supplier Sub-section:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowPartyManagerModal(true)}
+                          style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                          {getSafeEmoji('⚙️')} Manage Supplier Profiles
+                        </button>
+                      </div>
 
-                      return (
+                      <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+                        {/* All Suppliers Tab/Card */}
                         <div
-                          key={p._id}
-                          onClick={() => setVendorOrderPartyFilter(p.name)}
+                          onClick={() => setVendorOrderPartyFilter('All')}
                           style={{
-                            minWidth: '180px',
+                            minWidth: '160px',
                             padding: '12px 14px',
                             borderRadius: '10px',
                             cursor: 'pointer',
-                            border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
-                            background: isSelected ? (theme === 'dark' ? '#1E293B' : '#EFF6FF') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
-                            boxShadow: isSelected ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+                            border: vendorOrderPartyFilter === 'All' ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                            background: vendorOrderPartyFilter === 'All' ? (theme === 'dark' ? '#1E293B' : '#EFF6FF') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
+                            boxShadow: vendorOrderPartyFilter === 'All' ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
                             transition: 'all 0.2s ease'
                           }}
                         >
-                          <div style={{ fontWeight: '800', fontSize: '13px', color: isSelected ? '#2563EB' : 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>{getSafeEmoji('🏭')} {p.name}</span>
-                            {isSelected && <span style={{ fontSize: '10px', background: '#2563EB', color: '#FFF', padding: '2px 6px', borderRadius: '10px' }}>Active</span>}
+                          <div style={{ fontWeight: '800', fontSize: '13px', color: vendorOrderPartyFilter === 'All' ? '#2563EB' : 'inherit' }}>
+                            {getSafeEmoji('🏬')} All Suppliers
                           </div>
                           <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
-                            {p.contactNumber ? `📞 ${p.contactNumber}` : 'No phone logged'}
-                          </div>
-                          <div style={{ fontSize: '11px', fontWeight: '700', marginTop: '6px', color: partyPendingPcs > 0 ? '#D97706' : '#10B981' }}>
-                            {partyPendingPcs > 0 ? `Pending: ${partyPendingPcs} pcs` : 'No Pending Stock'}
+                            {parties.length} Registered Suppliers
                           </div>
                         </div>
-                      )
-                    })}
-                  </div>
-                </div>
 
-                {/* Filter Controls */}
-                <div style={{ margin: '20px 24px 16px' }}>
-                  {/* Premium Gold-Standard Search Bar */}
-                  <form onSubmit={(e) => e.preventDefault()} style={{ marginBottom: '14px' }}>
-                    <div
-                      style={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                        borderRadius: '10px',
-                        border: vendorOrderSearchFocused
-                          ? '1px solid #2563EB'
-                          : `1px solid ${theme === 'dark' ? '#334155' : '#CBD5E1'}`,
-                        boxShadow: vendorOrderSearchFocused
-                          ? '0 0 0 3px rgba(37, 99, 235, 0.2)'
-                          : '0 1px 3px rgba(0,0,0,0.05)',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      <span style={{ position: 'absolute', left: '14px', color: vendorOrderSearchFocused ? '#2563EB' : '#94A3B8', fontSize: '15px', pointerEvents: 'none', transition: 'color 0.2s' }}>
-                        {getSafeEmoji('🔍')}
-                      </span>
-                      <input
-                        ref={poSearchInputRef}
-                        type="text"
-                        placeholder="Search PO#, Product, Size, Notes or Date..."
-                        value={vendorOrderSearch}
-                        onFocus={() => setVendorOrderSearchFocused(true)}
-                        onBlur={() => setVendorOrderSearchFocused(false)}
-                        onChange={(e) => setVendorOrderSearch(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
-                        style={{
-                          width: '100%',
-                          padding: '10px 70px 10px 38px',
-                          fontSize: '13px',
-                          fontWeight: '500',
-                          border: 'none',
-                          outline: 'none',
-                          background: 'transparent',
-                          color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
-                          borderRadius: '10px'
-                        }}
-                      />
-                      <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {vendorOrderSearch ? (
-                          <button
-                            type="button"
-                            onClick={() => setVendorOrderSearch('')}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#94A3B8',
-                              fontSize: '14px',
-                              cursor: 'pointer',
-                              padding: '4px',
-                              borderRadius: '50%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            title="Clear search (Esc)"
-                          >
-                            ✕
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#94A3B8', background: theme === 'dark' ? '#0F172A' : '#F1F5F9', border: '1px solid var(--border-color, #CBD5E1)', padding: '2px 6px', borderRadius: '4px' }}>
-                            ⌘K
-                          </span>
-                        )}
+                        {/* Individual Supplier Sub-section Cards */}
+                        {parties.map(p => {
+                          const isSelected = vendorOrderPartyFilter === p.name
+                          const partyOrders = vendorOrders.filter(o => o.partyName === p.name)
+                          let partyPendingPcs = 0
+                          partyOrders.forEach(o => {
+                            const prods = getNormalizedProducts(o)
+                            prods.forEach(pr => {
+                              (pr.sizeBreakdown || []).forEach(sb => {
+                                partyPendingPcs += Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
+                              })
+                            })
+                          })
+
+                          return (
+                            <div
+                              key={p._id}
+                              onClick={() => setVendorOrderPartyFilter(p.name)}
+                              style={{
+                                minWidth: '180px',
+                                padding: '12px 14px',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                border: isSelected ? '2px solid #2563EB' : '1px solid var(--border-color, #E2E8F0)',
+                                background: isSelected ? (theme === 'dark' ? '#1E293B' : '#EFF6FF') : (theme === 'dark' ? '#0F172A' : '#FFFFFF'),
+                                boxShadow: isSelected ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <div style={{ fontWeight: '800', fontSize: '13px', color: isSelected ? '#2563EB' : 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>{getSafeEmoji('🏭')} {p.name}</span>
+                                {isSelected && <span style={{ fontSize: '10px', background: '#2563EB', color: '#FFF', padding: '2px 6px', borderRadius: '10px' }}>Active</span>}
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                                {p.contactNumber ? `📞 ${p.contactNumber}` : 'No phone logged'}
+                              </div>
+                              <div style={{ fontSize: '11px', fontWeight: '700', marginTop: '6px', color: partyPendingPcs > 0 ? '#D97706' : '#10B981' }}>
+                                {partyPendingPcs > 0 ? `Pending: ${partyPendingPcs} pcs` : 'No Pending Stock'}
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
-                  </form>
-                  {/* Filter Dropdowns Row */}
-                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filter</span>
 
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Supplier</span>
-                        <select
-                          value={vendorOrderPartyFilter}
-                          onChange={(e) => setVendorOrderPartyFilter(e.target.value)}
-                          style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
-                        >
-                          <option value="All">All Suppliers ({parties.length})</option>
-                          {parties.map(p => (
-                            <option key={p._id} value={p.name}>{p.name}</option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>School / Firm</span>
-                        <select
-                          value={vendorOrderSchoolFilter}
-                          onChange={(e) => setVendorOrderSchoolFilter(e.target.value)}
-                          style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
-                        >
-                          <option value="All">All Schools / Firms</option>
-                          {Array.from(new Set(vendorOrders.flatMap(o => getNormalizedProducts(o).map(p => p.school)).filter(Boolean))).sort().map(school => (
-                            <option key={school} value={school}>{school}</option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Status</span>
-                        <select
-                          value={vendorOrderStatusFilter}
-                          onChange={(e) => setVendorOrderStatusFilter(e.target.value)}
-                          style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
-                        >
-                          <option value="All">All Statuses</option>
-                          <option value="Pending">Pending</option>
-                          <option value="Partial">Partial</option>
-                          <option value="Completed">Completed</option>
-                        </select>
-                      </label>
-                    </div>
-
-                    {/* Live PO Counter Pill */}
-                    {(() => {
-                      const tempFiltered = vendorOrders.filter(o => {
-                        if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
-                        if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
-                        if (vendorOrderSchoolFilter !== 'All') {
-                          const prods = getNormalizedProducts(o)
-                          if (!prods.some(p => p.school === vendorOrderSchoolFilter)) return false
-                        }
-                        if (vendorOrderSearch && vendorOrderSearch.trim()) {
-                          const prods = getNormalizedProducts(o)
-                          const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
-                          const dates = [
-                            o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
-                            o.targetDate || '',
-                            ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
-                          ]
-                          const fields = [
-                            o.poNumber,
-                            o.notes,
-                            ...(prods.map(p => p.productName)),
-                            ...sizes,
-                            ...dates
-                          ]
-                          return checkFuzzyMatch(vendorOrderSearch, fields)
-                        }
-                        return true
-                      })
-                      return (
-                        <span
+                    {/* Filter Controls */}
+                    <div style={{ margin: '20px 24px 16px' }}>
+                      {/* Premium Gold-Standard Search Bar */}
+                      <form onSubmit={(e) => e.preventDefault()} style={{ marginBottom: '14px' }}>
+                        <div
                           style={{
-                            fontSize: '12px',
-                            fontWeight: '700',
-                            padding: '5px 12px',
-                            borderRadius: '20px',
-                            background: theme === 'dark' ? '#0F172A' : '#EFF6FF',
-                            color: theme === 'dark' ? '#38BDF8' : '#0284C7',
-                            border: theme === 'dark' ? '1px solid #0284C7' : '1px solid #BAE6FD',
-                            whiteSpace: 'nowrap'
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            width: '100%',
+                            background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                            borderRadius: '10px',
+                            border: vendorOrderSearchFocused
+                              ? '1px solid #2563EB'
+                              : `1px solid ${theme === 'dark' ? '#334155' : '#CBD5E1'}`,
+                            boxShadow: vendorOrderSearchFocused
+                              ? '0 0 0 3px rgba(37, 99, 235, 0.2)'
+                              : '0 1px 3px rgba(0,0,0,0.05)',
+                            transition: 'all 0.2s ease'
                           }}
                         >
-                          Showing {tempFiltered.length} of {vendorOrders.length} POs
-                        </span>
-                      )
-                    })()}
-                  </div>
-                </div>
-
-                {/* Orders List View */}
-                <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
-                  {(() => {
-                    const filteredOrders = vendorOrders.filter(o => {
-                      if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
-                      if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
-                      if (vendorOrderSchoolFilter !== 'All') {
-                        const prods = getNormalizedProducts(o)
-                        if (!prods.some(p => p.school === vendorOrderSchoolFilter)) return false
-                      }
-                      if (vendorOrderSearch && vendorOrderSearch.trim()) {
-                        const prods = getNormalizedProducts(o)
-                        const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
-                        const dates = [
-                          o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
-                          o.targetDate || '',
-                          ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
-                        ]
-                        const fields = [
-                          o.poNumber,
-                          o.notes,
-                          ...(prods.map(p => p.productName)),
-                          ...sizes,
-                          ...dates
-                        ]
-                        return checkFuzzyMatch(vendorOrderSearch, fields)
-                      }
-                      return true
-                    })
-
-                    // Sort POs ascending (lower PO numbers above, increasing as we go down)
-                    filteredOrders.sort((a, b) => {
-                      const numA = parseInt(String(a.poNumber || '').replace(/\D/g, ''), 10) || 0
-                      const numB = parseInt(String(b.poNumber || '').replace(/\D/g, ''), 10) || 0
-                      if (numA !== numB) return numA - numB
-                      return String(a.poNumber || '').localeCompare(String(b.poNumber || ''), undefined, { numeric: true, sensitivity: 'base' })
-                    })
-
-                    if (loadingVendorOrders) {
-                      return <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading supplier restock orders...</div>
-                    }
-
-                    if (filteredOrders.length === 0) {
-                      return (
-                        <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-                          No supplier restock orders found for this view. Click "+ New Restock PO" above to place a new order!
+                          <span style={{ position: 'absolute', left: '14px', color: vendorOrderSearchFocused ? '#2563EB' : '#94A3B8', fontSize: '15px', pointerEvents: 'none', transition: 'color 0.2s' }}>
+                            {getSafeEmoji('🔍')}
+                          </span>
+                          <input
+                            ref={poSearchInputRef}
+                            type="text"
+                            placeholder="Search PO#, Product, Size, Notes or Date..."
+                            value={vendorOrderSearch}
+                            onFocus={() => setVendorOrderSearchFocused(true)}
+                            onBlur={() => setVendorOrderSearchFocused(false)}
+                            onChange={(e) => setVendorOrderSearch(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
+                            style={{
+                              width: '100%',
+                              padding: '10px 70px 10px 38px',
+                              fontSize: '13px',
+                              fontWeight: '500',
+                              border: 'none',
+                              outline: 'none',
+                              background: 'transparent',
+                              color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
+                              borderRadius: '10px'
+                            }}
+                          />
+                          <div style={{ position: 'absolute', right: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {vendorOrderSearch ? (
+                              <button
+                                type="button"
+                                onClick={() => setVendorOrderSearch('')}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#94A3B8',
+                                  fontSize: '14px',
+                                  cursor: 'pointer',
+                                  padding: '4px',
+                                  borderRadius: '50%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                title="Clear search (Esc)"
+                              >
+                                ✕
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '11px', fontWeight: '700', color: '#94A3B8', background: theme === 'dark' ? '#0F172A' : '#F1F5F9', border: '1px solid var(--border-color, #CBD5E1)', padding: '2px 6px', borderRadius: '4px' }}>
+                                ⌘K
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      )
-                    }
+                      </form>
+                      {/* Filter Dropdowns Row */}
+                      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filter</span>
 
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {filteredOrders.map((order) => {
-                        const prods = getNormalizedProducts(order)
-                        let totalOrdered = 0
-                        let totalReceived = 0
-                        let pendingBalance = 0
-                        let poTotalCost = 0
-                        let poHasAnyPrices = false
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Supplier</span>
+                            <select
+                              value={vendorOrderPartyFilter}
+                              onChange={(e) => setVendorOrderPartyFilter(e.target.value)}
+                              style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
+                            >
+                              <option value="All">All Suppliers ({parties.length})</option>
+                              {parties.map(p => (
+                                <option key={p._id} value={p.name}>{p.name}</option>
+                              ))}
+                            </select>
+                          </label>
 
-                        prods.forEach(p => {
-                          (p.sizeBreakdown || []).forEach(sb => {
-                            // Per-size price (new) takes priority; fall back to product-level price (legacy)
-                            const sbPrice = Number(sb.unitPrice || 0) || Number(p.unitPrice || 0)
-                            if (sbPrice > 0) {
-                              poTotalCost += (sb.receivedQty || 0) * sbPrice
-                              poHasAnyPrices = true
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>School / Firm</span>
+                            <select
+                              value={vendorOrderSchoolFilter}
+                              onChange={(e) => setVendorOrderSchoolFilter(e.target.value)}
+                              style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
+                            >
+                              <option value="All">All Schools / Firms</option>
+                              {Array.from(new Set(vendorOrders.flatMap(o => getNormalizedProducts(o).map(p => p.school)).filter(Boolean))).sort().map(school => (
+                                <option key={school} value={school}>{school}</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Status</span>
+                            <select
+                              value={vendorOrderStatusFilter}
+                              onChange={(e) => setVendorOrderStatusFilter(e.target.value)}
+                              style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
+                            >
+                              <option value="All">All Statuses</option>
+                              <option value="Pending">Pending</option>
+                              <option value="Partial">Partial</option>
+                              <option value="Completed">Completed</option>
+                            </select>
+                          </label>
+                        </div>
+
+                        {/* Live PO Counter Pill */}
+                        {(() => {
+                          const tempFiltered = vendorOrders.filter(o => {
+                            if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
+                            if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
+                            if (vendorOrderSchoolFilter !== 'All') {
+                              const prods = getNormalizedProducts(o)
+                              if (!prods.some(p => p.school === vendorOrderSchoolFilter)) return false
                             }
-                            const ord = sb.orderedQty || 0
-                            const rec = sb.receivedQty || 0
-                            totalOrdered += ord
-                            totalReceived += rec
-                            if (rec < ord) {
-                              pendingBalance += (ord - rec)
+                            if (vendorOrderSearch && vendorOrderSearch.trim()) {
+                              const prods = getNormalizedProducts(o)
+                              const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
+                              const dates = [
+                                o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
+                                o.targetDate || '',
+                                ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
+                              ]
+                              const fields = [
+                                o.poNumber,
+                                o.notes,
+                                ...(prods.map(p => p.productName)),
+                                ...sizes,
+                                ...dates
+                              ]
+                              return checkFuzzyMatch(vendorOrderSearch, fields)
                             }
+                            return true
                           })
-                        })
-                        const progressPct = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0
+                          return (
+                            <span
+                              style={{
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                padding: '5px 12px',
+                                borderRadius: '20px',
+                                background: theme === 'dark' ? '#0F172A' : '#EFF6FF',
+                                color: theme === 'dark' ? '#38BDF8' : '#0284C7',
+                                border: theme === 'dark' ? '1px solid #0284C7' : '1px solid #BAE6FD',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              Showing {tempFiltered.length} of {vendorOrders.length} POs
+                            </span>
+                          )
+                        })()}
+                      </div>
+                    </div>
 
-                        let daysLeftForDeletion = null
-                        let completedDateStr = ''
-                        let expiryDateStr = ''
-                        if (order.status === 'Completed') {
-                          const completedTime = order.completedAt ? new Date(order.completedAt).getTime() : new Date(order.updatedAt || order.createdAt).getTime()
-                          const expiryTime = completedTime + (90 * 24 * 60 * 60 * 1000)
-                          const msDiff = expiryTime - Date.now()
-                          daysLeftForDeletion = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)))
-                          completedDateStr = new Date(completedTime).toLocaleDateString()
-                          expiryDateStr = new Date(expiryTime).toLocaleDateString()
+                    {/* Orders List View */}
+                    <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
+                      {(() => {
+                        const filteredOrders = vendorOrders.filter(o => {
+                          if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
+                          if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
+                          if (vendorOrderSchoolFilter !== 'All') {
+                            const prods = getNormalizedProducts(o)
+                            if (!prods.some(p => p.school === vendorOrderSchoolFilter)) return false
+                          }
+                          if (vendorOrderSearch && vendorOrderSearch.trim()) {
+                            const prods = getNormalizedProducts(o)
+                            const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
+                            const dates = [
+                              o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
+                              o.targetDate || '',
+                              ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
+                            ]
+                            const fields = [
+                              o.poNumber,
+                              o.notes,
+                              ...(prods.map(p => p.productName)),
+                              ...sizes,
+                              ...dates
+                            ]
+                            return checkFuzzyMatch(vendorOrderSearch, fields)
+                          }
+                          return true
+                        })
+
+                        // Sort POs ascending (lower PO numbers above, increasing as we go down)
+                        filteredOrders.sort((a, b) => {
+                          const numA = parseInt(String(a.poNumber || '').replace(/\D/g, ''), 10) || 0
+                          const numB = parseInt(String(b.poNumber || '').replace(/\D/g, ''), 10) || 0
+                          if (numA !== numB) return numA - numB
+                          return String(a.poNumber || '').localeCompare(String(b.poNumber || ''), undefined, { numeric: true, sensitivity: 'base' })
+                        })
+
+                        if (loadingVendorOrders) {
+                          return <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading supplier restock orders...</div>
+                        }
+
+                        if (filteredOrders.length === 0) {
+                          return (
+                            <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                              No supplier restock orders found for this view. Click "+ New Restock PO" above to place a new order!
+                            </div>
+                          )
                         }
 
                         return (
-                          <div
-                            key={order._id}
-                            style={{
-                              border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0',
-                              borderRadius: '12px',
-                              padding: '16px',
-                              background: theme === 'dark' ? '#1E293B' : '#F8FAFC'
-                            }}
-                          >
-                            {/* Card Top Header */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
-                              <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                  <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.poNumber}</span>
-                                  <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Supplier: {order.partyName}</span>
-                                </div>
-                                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                  <span>Products: <strong>{prods.length}</strong></span>
-                                  {order.targetDate && <span>Target Date: <strong>{order.targetDate}</strong></span>}
-                                  <span>Created: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></span>
-                                  <span style={{ fontWeight: '700', color: poHasAnyPrices ? (theme === 'dark' ? '#34D399' : '#059669') : '#64748B' }}>
-                                    Total PO Value: <strong>{poHasAnyPrices ? `₹${poTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
-                                  </span>
-                                </div>
-                              </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {filteredOrders.map((order) => {
+                              const prods = getNormalizedProducts(order)
+                              let totalOrdered = 0
+                              let totalReceived = 0
+                              let pendingBalance = 0
+                              let poTotalCost = 0
+                              let poHasAnyPrices = false
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <span className={`status-badge ${order.status === 'Completed' ? 'ready' : order.status === 'Partial' ? 'partial' : order.status === 'Cancelled' ? 'delivered' : 'pending'}`}>
-                                  {order.status === 'Completed' ? 'Completed (100%)' : order.status === 'Partial' ? `Partial (${progressPct}%)` : order.status}
-                                </span>
-
-                                {order.status === 'Completed' && (
-                                  <span
-                                    title={`Completed on ${completedDateStr}. Scheduled for auto-deletion on ${expiryDateStr}`}
-                                    style={{
-                                      fontSize: '11px',
-                                      fontWeight: '700',
-                                      padding: '4px 10px',
-                                      borderRadius: '20px',
-                                      background: theme === 'dark' ? '#312E81' : '#F3E8FF',
-                                      color: theme === 'dark' ? '#C084FC' : '#7E22CE',
-                                      border: theme === 'dark' ? '1px solid #6B21A8' : '1px solid #E9D5FF',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px'
-                                    }}
-                                  >
-                                    {getSafeEmoji('⏱️')} Auto-deletes in {daysLeftForDeletion} {daysLeftForDeletion === 1 ? 'day' : 'days'}
-                                  </span>
-                                )}
-
-                                <button
-                                  type="button"
-                                  className="primary-btn"
-                                  onClick={() => handleOpenInstallmentModal(order)}
-                                  disabled={order.status === 'Completed' || order.status === 'Cancelled'}
-                                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                >
-                                  {getSafeEmoji('➕')} Receive Stock
-                                </button>
-                                <button
-                                  type="button"
-                                  className="icon-btn"
-                                  title="Edit PO details"
-                                  onClick={() => {
-                                    setSelectedVendorOrder(order)
-                                    setVendorOrderFormData({
-                                      poNumber: order.poNumber ? String(order.poNumber).replace(/^PO-0*/i, '') : '',
-                                      partyName: order.partyName,
-                                      targetDate: order.targetDate || '',
-                                      notes: order.notes || '',
-                                      products: prods.map(p => ({
-                                        productName: p.productName,
-                                        school: p.school,
-                                        sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({ size: sb.size, orderedQty: sb.orderedQty, unitPrice: sb.unitPrice !== undefined ? sb.unitPrice : '' }))
-                                      }))
-                                    })
-                                    setShowVendorOrderModal(true)
-                                  }}
-                                >
-                                  {getSafeEmoji('✏️')}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="icon-btn danger"
-                                  title="Delete PO"
-                                  onClick={() => handleDeleteVendorOrder(order._id, order.poNumber)}
-                                >
-                                  {getSafeEmoji('🗑️')}
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Export Actions Row */}
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              padding: '8px 12px',
-                              borderTop: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
-                              background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(37,99,235,0.03)',
-                              borderRadius: '0 0 10px 10px',
-                              flexWrap: 'wrap'
-                            }}>
-                              <span style={{ fontSize: '11px', fontWeight: '600', color: theme === 'dark' ? '#94A3B8' : '#64748B', marginRight: '2px' }}>Export:</span>
-                              <button
-                                type="button"
-                                onClick={() => exportVendorOrderCSV(order)}
-                                style={{
-                                  background: '#2563EB',
-                                  color: '#FFFFFF',
-                                  border: 'none',
-                                  borderRadius: '16px',
-                                  padding: '5px 13px',
-                                  fontSize: '11.5px',
-                                  fontWeight: '600',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  cursor: 'pointer',
-                                  boxShadow: '0 1px 4px rgba(37,99,235,0.25)',
-                                  transition: 'all 0.2s ease'
-                                }}
-                                title="Export Excel (CSV) Spreadsheet"
-                              >
-                                <span style={{ fontSize: '13px' }}>{getSafeEmoji('📊')}</span>
-                                Export Excel (CSV)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenPOPDFModal(order)}
-                                style={{
-                                  background: theme === 'dark' ? '#1E293B' : '#F1F5F9',
-                                  color: theme === 'dark' ? '#E2E8F0' : '#334155',
-                                  border: theme === 'dark' ? '1px solid #334155' : '1px solid #CBD5E1',
-                                  borderRadius: '16px',
-                                  padding: '5px 13px',
-                                  fontSize: '11.5px',
-                                  fontWeight: '600',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s ease'
-                                }}
-                                title="Configure and Save as PDF"
-                              >
-                                <span style={{ fontSize: '13px' }}>{getSafeEmoji('📄')}</span>
-                                Save as PDF
-                              </button>
-                            </div>
-
-                            {/* Prominent Order Notes Callout Banner */}
-                            {order.notes && (
-                              <div
-                                style={{
-                                  margin: '10px 0 14px 0',
-                                  padding: '12px 16px',
-                                  borderRadius: '10px',
-                                  background: theme === 'dark' ? '#1E293B' : '#FEF3C7',
-                                  border: theme === 'dark' ? '1px solid #D97706' : '1px solid #FCD34D',
-                                  color: theme === 'dark' ? '#FDE68A' : '#92400E',
-                                  fontSize: '13px',
-                                  display: 'flex',
-                                  alignItems: 'flex-start',
-                                  gap: '10px',
-                                  fontWeight: '600',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                  wordBreak: 'break-word',
-                                  whiteSpace: 'pre-wrap',
-                                  lineHeight: '1.5'
-                                }}
-                              >
-                                <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '2px' }}>{getSafeEmoji('📝')}</span>
-                                <div style={{ flex: 1 }}>
-                                  <strong style={{ color: theme === 'dark' ? '#FBBF24' : '#B45309' }}>PO Special Instructions / Note:</strong> {order.notes}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Overall Progress Bar */}
-                            <div style={{ margin: '12px 0 16px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                                <span>Stock Received Progress: {totalReceived} / {totalOrdered} pcs ({progressPct}%)</span>
-                                <span style={{ color: pendingBalance > 0 ? '#EAB308' : '#10B981' }}>
-                                  {pendingBalance > 0 ? `Pending: ${pendingBalance} pcs` : 'All Stock Received'}
-                                </span>
-                              </div>
-                              <div style={{ height: '8px', width: '100%', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
-                                <div
-                                  style={{
-                                    height: '100%',
-                                    width: `${progressPct}%`,
-                                    background: progressPct === 100 ? '#10B981' : progressPct > 0 ? '#EAB308' : '#94A3B8',
-                                    borderRadius: '4px',
-                                    transition: 'width 0.3s ease'
-                                  }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Size Breakdown Tables Per Product */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                              {prods.map((prod, pIdx) => {
-                                const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
-                                const legacyPrice = Number(prod.unitPrice || 0)
-                                let totalProdOrdered = 0
-                                let totalProdReceived = 0
-                                let totalProdPending = 0
-                                let totalProdCost = 0
-
-                                sortedSizes.forEach(sb => {
-                                  const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-                                  totalProdOrdered += (sb.orderedQty || 0)
-                                  totalProdReceived += (sb.receivedQty || 0)
-                                  totalProdPending += Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
-                                  totalProdCost += sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
+                              prods.forEach(p => {
+                                (p.sizeBreakdown || []).forEach(sb => {
+                                  // Per-size price (new) takes priority; fall back to product-level price (legacy)
+                                  const sbPrice = Number(sb.unitPrice || 0) || Number(p.unitPrice || 0)
+                                  if (sbPrice > 0) {
+                                    poTotalCost += (sb.receivedQty || 0) * sbPrice
+                                    poHasAnyPrices = true
+                                  }
+                                  const ord = sb.orderedQty || 0
+                                  const rec = sb.receivedQty || 0
+                                  totalOrdered += ord
+                                  totalReceived += rec
+                                  if (rec < ord) {
+                                    pendingBalance += (ord - rec)
+                                  }
                                 })
-                                const totalProdPct = totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdReceived / totalProdOrdered) * 100)) : 0
+                              })
+                              const progressPct = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0
 
-                                return (
-                                  <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                                      <div>
-                                        <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '4px' }}>
-                                          Product {pIdx + 1} &mdash; {prod.productName}
-                                        </div>
-                                        {prod.school && (
-                                          <div style={{ fontSize: '12px', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>
-                                            School / Firm: <strong style={{ color: theme === 'dark' ? '#F1F5F9' : '#0F172A', fontWeight: '700' }}>{prod.school}</strong>
-                                          </div>
-                                        )}
+                              let daysLeftForDeletion = null
+                              let completedDateStr = ''
+                              let expiryDateStr = ''
+                              if (order.status === 'Completed') {
+                                const completedTime = order.completedAt ? new Date(order.completedAt).getTime() : new Date(order.updatedAt || order.createdAt).getTime()
+                                const expiryTime = completedTime + (90 * 24 * 60 * 60 * 1000)
+                                const msDiff = expiryTime - Date.now()
+                                daysLeftForDeletion = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)))
+                                completedDateStr = new Date(completedTime).toLocaleDateString()
+                                expiryDateStr = new Date(expiryTime).toLocaleDateString()
+                              }
+
+                              return (
+                                <div
+                                  key={order._id}
+                                  style={{
+                                    border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0',
+                                    borderRadius: '12px',
+                                    padding: '16px',
+                                    background: theme === 'dark' ? '#1E293B' : '#F8FAFC'
+                                  }}
+                                >
+                                  {/* Card Top Header */}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.poNumber}</span>
+                                        <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Supplier: {order.partyName}</span>
                                       </div>
-
-                                      {totalProdCost > 0 && (
-                                        <div style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#34D399' : '#059669' }}>
-                                          Total Product Cost: ₹{totalProdCost.toLocaleString('en-IN')}
-                                        </div>
-                                      )}
+                                      <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <span>Products: <strong>{prods.length}</strong></span>
+                                        {order.targetDate && <span>Target Date: <strong>{order.targetDate}</strong></span>}
+                                        <span>Created: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></span>
+                                        <span style={{ fontWeight: '700', color: poHasAnyPrices ? (theme === 'dark' ? '#34D399' : '#059669') : '#64748B' }}>
+                                          Total PO Value: <strong>{poHasAnyPrices ? `₹${poTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
+                                        </span>
+                                      </div>
                                     </div>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                                      <thead>
-                                        <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
-                                          <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '120px' }}>Size</th>
-                                          <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '140px' }}>Price / Unit</th>
-                                          <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Ordered</th>
-                                          <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Received</th>
-                                          <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Pending Balance</th>
-                                          <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Row Cost</th>
-                                          <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Fulfillment</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {sortedSizes.map((sb) => {
-                                          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-                                          const recQty = sb.receivedQty || 0
-                                          const ordQty = sb.orderedQty || 0
-                                          const pending = Math.max(0, ordQty - recQty)
-                                          const surplus = recQty > ordQty ? recQty - ordQty : 0
-                                          const rowCost = sbPrice > 0 ? recQty * sbPrice : 0
-                                          const sizePct = ordQty > 0 ? Math.min(100, Math.round((recQty / ordQty) * 100)) : 0
-                                          return (
-                                            <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
-                                              <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>{sb.size}</td>
-                                              <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '140px' }}>
-                                                {sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}
-                                              </td>
-                                              <td style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>{ordQty} pcs</td>
-                                              <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                                                {recQty} pcs
-                                                {surplus > 0 && (
-                                                  <span style={{ marginLeft: '6px', fontSize: '11px', background: theme === 'dark' ? '#064E3B' : '#D1FAE5', color: theme === 'dark' ? '#34D399' : '#047857', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                                                    (+{surplus} Extra)
-                                                  </span>
-                                                )}
-                                              </td>
-                                              <td style={{ padding: '8px 16px 8px 8px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                                                {pending > 0 ? `${pending} pcs` : 'Done'}
-                                              </td>
-                                              <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                                                {rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}
-                                              </td>
-                                              <td style={{ padding: '6px 8px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                  <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
-                                                    <div style={{ height: '100%', width: `${sizePct}%`, background: sizePct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
-                                                  </div>
-                                                  <span style={{ fontSize: '10px', width: '32px', textAlign: 'right' }}>{sizePct}%</span>
-                                                </div>
-                                              </td>
-                                            </tr>
-                                          )
-                                        })}
-                                      </tbody>
-                                      <tfoot style={{ borderTop: '2px solid var(--border-color, #CBD5E1)', fontWeight: '800', background: theme === 'dark' ? '#1E293B' : '#F8FAFC' }}>
-                                        <tr>
-                                          <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap', minWidth: '120px' }}>Total</td>
-                                          <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap', minWidth: '140px' }}>-</td>
-                                          <td style={{ padding: '8px 16px 8px 8px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrdered} pcs</td>
-                                          <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>
-                                            {totalProdReceived} pcs
-                                            {totalProdReceived > totalProdOrdered && (
-                                              <span style={{ marginLeft: '4px', fontSize: '11px', color: theme === 'dark' ? '#34D399' : '#047857', fontWeight: '700' }}>
-                                                (+{totalProdReceived - totalProdOrdered} Extra)
-                                              </span>
-                                            )}
-                                          </td>
-                                          <td style={{ padding: '8px 16px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
-                                            {totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}
-                                          </td>
-                                          <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', whiteSpace: 'nowrap' }}>
-                                            {totalProdCost > 0 ? `₹${totalProdCost.toLocaleString('en-IN')}` : '-'}
-                                          </td>
-                                          <td style={{ padding: '8px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                              <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
-                                                <div style={{ height: '100%', width: `${totalProdPct}%`, background: totalProdPct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
-                                              </div>
-                                              <span style={{ fontSize: '11px', width: '32px', textAlign: 'right', fontWeight: '800' }}>{totalProdPct}%</span>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      </tfoot>
-                                    </table>
-                                  </div>
-                                )})}
-                            </div>
 
-                            {/* Received Installment History Log Timeline */}
-                            {order.installments && order.installments.length > 0 && (
-                              <div style={{ marginTop: '16px', borderTop: '1px dashed var(--border-color, #CBD5E1)', paddingTop: '14px' }}>
-                                <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span>{getSafeEmoji('📦')}</span> Received Installment History ({order.installments.length} {order.installments.length === 1 ? 'Batch' : 'Batches'}):
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                  {order.installments.map((inst, idx) => {
-                                    const batchTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
-                                    return (
-                                      <div
-                                        key={inst._id || idx}
-                                        style={{
-                                          background: theme === 'dark' ? '#0F172A' : '#FFFFFF',
-                                          padding: '12px 16px',
-                                          borderRadius: '10px',
-                                          border: theme === 'dark' ? '1px solid #334155' : '1px solid #CBD5E1',
-                                          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                                          display: 'flex',
-                                          justifyContent: 'space-between',
-                                          alignItems: 'flex-start',
-                                          gap: '12px',
-                                          flexWrap: 'wrap'
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                      <span className={`status-badge ${order.status === 'Completed' ? 'ready' : order.status === 'Partial' ? 'partial' : order.status === 'Cancelled' ? 'delivered' : 'pending'}`}>
+                                        {order.status === 'Completed' ? 'Completed (100%)' : order.status === 'Partial' ? `Partial (${progressPct}%)` : order.status}
+                                      </span>
+
+                                      {order.status === 'Completed' && (
+                                        <span
+                                          title={`Completed on ${completedDateStr}. Scheduled for auto-deletion on ${expiryDateStr}`}
+                                          style={{
+                                            fontSize: '11px',
+                                            fontWeight: '700',
+                                            padding: '4px 10px',
+                                            borderRadius: '20px',
+                                            background: theme === 'dark' ? '#312E81' : '#F3E8FF',
+                                            color: theme === 'dark' ? '#C084FC' : '#7E22CE',
+                                            border: theme === 'dark' ? '1px solid #6B21A8' : '1px solid #E9D5FF',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                          }}
+                                        >
+                                          {getSafeEmoji('⏱️')} Auto-deletes in {daysLeftForDeletion} {daysLeftForDeletion === 1 ? 'day' : 'days'}
+                                        </span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        className="primary-btn"
+                                        onClick={() => handleOpenInstallmentModal(order)}
+                                        disabled={order.status === 'Completed' || order.status === 'Cancelled'}
+                                        style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                      >
+                                        {getSafeEmoji('➕')} Receive Stock
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="icon-btn"
+                                        title="Edit PO details"
+                                        onClick={() => {
+                                          setSelectedVendorOrder(order)
+                                          setVendorOrderFormData({
+                                            poNumber: order.poNumber ? String(order.poNumber).replace(/^PO-0*/i, '') : '',
+                                            partyName: order.partyName,
+                                            targetDate: order.targetDate || '',
+                                            notes: order.notes || '',
+                                            products: prods.map(p => ({
+                                              productName: p.productName,
+                                              school: p.school,
+                                              sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({ size: sb.size, orderedQty: sb.orderedQty, unitPrice: sb.unitPrice !== undefined ? sb.unitPrice : '' }))
+                                            }))
+                                          })
+                                          setShowVendorOrderModal(true)
                                         }}
                                       >
-                                        <div style={{ flex: 1, minWidth: '240px' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                                            <span style={{ fontWeight: '800', fontSize: '13px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
-                                              Batch #{idx + 1} ({new Date(inst.receivedAt).toLocaleDateString()})
-                                            </span>
-                                            <span
+                                        {getSafeEmoji('✏️')}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="icon-btn danger"
+                                        title="Delete PO"
+                                        onClick={() => handleDeleteVendorOrder(order._id, order.poNumber)}
+                                      >
+                                        {getSafeEmoji('🗑️')}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Export Actions Row */}
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px 12px',
+                                    borderTop: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
+                                    background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(37,99,235,0.03)',
+                                    borderRadius: '0 0 10px 10px',
+                                    flexWrap: 'wrap'
+                                  }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: theme === 'dark' ? '#94A3B8' : '#64748B', marginRight: '2px' }}>Export:</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => exportVendorOrderCSV(order)}
+                                      style={{
+                                        background: '#2563EB',
+                                        color: '#FFFFFF',
+                                        border: 'none',
+                                        borderRadius: '16px',
+                                        padding: '5px 13px',
+                                        fontSize: '11.5px',
+                                        fontWeight: '600',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 1px 4px rgba(37,99,235,0.25)',
+                                        transition: 'all 0.2s ease'
+                                      }}
+                                      title="Export Excel (CSV) Spreadsheet"
+                                    >
+                                      <span style={{ fontSize: '13px' }}>{getSafeEmoji('📊')}</span>
+                                      Export Excel (CSV)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenPOPDFModal(order)}
+                                      style={{
+                                        background: theme === 'dark' ? '#1E293B' : '#F1F5F9',
+                                        color: theme === 'dark' ? '#E2E8F0' : '#334155',
+                                        border: theme === 'dark' ? '1px solid #334155' : '1px solid #CBD5E1',
+                                        borderRadius: '16px',
+                                        padding: '5px 13px',
+                                        fontSize: '11.5px',
+                                        fontWeight: '600',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                      }}
+                                      title="Configure and Save as PDF"
+                                    >
+                                      <span style={{ fontSize: '13px' }}>{getSafeEmoji('📄')}</span>
+                                      Save as PDF
+                                    </button>
+                                  </div>
+
+                                  {/* Prominent Order Notes Callout Banner */}
+                                  {order.notes && (
+                                    <div
+                                      style={{
+                                        margin: '10px 0 14px 0',
+                                        padding: '12px 16px',
+                                        borderRadius: '10px',
+                                        background: theme === 'dark' ? '#1E293B' : '#FEF3C7',
+                                        border: theme === 'dark' ? '1px solid #D97706' : '1px solid #FCD34D',
+                                        color: theme === 'dark' ? '#FDE68A' : '#92400E',
+                                        fontSize: '13px',
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: '10px',
+                                        fontWeight: '600',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                        wordBreak: 'break-word',
+                                        whiteSpace: 'pre-wrap',
+                                        lineHeight: '1.5'
+                                      }}
+                                    >
+                                      <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '2px' }}>{getSafeEmoji('📝')}</span>
+                                      <div style={{ flex: 1 }}>
+                                        <strong style={{ color: theme === 'dark' ? '#FBBF24' : '#B45309' }}>PO Special Instructions / Note:</strong> {order.notes}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Overall Progress Bar */}
+                                  <div style={{ margin: '12px 0 16px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                                      <span>Stock Received Progress: {totalReceived} / {totalOrdered} pcs ({progressPct}%)</span>
+                                      <span style={{ color: pendingBalance > 0 ? '#EAB308' : '#10B981' }}>
+                                        {pendingBalance > 0 ? `Pending: ${pendingBalance} pcs` : 'All Stock Received'}
+                                      </span>
+                                    </div>
+                                    <div style={{ height: '8px', width: '100%', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
+                                      <div
+                                        style={{
+                                          height: '100%',
+                                          width: `${progressPct}%`,
+                                          background: progressPct === 100 ? '#10B981' : progressPct > 0 ? '#EAB308' : '#94A3B8',
+                                          borderRadius: '4px',
+                                          transition: 'width 0.3s ease'
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Size Breakdown Tables Per Product */}
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {prods.map((prod, pIdx) => {
+                                      const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
+                                      const legacyPrice = Number(prod.unitPrice || 0)
+                                      let totalProdOrdered = 0
+                                      let totalProdReceived = 0
+                                      let totalProdPending = 0
+                                      let totalProdCost = 0
+
+                                      sortedSizes.forEach(sb => {
+                                        const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                                        totalProdOrdered += (sb.orderedQty || 0)
+                                        totalProdReceived += (sb.receivedQty || 0)
+                                        totalProdPending += Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
+                                        totalProdCost += sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
+                                      })
+                                      const totalProdPct = totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdReceived / totalProdOrdered) * 100)) : 0
+
+                                      return (
+                                        <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                                            <div>
+                                              <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '4px' }}>
+                                                Product {pIdx + 1} &mdash; {prod.productName}
+                                              </div>
+                                              {prod.school && (
+                                                <div style={{ fontSize: '12px', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>
+                                                  School / Firm: <strong style={{ color: theme === 'dark' ? '#F1F5F9' : '#0F172A', fontWeight: '700' }}>{prod.school}</strong>
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            {totalProdCost > 0 && (
+                                              <div style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#34D399' : '#059669' }}>
+                                                Total Product Cost: ₹{totalProdCost.toLocaleString('en-IN')}
+                                              </div>
+                                            )}
+                                          </div>
+                                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                            <thead>
+                                              <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
+                                                <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '120px' }}>Size</th>
+                                                <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '140px' }}>Price / Unit</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Ordered</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Received</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Pending Balance</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Row Cost</th>
+                                                <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Fulfillment</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {sortedSizes.map((sb) => {
+                                                const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                                                const recQty = sb.receivedQty || 0
+                                                const ordQty = sb.orderedQty || 0
+                                                const pending = Math.max(0, ordQty - recQty)
+                                                const surplus = recQty > ordQty ? recQty - ordQty : 0
+                                                const rowCost = sbPrice > 0 ? recQty * sbPrice : 0
+                                                const sizePct = ordQty > 0 ? Math.min(100, Math.round((recQty / ordQty) * 100)) : 0
+                                                return (
+                                                  <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
+                                                    <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>{sb.size}</td>
+                                                    <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '140px' }}>
+                                                      {sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}
+                                                    </td>
+                                                    <td style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>{ordQty} pcs</td>
+                                                    <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                      {recQty} pcs
+                                                      {surplus > 0 && (
+                                                        <span style={{ marginLeft: '6px', fontSize: '11px', background: theme === 'dark' ? '#064E3B' : '#D1FAE5', color: theme === 'dark' ? '#34D399' : '#047857', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                                          (+{surplus} Extra)
+                                                        </span>
+                                                      )}
+                                                    </td>
+                                                    <td style={{ padding: '8px 16px 8px 8px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                      {pending > 0 ? `${pending} pcs` : 'Done'}
+                                                    </td>
+                                                    <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                                                      {rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}
+                                                    </td>
+                                                    <td style={{ padding: '6px 8px' }}>
+                                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                          <div style={{ height: '100%', width: `${sizePct}%`, background: sizePct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
+                                                        </div>
+                                                        <span style={{ fontSize: '10px', width: '32px', textAlign: 'right' }}>{sizePct}%</span>
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                )
+                                              })}
+                                            </tbody>
+                                            <tfoot style={{ borderTop: '2px solid var(--border-color, #CBD5E1)', fontWeight: '800', background: theme === 'dark' ? '#1E293B' : '#F8FAFC' }}>
+                                              <tr>
+                                                <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap', minWidth: '120px' }}>Total</td>
+                                                <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap', minWidth: '140px' }}>-</td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrdered} pcs</td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>
+                                                  {totalProdReceived} pcs
+                                                  {totalProdReceived > totalProdOrdered && (
+                                                    <span style={{ marginLeft: '4px', fontSize: '11px', color: theme === 'dark' ? '#34D399' : '#047857', fontWeight: '700' }}>
+                                                      (+{totalProdReceived - totalProdOrdered} Extra)
+                                                    </span>
+                                                  )}
+                                                </td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
+                                                  {totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}
+                                                </td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', whiteSpace: 'nowrap' }}>
+                                                  {totalProdCost > 0 ? `₹${totalProdCost.toLocaleString('en-IN')}` : '-'}
+                                                </td>
+                                                <td style={{ padding: '8px' }}>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                      <div style={{ height: '100%', width: `${totalProdPct}%`, background: totalProdPct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
+                                                    </div>
+                                                    <span style={{ fontSize: '11px', width: '32px', textAlign: 'right', fontWeight: '800' }}>{totalProdPct}%</span>
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            </tfoot>
+                                          </table>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+
+                                  {/* Received Installment History Log Timeline */}
+                                  {order.installments && order.installments.length > 0 && (
+                                    <div style={{ marginTop: '16px', borderTop: '1px dashed var(--border-color, #CBD5E1)', paddingTop: '14px' }}>
+                                      <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span>{getSafeEmoji('📦')}</span> Received Installment History ({order.installments.length} {order.installments.length === 1 ? 'Batch' : 'Batches'}):
+                                      </div>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        {order.installments.map((inst, idx) => {
+                                          const batchTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+                                          return (
+                                            <div
+                                              key={inst._id || idx}
                                               style={{
-                                                fontSize: '12px',
-                                                fontWeight: '800',
-                                                padding: '2px 8px',
-                                                borderRadius: '6px',
-                                                background: theme === 'dark' ? '#064E3B' : '#D1FAE5',
-                                                color: theme === 'dark' ? '#34D399' : '#059669',
-                                                border: theme === 'dark' ? '1px solid #059669' : '1px solid #6EE7B7'
+                                                background: theme === 'dark' ? '#0F172A' : '#FFFFFF',
+                                                padding: '12px 16px',
+                                                borderRadius: '10px',
+                                                border: theme === 'dark' ? '1px solid #334155' : '1px solid #CBD5E1',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'flex-start',
+                                                gap: '12px',
+                                                flexWrap: 'wrap'
                                               }}
                                             >
-                                              Received {batchTotal} pcs
-                                            </span>
-                                          </div>
+                                              <div style={{ flex: 1, minWidth: '240px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                                                  <span style={{ fontWeight: '800', fontSize: '13px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                                                    Batch #{idx + 1} ({new Date(inst.receivedAt).toLocaleDateString()})
+                                                  </span>
+                                                  <span
+                                                    style={{
+                                                      fontSize: '12px',
+                                                      fontWeight: '800',
+                                                      padding: '2px 8px',
+                                                      borderRadius: '6px',
+                                                      background: theme === 'dark' ? '#064E3B' : '#D1FAE5',
+                                                      color: theme === 'dark' ? '#34D399' : '#059669',
+                                                      border: theme === 'dark' ? '1px solid #059669' : '1px solid #6EE7B7'
+                                                    }}
+                                                  >
+                                                    Received {batchTotal} pcs
+                                                  </span>
+                                                </div>
 
-                                          <div style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', lineHeight: '1.4' }}>
-                                            {(inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(' • ')}
-                                          </div>
+                                                <div style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', lineHeight: '1.4' }}>
+                                                  {(inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(' • ')}
+                                                </div>
 
-                                          {inst.notes && (
-                                            <div style={{ color: '#2563EB', fontWeight: '600', marginTop: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                              <span>📝</span> Note: {inst.notes}
+                                                {inst.notes && (
+                                                  <div style={{ color: '#2563EB', fontWeight: '600', marginTop: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span>📝</span> Note: {inst.notes}
+                                                  </div>
+                                                )}
+                                              </div>
+
+                                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                <button
+                                                  type="button"
+                                                  className="icon-btn"
+                                                  style={{ padding: '6px 8px', fontSize: '12px' }}
+                                                  title="Edit Installment Batch"
+                                                  onClick={() => handleOpenEditInstallment(order, inst)}
+                                                >
+                                                  {getSafeEmoji('✏️')}
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  className="icon-btn danger"
+                                                  style={{ padding: '6px 8px', fontSize: '12px' }}
+                                                  title="Delete Installment Batch"
+                                                  onClick={() => handleDeleteInstallment(order, inst._id)}
+                                                >
+                                                  {getSafeEmoji('🗑️')}
+                                                </button>
+                                              </div>
                                             </div>
-                                          )}
-                                        </div>
-
-                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                          <button
-                                            type="button"
-                                            className="icon-btn"
-                                            style={{ padding: '6px 8px', fontSize: '12px' }}
-                                            title="Edit Installment Batch"
-                                            onClick={() => handleOpenEditInstallment(order, inst)}
-                                          >
-                                            {getSafeEmoji('✏️')}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="icon-btn danger"
-                                            style={{ padding: '6px 8px', fontSize: '12px' }}
-                                            title="Delete Installment Batch"
-                                            onClick={() => handleDeleteInstallment(order, inst._id)}
-                                          >
-                                            {getSafeEmoji('🗑️')}
-                                          </button>
-                                        </div>
+                                          )
+                                        })}
                                       </div>
-                                    )
-                                  })}
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            )}
+                              )
+                            })}
                           </div>
                         )
-                      })}
+                      })()}
                     </div>
-                  )
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
+                  </div>
+                </div>
+              )}
 
-              {/* Sub-Section 2: Corporate & Bulk Orders */}
+              {/* Sub-Section 2: Bulk Client Orders */}
               {restockSubSection === 'corporate' && (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
@@ -6970,28 +7286,525 @@ function App() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
                       <span style={{ fontSize: '12px', fontWeight: '800', background: '#ECFDF5', color: '#059669', padding: '4px 12px', borderRadius: '6px' }}>
-                        {getSafeEmoji('🏢')} Corporate &amp; Bulk Orders
+                        {getSafeEmoji('🏢')} Bulk Client Orders
                       </span>
                     </div>
                   </div>
 
+                  {/* Summary Metric Cards */}
+                  {(() => {
+                    const ordersForStats = bulkOrderClientFilter === 'All'
+                      ? bulkOrders
+                      : bulkOrders.filter(o => o.clientName === bulkOrderClientFilter)
+
+                    return (
+                      <div className="stats-grid grid-4" style={{ marginBottom: '24px' }}>
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('🏢')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Active Bulk Orders</p>
+                            <p className="stat-value">{ordersForStats.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
+                            <p className="stat-desc">
+                              {bulkOrderClientFilter === 'All' ? 'In-progress client orders' : `Active orders for ${bulkOrderClientFilter}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('📦')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Total Ordered Pcs</p>
+                            <p className="stat-value">
+                              {ordersForStats.reduce((acc, o) => {
+                                const prods = getNormalizedProducts(o)
+                                let ord = 0
+                                prods.forEach(p => {
+                                  (p.sizeBreakdown || []).forEach(sb => { ord += (sb.orderedQty || 0) })
+                                })
+                                return acc + ord
+                              }, 0)}
+                            </p>
+                            <p className="stat-desc">
+                              {bulkOrderClientFilter === 'All' ? 'Across all client orders' : `Total ordered by ${bulkOrderClientFilter}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('⏳')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Pending Delivery Balance</p>
+                            <p className="stat-value" style={{ color: '#EAB308' }}>
+                              {ordersForStats.reduce((acc, o) => {
+                                const prods = getNormalizedProducts(o)
+                                let ord = 0, del = 0
+                                prods.forEach(p => {
+                                  (p.sizeBreakdown || []).forEach(sb => {
+                                    ord += (sb.orderedQty || 0)
+                                    del += (sb.deliveredQty || 0)
+                                  })
+                                })
+                                return acc + Math.max(0, ord - del)
+                              }, 0)}
+                            </p>
+                            <p className="stat-desc">
+                              {bulkOrderClientFilter === 'All' ? 'Awaiting dispatch to clients' : `Pending delivery to ${bulkOrderClientFilter}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="stat-card">
+                          <span className="stat-icon">{getSafeEmoji('🚚')}</span>
+                          <div className="stat-info">
+                            <p className="stat-label">Dispatched Stock Pcs</p>
+                            <p className="stat-value" style={{ color: '#10B981' }}>
+                              {ordersForStats.reduce((acc, o) => {
+                                const prods = getNormalizedProducts(o)
+                                let del = 0
+                                prods.forEach(p => {
+                                  (p.sizeBreakdown || []).forEach(sb => { del += (sb.deliveredQty || 0) })
+                                })
+                                return acc + del
+                              }, 0)}
+                            </p>
+                            <p className="stat-desc">
+                              {bulkOrderClientFilter === 'All' ? 'Total stock delivered to clients' : `Stock delivered to ${bulkOrderClientFilter}`}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Main Panel Card */}
                   <div className="card card-panel">
                     <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <h2 className="card-title">{getSafeEmoji('🏢')} Corporate &amp; Bulk Client Orders</h2>
-                        <p className="card-subtitle">Manage bulk uniform supply contracts, firm requisitions, and commercial client orders.</p>
+                        <h2 className="card-title">{getSafeEmoji('🏢')} Bulk Client Orders</h2>
+                        <p className="card-subtitle">Manage bulk uniform supply contracts, firm requisitions, and commercial client deliveries.</p>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={exportBulkOrdersCSV}
+                          title="Download all bulk client orders as a spreadsheet"
+                          style={{ padding: '8px 14px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          {getSafeEmoji('📊')} Export Excel (CSV)
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => setShowClientModal(true)}
+                          title="Manage client names & contact directory"
+                          style={{ padding: '8px 14px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          {getSafeEmoji('👥')} Clients ({clients.length})
+                        </button>
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          onClick={() => {
+                            setSelectedBulkOrder(null)
+                            setBulkOrderFormData({
+                              boNumber: '',
+                              clientName: '',
+                              targetDate: '',
+                              notes: '',
+                              products: [{ productName: '', school: 'General', unitPrice: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
+                            })
+                            setShowBulkOrderModal(true)
+                          }}
+                          style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', background: '#059669' }}
+                        >
+                          {getSafeEmoji('➕')} Create Bulk Order
+                        </button>
                       </div>
                     </div>
 
-                    <div style={{ padding: '48px 20px', textAlign: 'center', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', borderRadius: '12px', border: '1px dashed var(--border-color, #CBD5E1)', margin: '16px 0' }}>
-                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>{getSafeEmoji('🏢')}</div>
-                      <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '6px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
-                        Corporate &amp; Bulk Orders Management
-                      </h3>
-                      <p style={{ fontSize: '13px', color: theme === 'dark' ? '#94A3B8' : '#64748B', maxWidth: '520px', margin: '0 auto 20px', lineHeight: '1.5' }}>
-                        This section is dedicated to taking and managing inbound bulk supply orders from firms, corporates, factories, schools, and institutions.
-                      </p>
+                    {/* Filter & Search Bar */}
+                    <div style={{ display: 'flex', gap: '12px', margin: '16px 0', flexWrap: 'wrap', alignItems: 'center', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                      <div style={{ flex: 1, minWidth: '220px', position: 'relative' }}>
+                        <input
+                          ref={boSearchInputRef}
+                          type="text"
+                          placeholder="Search BO #, client name, product name..."
+                          value={bulkOrderSearch}
+                          onChange={(e) => setBulkOrderSearch(e.target.value)}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', border: '1px solid var(--border-color, #CBD5E1)' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748B' }}>Client:</label>
+                        <select
+                          value={bulkOrderClientFilter}
+                          onChange={(e) => setBulkOrderClientFilter(e.target.value)}
+                          style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '13px', border: '1px solid var(--border-color, #CBD5E1)', minWidth: '150px' }}
+                        >
+                          <option value="All">All Clients ({bulkOrders.length})</option>
+                          {clients.map(c => (
+                            <option key={c._id} value={c.name}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748B' }}>Status:</label>
+                        <select
+                          value={bulkOrderStatusFilter}
+                          onChange={(e) => setBulkOrderStatusFilter(e.target.value)}
+                          style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '13px', border: '1px solid var(--border-color, #CBD5E1)', minWidth: '130px' }}
+                        >
+                          <option value="All">All Statuses</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Partial">Partial</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </div>
+
+                      {(bulkOrderSearch || bulkOrderClientFilter !== 'All' || bulkOrderStatusFilter !== 'All') && (
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => {
+                            setBulkOrderSearch('')
+                            setBulkOrderClientFilter('All')
+                            setBulkOrderStatusFilter('All')
+                          }}
+                          style={{ padding: '8px 12px', fontSize: '12px', borderRadius: '6px' }}
+                        >
+                          Reset Filters
+                        </button>
+                      )}
                     </div>
+
+                    {/* Bulk Orders List */}
+                    {(() => {
+                      const filteredOrders = bulkOrders.filter(o => {
+                        const searchLower = bulkOrderSearch.toLowerCase().trim()
+                        const prods = getNormalizedProducts(o)
+                        const matchesSearch = !searchLower ||
+                          (o.boNumber && String(o.boNumber).toLowerCase().includes(searchLower)) ||
+                          (o.clientName && o.clientName.toLowerCase().includes(searchLower)) ||
+                          prods.some(p => (p.productName && p.productName.toLowerCase().includes(searchLower)) || (p.school && p.school.toLowerCase().includes(searchLower)))
+                        const matchesClient = bulkOrderClientFilter === 'All' || o.clientName === bulkOrderClientFilter
+                        const matchesStatus = bulkOrderStatusFilter === 'All' || o.status === bulkOrderStatusFilter
+                        return matchesSearch && matchesClient && matchesStatus
+                      })
+
+                      if (filteredOrders.length === 0) {
+                        return (
+                          <div style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
+                            <div style={{ fontSize: '40px', marginBottom: '12px' }}>{getSafeEmoji('🏢')}</div>
+                            <p style={{ fontSize: '15px', fontWeight: '700', marginBottom: '4px' }}>No bulk client orders found</p>
+                            <p style={{ fontSize: '13px' }}>Click "Create Bulk Order" above to place a new bulk supply contract.</p>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          {filteredOrders.map((order) => {
+                            const prods = getNormalizedProducts(order)
+                            let totalOrdered = 0
+                            let totalDelivered = 0
+                            let pendingBalance = 0
+                            let boTotalCost = 0
+                            let boHasAnyPrices = false
+
+                            prods.forEach(p => {
+                              (p.sizeBreakdown || []).forEach(sb => {
+                                const sbPrice = Number(sb.unitPrice || 0) || Number(p.unitPrice || 0)
+                                const ord = sb.orderedQty || 0
+                                const del = sb.deliveredQty || 0
+                                if (sbPrice > 0) {
+                                  boTotalCost += del * sbPrice
+                                  boHasAnyPrices = true
+                                }
+                                totalOrdered += ord
+                                totalDelivered += del
+                                if (del < ord) {
+                                  pendingBalance += (ord - del)
+                                }
+                              })
+                            })
+                            const progressPct = totalOrdered > 0 ? Math.min(100, Math.round((totalDelivered / totalOrdered) * 100)) : 0
+
+                            return (
+                              <div
+                                key={order._id}
+                                className="card card-panel"
+                                style={{
+                                  padding: '16px',
+                                  border: order.status === 'Completed'
+                                    ? '1px solid #10B981'
+                                    : order.status === 'Cancelled'
+                                      ? '1px solid #94A3B8'
+                                      : '1px solid var(--border-color, #E2E8F0)',
+                                  background: theme === 'dark' ? '#0F172A' : '#FFFFFF'
+                                }}
+                              >
+                                {/* Header */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '14px', borderBottom: '1px solid var(--border-color, #F1F5F9)', paddingBottom: '10px' }}>
+                                  <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: '16px', fontWeight: '800', color: '#059669' }}>{order.boNumber}</span>
+                                      <span style={{ fontSize: '14px', fontWeight: '700', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>• {order.clientName}</span>
+                                      <span className={`status-badge status-${(order.status || 'Pending').toLowerCase()}`}>
+                                        {order.status || 'Pending'}
+                                      </span>
+                                    </div>
+                                    <p style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+                                      Created: {new Date(order.createdAt).toLocaleDateString()} | Target Delivery: <strong style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{order.targetDate || 'N/A'}</strong>
+                                    </p>
+                                  </div>
+
+                                  {/* Right side actions */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      className="primary-btn"
+                                      onClick={() => handleOpenDispatchModal(order)}
+                                      disabled={order.status === 'Completed' || order.status === 'Cancelled'}
+                                      style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px', background: '#059669' }}
+                                    >
+                                      {getSafeEmoji('🚚')} Dispatch Stock
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="icon-btn"
+                                      title="Edit Order details"
+                                      onClick={() => {
+                                        setSelectedBulkOrder(order)
+                                        setBulkOrderFormData({
+                                          boNumber: order.boNumber ? String(order.boNumber).replace(/^BO-0*/i, '') : '',
+                                          clientName: order.clientName,
+                                          targetDate: order.targetDate || '',
+                                          notes: order.notes || '',
+                                          products: prods.map(p => ({
+                                            productName: p.productName,
+                                            school: p.school,
+                                            sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({ size: sb.size, orderedQty: sb.orderedQty, unitPrice: sb.unitPrice !== undefined ? sb.unitPrice : '' }))
+                                          }))
+                                        })
+                                        setShowBulkOrderModal(true)
+                                      }}
+                                    >
+                                      {getSafeEmoji('✏️')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="icon-btn danger"
+                                      title="Delete Order"
+                                      onClick={() => handleDeleteBulkOrder(order._id, order.boNumber)}
+                                    >
+                                      {getSafeEmoji('🗑️')}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Progress Bar & Status Pill */}
+                                <div style={{ background: theme === 'dark' ? '#1E293B' : '#F8FAFC', padding: '10px 14px', borderRadius: '8px', marginBottom: '14px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                                    <span>Stock Dispatched Progress: {totalDelivered} / {totalOrdered} pcs ({progressPct}%)</span>
+                                    <span style={{ color: pendingBalance > 0 ? '#EAB308' : '#10B981' }}>
+                                      {pendingBalance > 0 ? `Pending Delivery: ${pendingBalance} pcs` : 'All Stock Delivered'}
+                                    </span>
+                                  </div>
+                                  <div style={{ height: '8px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', width: `${progressPct}%`, background: progressPct === 100 ? '#10B981' : '#059669', transition: 'width 0.3s ease', borderRadius: '4px' }} />
+                                  </div>
+                                </div>
+
+                                {/* Size Breakdown Tables Per Product */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                  {prods.map((prod, pIdx) => {
+                                    const sortedSizes = [...(prod.sizeBreakdown || [])].sort((a, b) => {
+                                      const numA = parseFloat(a.size), numB = parseFloat(b.size)
+                                      if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+                                      return String(a.size).localeCompare(String(b.size))
+                                    })
+
+                                    const legacyPrice = Number(prod.unitPrice || 0)
+                                    let totalProdOrdered = 0
+                                    let totalProdDelivered = 0
+                                    let totalProdCost = 0
+
+                                    sortedSizes.forEach(sb => {
+                                      const price = Number(sb.unitPrice || 0) || legacyPrice
+                                      totalProdOrdered += (sb.orderedQty || 0)
+                                      totalProdDelivered += (sb.deliveredQty || 0)
+                                      if (price > 0) {
+                                        totalProdCost += (sb.deliveredQty || 0) * price
+                                      }
+                                    })
+                                    const totalProdPending = Math.max(0, totalProdOrdered - totalProdDelivered)
+
+                                    return (
+                                      <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                          <strong style={{ fontSize: '13px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                                            {prod.productName} ({prod.school || 'General'})
+                                          </strong>
+                                          {totalProdCost > 0 && (
+                                            <span style={{ fontSize: '12px', fontWeight: '800', color: theme === 'dark' ? '#34D399' : '#059669' }}>
+                                              Total Product Value: ₹{totalProdCost.toLocaleString('en-IN')}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                          <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
+                                              <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '120px' }}>Size</th>
+                                              <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '140px' }}>Price / Unit</th>
+                                              <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Ordered</th>
+                                              <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Dispatched</th>
+                                              <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Pending Delivery</th>
+                                              <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Row Cost</th>
+                                              <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Delivery Progress</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {sortedSizes.map((sb) => {
+                                              const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                                              const delQty = sb.deliveredQty || 0
+                                              const ordQty = sb.orderedQty || 0
+                                              const pending = Math.max(0, ordQty - delQty)
+                                              const surplus = delQty > ordQty ? delQty - ordQty : 0
+                                              const rowCost = sbPrice > 0 ? delQty * sbPrice : 0
+                                              const sizePct = ordQty > 0 ? Math.min(100, Math.round((delQty / ordQty) * 100)) : 0
+                                              return (
+                                                <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
+                                                  <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>{sb.size}</td>
+                                                  <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '140px' }}>
+                                                    {sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}
+                                                  </td>
+                                                  <td style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>{ordQty} pcs</td>
+                                                  <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                    {delQty} pcs
+                                                    {surplus > 0 && (
+                                                      <span style={{ marginLeft: '6px', fontSize: '11px', background: theme === 'dark' ? '#064E3B' : '#D1FAE5', color: theme === 'dark' ? '#34D399' : '#047857', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                                        (+{surplus} Extra)
+                                                      </span>
+                                                    )}
+                                                  </td>
+                                                  <td style={{ padding: '8px 16px 8px 8px', color: pending > 0 ? '#EAB308' : '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                    {pending > 0 ? `${pending} pcs` : 'Delivered'}
+                                                  </td>
+                                                  <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                                                    {rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}
+                                                  </td>
+                                                  <td style={{ padding: '6px 8px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                      <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${sizePct}%`, background: sizePct === 100 ? '#10B981' : '#059669', borderRadius: '3px' }} />
+                                                      </div>
+                                                      <span style={{ fontSize: '10px', width: '32px', textAlign: 'right' }}>{sizePct}%</span>
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              )
+                                            })}
+                                          </tbody>
+                                          <tfoot style={{ borderTop: '2px solid var(--border-color, #CBD5E1)', fontWeight: '800', background: theme === 'dark' ? '#1E293B' : '#F8FAFC' }}>
+                                            <tr>
+                                              <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap', minWidth: '120px' }}>Total</td>
+                                              <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap', minWidth: '140px' }}>-</td>
+                                              <td style={{ padding: '8px 16px 8px 8px', color: '#059669', whiteSpace: 'nowrap' }}>{totalProdOrdered} pcs</td>
+                                              <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>
+                                                {totalProdDelivered} pcs
+                                              </td>
+                                              <td style={{ padding: '8px 16px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
+                                                {totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}
+                                              </td>
+                                              <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', whiteSpace: 'nowrap' }}>
+                                                {totalProdCost > 0 ? `₹${totalProdCost.toLocaleString('en-IN')}` : '-'}
+                                              </td>
+                                              <td style={{ padding: '8px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                  <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                    <div style={{ height: '100%', width: `${totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdDelivered / totalProdOrdered) * 100)) : 0}%`, background: totalProdDelivered >= totalProdOrdered ? '#10B981' : '#059669', borderRadius: '3px' }} />
+                                                  </div>
+                                                  <span style={{ fontSize: '10px', width: '32px', textAlign: 'right' }}>
+                                                    {totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdDelivered / totalProdOrdered) * 100)) : 0}%
+                                                  </span>
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          </tfoot>
+                                        </table>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+
+                                {/* Order Total Summary Block */}
+                                {boHasAnyPrices && (
+                                  <div style={{ marginTop: '14px', background: theme === 'dark' ? '#1E293B' : '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '8px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                    <div>
+                                      <span style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#34D399' : '#065F46' }}>
+                                        {getSafeEmoji('💰')} TOTAL ORDER VALUE: ₹{boTotalCost.toLocaleString('en-IN')}
+                                      </span>
+                                      <span style={{ fontSize: '11px', color: '#64748B', marginLeft: '8px' }}>
+                                        (Calculated based on {totalDelivered} dispatched pcs across all sizes)
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#059669', background: '#D1FAE5', padding: '3px 8px', borderRadius: '4px' }}>
+                                      Per-Size Pricing Applied
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Stock Dispatch Batches Accordion */}
+                                {(order.dispatches || []).length > 0 && (
+                                  <div style={{ marginTop: '14px', borderTop: '1px solid var(--border-color, #F1F5F9)', paddingTop: '10px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleDispatchHistory(order._id)}
+                                      style={{ background: 'none', border: 'none', color: '#059669', fontSize: '12px', fontWeight: '700', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                      {getSafeEmoji('🚚')} Stock Delivery Batches ({(order.dispatches || []).length}) {expandedDispatches[order._id] ? '▲ Hide' : '▼ View History'}
+                                    </button>
+
+                                    {expandedDispatches[order._id] && (
+                                      <div style={{ marginTop: '10px', background: theme === 'dark' ? '#1E293B' : '#F8FAFC', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                          {[...(order.dispatches || [])].reverse().map((disp, dIdx) => {
+                                            const dispTotal = (disp.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+                                            return (
+                                              <div key={disp._id || dIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color, #E2E8F0)', fontSize: '12px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                                  <div>
+                                                    <strong style={{ color: '#059669' }}>Batch #{order.dispatches.length - dIdx}: {dispTotal} pcs</strong>
+                                                    <span style={{ color: '#64748B', marginLeft: '8px', fontSize: '11px' }}>
+                                                      dispatched on {new Date(disp.dispatchedAt).toLocaleDateString()} {disp.challanNumber ? `(Challan: ${disp.challanNumber})` : ''}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                                <div style={{ color: theme === 'dark' ? '#CBD5E1' : '#475569', fontSize: '11px' }}>
+                                                  {(disp.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(' • ')}
+                                                </div>
+                                                {disp.notes && (
+                                                  <div style={{ fontSize: '11px', color: '#D97706', marginTop: '2px', fontStyle: 'italic' }}>
+                                                    Note: {disp.notes}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
               )}
@@ -9077,13 +9890,13 @@ function App() {
                   let poHasAnyPrices = false
                   prods.forEach(p => {
                     const legacyPrice = Number(p.unitPrice || 0)
-                    ;(p.sizeBreakdown || []).forEach(sb => {
-                      const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-                      if (sbPrice > 0) {
-                        poTotalCost += (sb.receivedQty || 0) * sbPrice
-                        poHasAnyPrices = true
-                      }
-                    })
+                      ; (p.sizeBreakdown || []).forEach(sb => {
+                        const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                        if (sbPrice > 0) {
+                          poTotalCost += (sb.receivedQty || 0) * sbPrice
+                          poHasAnyPrices = true
+                        }
+                      })
                   })
 
                   return (
@@ -9252,6 +10065,401 @@ function App() {
                 })()}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client Directory Modal */}
+      {showClientModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '650px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>{getSafeEmoji('👥')} Clients Directory</h3>
+              <button type="button" className="close-btn" onClick={() => setShowClientModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+              <form onSubmit={handleCreateClient} style={{ background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '16px', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#059669' }}>+ Add New Client</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <input
+                    type="text"
+                    placeholder="Client / Firm Name *"
+                    required
+                    value={clientFormData.name}
+                    onChange={(e) => setClientFormData({ ...clientFormData, name: e.target.value })}
+                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Contact Number (Optional)"
+                    value={clientFormData.phone}
+                    onChange={(e) => setClientFormData({ ...clientFormData, phone: e.target.value })}
+                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                  <input
+                    type="email"
+                    placeholder="Email Address (Optional)"
+                    value={clientFormData.email}
+                    onChange={(e) => setClientFormData({ ...clientFormData, email: e.target.value })}
+                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Address / Location (Optional)"
+                    value={clientFormData.address}
+                    onChange={(e) => setClientFormData({ ...clientFormData, address: e.target.value })}
+                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                  />
+                </div>
+                <button type="submit" className="primary-btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '6px', width: '100%', fontWeight: '700', background: '#059669' }}>
+                  Save New Client
+                </button>
+              </form>
+
+              <h4 style={{ fontSize: '14px', marginBottom: '10px' }}>Saved Clients Directory ({clients.length})</h4>
+              {clients.length === 0 ? (
+                <p style={{ color: '#64748B', fontSize: '13px' }}>No clients added yet. Add your first client firm above.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {clients.map(c => (
+                    <div key={c._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                      <div>
+                        <strong style={{ fontSize: '13px', display: 'block', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{c.name}</strong>
+                        <span style={{ fontSize: '11px', color: '#64748B' }}>
+                          {c.phone ? `Phone: ${c.phone}` : ''} {c.address ? `• ${c.address}` : ''}
+                        </span>
+                      </div>
+                      <button type="button" className="icon-btn danger" onClick={() => handleDeleteClient(c._id, c.name)} title="Delete Client">
+                        {getSafeEmoji('🗑️')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create / Edit Bulk Order Modal */}
+      {showBulkOrderModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '750px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>{getSafeEmoji('🏢')} {selectedBulkOrder ? 'Edit Bulk Client Order' : 'Create Bulk Order'}</h3>
+              <button type="button" className="close-btn" onClick={() => setShowBulkOrderModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleCreateOrUpdateBulkOrder}>
+              <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Client Firm Name *</label>
+                    <input
+                      type="text"
+                      list="clients-datalist"
+                      placeholder="Select or enter client name *"
+                      required
+                      value={bulkOrderFormData.clientName}
+                      onChange={(e) => setBulkOrderFormData({ ...bulkOrderFormData, clientName: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                    />
+                    <datalist id="clients-datalist">
+                      {clients.map(c => <option key={c._id} value={c.name} />)}
+                    </datalist>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Bulk Order # (Optional - Auto generated)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. BO-001"
+                      value={bulkOrderFormData.boNumber}
+                      onChange={(e) => setBulkOrderFormData({ ...bulkOrderFormData, boNumber: e.target.value })}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Target Delivery Date (Optional)</label>
+                  <input
+                    type="date"
+                    value={bulkOrderFormData.targetDate}
+                    onChange={(e) => setBulkOrderFormData({ ...bulkOrderFormData, targetDate: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                  />
+                </div>
+
+                {/* Products & Sizes Section */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <strong style={{ fontSize: '13px', color: '#059669' }}>Products &amp; Size Breakdown *</strong>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => {
+                        setBulkOrderFormData(prev => ({
+                          ...prev,
+                          products: [
+                            ...(prev.products || []),
+                            { productName: '', school: 'General', unitPrice: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }
+                          ]
+                        }))
+                      }}
+                      style={{ fontSize: '12px', padding: '4px 10px' }}
+                    >
+                      + Add Product
+                    </button>
+                  </div>
+
+                  {(bulkOrderFormData.products || []).map((prod, pIdx) => (
+                    <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '12px', borderRadius: '8px', marginBottom: '12px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          placeholder="Product Name (e.g. Trackpant) *"
+                          required
+                          value={prod.productName}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setBulkOrderFormData(prev => {
+                              const updated = [...prev.products]
+                              updated[pIdx].productName = val
+                              return { ...prev, products: updated }
+                            })
+                          }}
+                          style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="School/Category"
+                          value={prod.school}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setBulkOrderFormData(prev => {
+                              const updated = [...prev.products]
+                              updated[pIdx].school = val
+                              return { ...prev, products: updated }
+                            })
+                          }}
+                          style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Default Price (₹)"
+                          value={prod.unitPrice}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setBulkOrderFormData(prev => {
+                              const updated = [...prev.products]
+                              updated[pIdx].unitPrice = val
+                              return { ...prev, products: updated }
+                            })
+                          }}
+                          style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                        />
+                        {(bulkOrderFormData.products || []).length > 1 && (
+                          <button
+                            type="button"
+                            className="icon-btn danger"
+                            onClick={() => {
+                              setBulkOrderFormData(prev => ({
+                                ...prev,
+                                products: prev.products.filter((_, idx) => idx !== pIdx)
+                              }))
+                            }}
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Size Rows */}
+                      <div style={{ marginLeft: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Sizes &amp; Ordered Quantities:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBulkOrderFormData(prev => {
+                                const updated = [...prev.products]
+                                updated[pIdx].sizeBreakdown.push({ size: '', orderedQty: '', unitPrice: '' })
+                                return { ...prev, products: updated }
+                              })
+                            }}
+                            style={{ background: 'none', border: 'none', color: '#059669', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                          >
+                            + Add Size
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {(prod.sizeBreakdown || []).map((sb, sIdx) => (
+                            <div key={sIdx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <input
+                                type="text"
+                                placeholder="Size (e.g. 28)"
+                                value={sb.size}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  setBulkOrderFormData(prev => {
+                                    const updated = [...prev.products]
+                                    updated[pIdx].sizeBreakdown[sIdx].size = val
+                                    return { ...prev, products: updated }
+                                  })
+                                }}
+                                style={{ width: '80px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '12px' }}
+                              />
+                              <input
+                                type="number"
+                                placeholder="Ordered Qty"
+                                value={sb.orderedQty}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  setBulkOrderFormData(prev => {
+                                    const updated = [...prev.products]
+                                    updated[pIdx].sizeBreakdown[sIdx].orderedQty = val
+                                    return { ...prev, products: updated }
+                                  })
+                                }}
+                                style={{ width: '100px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '12px' }}
+                              />
+                              <input
+                                type="number"
+                                placeholder="Price / Unit (₹)"
+                                value={sb.unitPrice !== undefined ? sb.unitPrice : ''}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  setBulkOrderFormData(prev => {
+                                    const updated = [...prev.products]
+                                    updated[pIdx].sizeBreakdown[sIdx].unitPrice = val
+                                    return { ...prev, products: updated }
+                                  })
+                                }}
+                                style={{ width: '110px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '12px' }}
+                              />
+                              {(prod.sizeBreakdown || []).length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setBulkOrderFormData(prev => {
+                                      const updated = [...prev.products]
+                                      updated[pIdx].sizeBreakdown = updated[pIdx].sizeBreakdown.filter((_, idx) => idx !== sIdx)
+                                      return { ...prev, products: updated }
+                                    })
+                                  }}
+                                  style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '14px', cursor: 'pointer', padding: '0 4px' }}
+                                >
+                                  &times;
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Special Instructions / Notes</label>
+                  <textarea
+                    rows="2"
+                    placeholder="Enter any special instructions for client delivery..."
+                    value={bulkOrderFormData.notes}
+                    onChange={(e) => setBulkOrderFormData({ ...bulkOrderFormData, notes: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color, #E2E8F0)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button type="button" className="secondary-btn" onClick={() => setShowBulkOrderModal(false)}>Cancel</button>
+                <button type="submit" className="primary-btn" style={{ background: '#059669', fontWeight: '700' }}>
+                  {selectedBulkOrder ? 'Update Order' : 'Save Bulk Order'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dispatch Stock Batch Modal */}
+      {showDispatchModal && selectedOrderForDispatch && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '650px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>{getSafeEmoji('🚚')} Dispatch Stock to Client — Order {selectedOrderForDispatch.boNumber}</h3>
+              <button type="button" className="close-btn" onClick={() => setShowDispatchModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleCreateDispatch}>
+              <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Delivery Challan / Invoice # (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. DC-1049"
+                    value={dispatchFormData.challanNumber}
+                    onChange={(e) => setDispatchFormData({ ...dispatchFormData, challanNumber: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '8px', color: '#059669' }}>
+                    Enter Stock Quantities Dispatched Per Size:
+                  </label>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {(dispatchFormData.items || []).map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color, #E2E8F0)', fontSize: '12px' }}>
+                        <div>
+                          <strong>{item.productName} — Size {item.size}</strong>
+                          <span style={{ color: '#64748B', marginLeft: '8px' }}>
+                            (Ordered: {item.orderedQty} pcs | Pending: {item.remainingQty} pcs)
+                          </span>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={item.qty}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setDispatchFormData(prev => {
+                              const updated = [...prev.items]
+                              updated[idx].qty = val
+                              return { ...prev, items: updated }
+                            })
+                          }}
+                          style={{ width: '90px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color, #CBD5E1)', textAlign: 'right', fontWeight: '700' }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Dispatch Notes (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sent via transport vehicle #KA-01-1234"
+                    value={dispatchFormData.notes}
+                    onChange={(e) => setDispatchFormData({ ...dispatchFormData, notes: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', fontSize: '13px' }}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color, #E2E8F0)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button type="button" className="secondary-btn" onClick={() => setShowDispatchModal(false)}>Cancel</button>
+                <button type="submit" className="primary-btn" style={{ background: '#059669', fontWeight: '700' }}>
+                  Confirm Dispatch Batch
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
