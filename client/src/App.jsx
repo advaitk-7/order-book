@@ -627,6 +627,8 @@ function App() {
   // Vendor Order Modals
   const [showVendorOrderModal, setShowVendorOrderModal] = useState(false)
   const [selectedVendorOrder, setSelectedVendorOrder] = useState(null)
+  const [vendorOrderModalContext, setVendorOrderModalContext] = useState('supplier')
+  const [partyManagerContext, setPartyManagerContext] = useState('supplier')
   const [vendorOrderFormData, setVendorOrderFormData] = useState({
     poNumber: '',
     partyName: '',
@@ -6151,6 +6153,7 @@ function App() {
                           type="button"
                           className="primary-btn"
                           onClick={() => {
+                            setVendorOrderModalContext('supplier')
                             setSelectedVendorOrder(null)
                             const nextNum = getNextPoNumber(vendorOrders)
                             setVendorOrderFormData({
@@ -6181,7 +6184,10 @@ function App() {
                         <button
                           type="button"
                           className="secondary-btn"
-                          onClick={() => setShowPartyManagerModal(true)}
+                          onClick={() => {
+                            setPartyManagerContext('supplier')
+                            setShowPartyManagerModal(true)
+                          }}
                           style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
                         >
                           {getSafeEmoji('🏭')} Manage Suppliers ({parties.length})
