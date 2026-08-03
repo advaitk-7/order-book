@@ -7898,7 +7898,8 @@ function App() {
                                 const prods = getNormalizedProducts(o)
                                 let ord = 0
                                 prods.forEach(p => {
-                                  (p.sizeBreakdown || []).forEach(sb => { ord += (sb.orderedQty || 0) })
+                                  const sbList = Array.isArray(p?.sizeBreakdown) ? p.sizeBreakdown : []
+                                  sbList.forEach(sb => { ord += (sb.orderedQty || 0) })
                                 })
                                 return acc + ord
                               }, 0)}
@@ -7918,7 +7919,8 @@ function App() {
                                 const prods = getNormalizedProducts(o)
                                 let pend = 0
                                 prods.forEach(p => {
-                                  (p.sizeBreakdown || []).forEach(sb => {
+                                  const sbList = Array.isArray(p?.sizeBreakdown) ? p.sizeBreakdown : []
+                                  sbList.forEach(sb => {
                                     pend += Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))
                                   })
                                 })
@@ -7938,7 +7940,8 @@ function App() {
                                 const prods = getNormalizedProducts(o)
                                 let del = 0
                                 prods.forEach(p => {
-                                  (p.sizeBreakdown || []).forEach(sb => { del += (sb.deliveredQty || 0) })
+                                  const sbList = Array.isArray(p?.sizeBreakdown) ? p.sizeBreakdown : []
+                                  sbList.forEach(sb => { del += (sb.deliveredQty || 0) })
                                 })
                                 return acc + del
                               }, 0)}
@@ -8156,7 +8159,8 @@ function App() {
                                 const backLogo = Number(p?.backLogoCost || 0)
                                 const logoPerPc = (isNaN(frontLogo) ? 0 : Math.max(0, frontLogo)) + (isNaN(backLogo) ? 0 : Math.max(0, backLogo))
                                 const legacyPrice = Number(p?.unitPrice || 0)
-                                (p?.sizeBreakdown || []).forEach(sb => {
+                                const sbList = Array.isArray(p?.sizeBreakdown) ? p.sizeBreakdown : []
+                                sbList.forEach(sb => {
                                   const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
                                   const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
                                   const del = Number(sb?.deliveredQty || 0) || 0
