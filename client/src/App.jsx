@@ -10741,13 +10741,22 @@ function App() {
               <div style={{ fontWeight: '800', fontSize: '13px' }}>
                 Registered Clients ({clients.length}):
               </div>
-              {clients.length > 3 && (
+              {clients.length > 0 && (
                 <input
                   type="text"
                   placeholder="🔍 Search clients..."
                   value={clientSearchQuery}
                   onChange={(e) => setClientSearchQuery(e.target.value)}
-                  style={{ fontSize: '12px', padding: '5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', width: '180px' }}
+                  style={{
+                    fontSize: '12px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                    background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                    color: 'inherit',
+                    width: '200px',
+                    outline: 'none'
+                  }}
                 />
               )}
             </div>
