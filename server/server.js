@@ -2220,7 +2220,7 @@ app.post("/api/bulk-orders", authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: "At least one valid product with sizes is required." });
     }
 
-    let boNumber = String(req.body.boNumber || '').trim();
+    let boNumber = String(req.body.coNumber || req.body.boNumber || '').trim();
     if (!boNumber) {
       const allBOs = await BulkOrder.find({}, { boNumber: 1 }).lean();
       const nums = allBOs.map(o => {
@@ -2228,12 +2228,14 @@ app.post("/api/bulk-orders", authenticateJWT, async (req, res) => {
         return m ? parseInt(m[1], 10) : 0;
       }).filter(n => !isNaN(n));
       const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1;
-      boNumber = `BO-${String(nextNum).padStart(4, '0')}`;
+      boNumber = `CO-${String(nextNum).padStart(4, '0')}`;
+    } else if (boNumber.toUpperCase().startsWith('BO-')) {
+      boNumber = boNumber.replace(/^BO-/i, 'CO-');
     }
 
     const existing = await BulkOrder.findOne({ boNumber });
     if (existing) {
-      return res.status(409).json({ message: `Bulk Order number ${boNumber} already exists.` });
+      return res.status(409).json({ message: `Client Order number ${boNumber} already exists.` });
     }
 
     const newOrder = new BulkOrder({

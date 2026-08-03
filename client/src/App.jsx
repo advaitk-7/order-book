@@ -2045,14 +2045,22 @@ function App() {
     document.body.removeChild(link)
   }
 
+  const getDisplayCoNumber = (o) => {
+    if (!o) return ''
+    const raw = String(o.coNumber || o.boNumber || '')
+    return raw.replace(/^BO-/i, 'CO-')
+  }
+
   const getNextBoNumber = (ordersList) => {
     const list = Array.isArray(ordersList) ? ordersList : bulkOrders
     const nums = list.map(o => {
-      const match = String(o.boNumber || '').match(/(\d+)$/)
+      const match = String(o.coNumber || o.boNumber || '').match(/(\d+)$/)
       return match ? parseInt(match[1], 10) : 0
     }).filter(n => !isNaN(n))
     return nums.length > 0 ? Math.max(...nums) + 1 : 1
   }
+
+  const getNextCoNumber = getNextBoNumber
 
   const handleSaveClient = async (e) => {
     e.preventDefault()
@@ -2170,7 +2178,7 @@ function App() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          boNumber: !selectedBulkOrder ? `BO-${String(Number(bulkOrderFormData.boNumber) || getNextBoNumber(bulkOrders)).padStart(4, '0')}` : undefined,
+          boNumber: !selectedBulkOrder ? `CO-${String(Number(bulkOrderFormData.boNumber) || getNextCoNumber(bulkOrders)).padStart(4, '0')}` : undefined,
           clientName: bulkOrderFormData.clientName,
           products: cleanProducts,
           targetDate: bulkOrderFormData.targetDate,
@@ -2179,27 +2187,29 @@ function App() {
       })
       const data = await response.json()
       if (response.ok) {
-        setMessage(isEditing ? `Bulk Order ${data.boNumber} updated.` : `Bulk Order ${data.boNumber} created for client '${data.clientName}'.`)
+        const coStr = getDisplayCoNumber(data)
+        setMessage(isEditing ? `Client Order ${coStr} updated.` : `Client Order ${coStr} created for client '${data.clientName}'.`)
         setShowBulkOrderModal(false)
         setSelectedBulkOrder(null)
         fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
       } else {
-        setMessage(data.message || 'Failed to save bulk order.')
+        setMessage(data.message || 'Failed to save client order.')
       }
     } catch (err) {
-      setMessage('Network error saving bulk order.')
+      setMessage('Network error saving client order.')
     }
   }
 
   const handleDeleteBulkOrder = async (id, boNumber) => {
-    if (!window.confirm(`Delete Bulk Order ${boNumber}? This cannot be undone.`)) return
+    const coStr = String(boNumber || '').replace(/^BO-/i, 'CO-')
+    if (!window.confirm(`Delete Client Order ${coStr}? This cannot be undone.`)) return
     try {
       const response = await fetch(`${API_BASE}/api/bulk-orders/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
-        setMessage(`Bulk Order ${boNumber} deleted.`)
+        setMessage(`Client Order ${coStr} deleted.`)
         fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
       }
     } catch (err) {
@@ -2370,7 +2380,7 @@ function App() {
       return
     }
 
-    const headers = ['BO Number', 'Client Name', 'Products Summary', 'Target Delivery Date', 'Status', 'Total Ordered', 'Total Dispatched', 'Pending Delivery Balance', 'Notes']
+    const headers = ['CO Number', 'Client Name', 'Products Summary', 'Target Delivery Date', 'Status', 'Total Ordered', 'Total Dispatched', 'Pending Delivery Balance', 'Notes']
     const rows = bulkOrders.map(bo => {
       const prods = getNormalizedProducts(bo)
       const prodsSummary = prods.map(p => `${p.productName} (${p.school})`).join(' | ')
@@ -2389,7 +2399,7 @@ function App() {
         })
       })
       return [
-        bo.boNumber,
+        getDisplayCoNumber(bo),
         `"${(bo.clientName || '').replace(/"/g, '""')}"`,
         `"${prodsSummary.replace(/"/g, '""')}"`,
         bo.targetDate || '-',
@@ -2559,10 +2569,11 @@ function App() {
     if (!order) return
     const prods = getNormalizedProducts(order)
     const clientClean = (order.clientName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_')
-    const fileName = `${order.boNumber || 'BO'}_${clientClean}.csv`
+    const coNum = getDisplayCoNumber(order)
+    const fileName = `${coNum || 'CO'}_${clientClean}.csv`
 
     const rows = []
-    rows.push([`BULK CLIENT SALES ORDER — ${order.boNumber}`])
+    rows.push([`CLIENT SALES ORDER (CO) — ${coNum}`])
     rows.push([`Client Name:`, order.clientName, `Target Delivery:`, order.targetDate || '-'])
     rows.push([])
 
@@ -2647,7 +2658,7 @@ function App() {
 
     rows.push([])
     rows.push([
-      'TOTAL BO SUMMARY', '', '', '',
+      'TOTAL CO SUMMARY', '', '', '',
       `${grandOrdered} pcs`,
       grandDelStr,
       `${grandPending > 0 ? grandPending + ' pcs' : 'Done'}`,
@@ -2714,7 +2725,8 @@ function App() {
     if (!order) return
     setSelectedBOForPDF(order)
     const clientClean = (order.clientName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_')
-    setBoPdfFileName(`BO_${order.boNumber || '0001'}_${clientClean}`)
+    const coNum = getDisplayCoNumber(order)
+    setBoPdfFileName(`CO_${coNum || '0001'}_${clientClean}`)
     setShowBOPDFModal(true)
   }
 
@@ -2759,16 +2771,17 @@ function App() {
 
       const order = selectedBOForPDF
       const prods = getNormalizedProducts(order)
+      const coNum = getDisplayCoNumber(order)
 
       doc.setFontSize(16)
       doc.setTextColor(37, 99, 235)
       doc.setFont('helvetica', 'bold')
-      doc.text(`LIBERTY UNIFORM — BULK CLIENT SALES ORDER`, 14, 16)
+      doc.text(`LIBERTY UNIFORM — CLIENT SALES ORDER (CO)`, 14, 16)
 
       doc.setFontSize(10)
       doc.setTextColor(100, 116, 139)
       doc.setFont('helvetica', 'normal')
-      doc.text(`BO Number: ${order.boNumber}  |  Client: ${order.clientName}`, 14, 23)
+      doc.text(`CO Number: ${coNum}  |  Client: ${order.clientName}`, 14, 23)
       if (order.targetDate) {
         doc.text(`Target Delivery Date: ${order.targetDate}`, 14, 28)
       }
@@ -8024,7 +8037,7 @@ function App() {
                           <input
                             ref={boSearchInputRef}
                             type="text"
-                            placeholder="Search by BO #, Client Name, Product, Size, Notes, Date..."
+                            placeholder="Search by CO #, Client Name, Product, Size, Notes, Date..."
                             value={bulkOrderSearch}
                             onChange={(e) => setBulkOrderSearch(e.target.value)}
                             onFocus={() => setBulkOrderSearchFocused(true)}
@@ -8193,7 +8206,7 @@ function App() {
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
                                     <div>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                        <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.boNumber}</span>
+                                        <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{getDisplayCoNumber(order)}</span>
                                         <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Client: {order.clientName}</span>
                                       </div>
                                       <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -8240,7 +8253,7 @@ function App() {
                                         title="Edit Bulk Order details"
                                         onClick={() => {
                                           setSelectedBulkOrder(order)
-                                          const boNumOnly = String(order.boNumber || '').replace(/\D/g, '')
+                                          const boNumOnly = String(getDisplayCoNumber(order) || '').replace(/\D/g, '')
                                           const formattedProducts = getNormalizedProducts(order).map(p => ({
                                             productName: p.productName,
                                             frontLogoCost: p.frontLogoCost !== undefined ? String(p.frontLogoCost || '') : '',
@@ -10907,7 +10920,7 @@ function App() {
               {getSafeEmoji('✕')}
             </button>
             <p className="manage-modal-title">
-              {selectedBulkOrder ? `${getSafeEmoji('✏️')} Edit Bulk Order ${selectedBulkOrder.boNumber}` : `${getSafeEmoji('➕')} Create Bulk Order`}
+              {selectedBulkOrder ? `${getSafeEmoji('✏️')} Edit Client Order ${getDisplayCoNumber(selectedBulkOrder)}` : `${getSafeEmoji('➕')} Create Client Order`}
             </p>
             <p className="manage-modal-subtitle">
               Issue a bulk supply order to a client with products, school/firm details, and size-wise target quantities.
@@ -10917,10 +10930,10 @@ function App() {
               {/* BO Number Row */}
               <div className="manage-input-group">
                 <label>
-                  Bulk Order Number
+                  Client Order Number (CO Number)
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '14px', fontWeight: '800', color: '#059669', letterSpacing: '0.02em' }}>
-                      BO-
+                      CO-
                     </span>
                     <input
                       type="number"
@@ -10934,7 +10947,7 @@ function App() {
                     />
                     {!selectedBulkOrder && (
                       <span style={{ fontSize: '12px', color: '#64748B' }}>
-                        → Will be saved as <strong>BO-{String(Number(bulkOrderFormData.boNumber) || getNextBoNumber(bulkOrders)).padStart(4, '0')}</strong>
+                        → Will be saved as <strong>CO-{String(Number(bulkOrderFormData.boNumber) || getNextCoNumber(bulkOrders)).padStart(4, '0')}</strong>
                       </span>
                     )}
                   </div>
@@ -11359,7 +11372,7 @@ function App() {
             </button>
             <p className="manage-modal-title">🚚 Dispatch Stock Batch</p>
             <p className="manage-modal-subtitle">
-              Order <strong>{selectedOrderForDispatch.boNumber}</strong> for Client <strong>{selectedOrderForDispatch.clientName}</strong>
+              Order <strong>{getDisplayCoNumber(selectedOrderForDispatch)}</strong> for Client <strong>{selectedOrderForDispatch.clientName}</strong>
             </p>
 
             <form onSubmit={handleLogDispatch}>
@@ -11520,9 +11533,9 @@ function App() {
           <div className="pdf-modal-card">
             <div className="pdf-modal-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} BO PDF Export &amp; Live Preview</h3>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} CO PDF Export &amp; Live Preview</h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
-                  Configure paper format, orientation, margins, and density with a live sheet preview for {selectedBOForPDF.boNumber}.
+                  Configure paper format, orientation, margins, and density with a live sheet preview for {getDisplayCoNumber(selectedBOForPDF)}.
                 </p>
               </div>
               <button
