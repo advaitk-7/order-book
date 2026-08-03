@@ -722,6 +722,7 @@ function App() {
     email: '',
     notes: ''
   })
+  const [clientSearchQuery, setClientSearchQuery] = useState('')
 
   // Edit Dispatch Batch Modal State
   const [showEditDispatchModal, setShowEditDispatchModal] = useState(false)
@@ -7542,6 +7543,7 @@ function App() {
                           onClick={() => {
                             setEditingClientId(null)
                             setClientFormData({ name: '', contactNumber: '', address: '', gstNumber: '', email: '', notes: '' })
+                            setClientSearchQuery('')
                             setShowClientManagerModal(true)
                           }}
                           style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
@@ -10734,50 +10736,83 @@ function App() {
               </div>
             </form>
 
-            {/* List of Registered Clients */}
-            <div style={{ fontWeight: '800', fontSize: '13px', marginBottom: '10px' }}>Registered Clients ({clients.length}):</div>
-            {clients.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#64748B', padding: '20px', fontSize: '13px' }}>No clients added yet.</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {clients.map(c => (
-                  <div key={c._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: theme === 'dark' ? '#0F172A' : '#FAFAFA', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)' }}>
-                    <div>
-                      <div style={{ fontWeight: '800', fontSize: '13px' }}>🏢 {c.name}</div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>
-                        {c.contactNumber && `📞 ${c.contactNumber}`} {c.gstNumber && ` | 📑 GSTIN: ${c.gstNumber}`} {c.address && ` | 📍 ${c.address}`}
+            {/* List of Registered Clients with Search & Scroll */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ fontWeight: '800', fontSize: '13px' }}>
+                Registered Clients ({clients.length}):
+              </div>
+              {clients.length > 3 && (
+                <input
+                  type="text"
+                  placeholder="🔍 Search clients..."
+                  value={clientSearchQuery}
+                  onChange={(e) => setClientSearchQuery(e.target.value)}
+                  style={{ fontSize: '12px', padding: '5px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', width: '180px' }}
+                />
+              )}
+            </div>
+
+            {(() => {
+              const filteredClients = clients.filter(c => {
+                if (!clientSearchQuery.trim()) return true
+                const q = clientSearchQuery.toLowerCase()
+                return (
+                  (c.name || '').toLowerCase().includes(q) ||
+                  (c.contactNumber || '').toLowerCase().includes(q) ||
+                  (c.gstNumber || '').toLowerCase().includes(q) ||
+                  (c.address || '').toLowerCase().includes(q)
+                )
+              })
+
+              if (filteredClients.length === 0) {
+                return (
+                  <div style={{ textAlign: 'center', color: '#64748B', padding: '20px', fontSize: '13px' }}>
+                    {clientSearchQuery ? 'No matching clients found.' : 'No clients added yet.'}
+                  </div>
+                )
+              }
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {filteredClients.map(c => (
+                    <div key={c._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: theme === 'dark' ? '#0F172A' : '#FAFAFA', borderRadius: '8px', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                      <div>
+                        <div style={{ fontWeight: '800', fontSize: '13px' }}>🏢 {c.name}</div>
+                        <div style={{ fontSize: '11px', color: '#64748B' }}>
+                          {c.contactNumber && `📞 ${c.contactNumber}`} {c.gstNumber && ` | 📑 GSTIN: ${c.gstNumber}`} {c.address && ` | 📍 ${c.address}`}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingClientId(c._id)
+                            setClientFormData({
+                              name: c.name || '',
+                              contactNumber: c.contactNumber || '',
+                              address: c.address || '',
+                              gstNumber: c.gstNumber || '',
+                              email: c.email || '',
+                              notes: c.notes || ''
+                            })
+                          }}
+                          style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', background: '#EFF6FF', color: '#2563EB', border: '1px solid #93C5FD', cursor: 'pointer', fontWeight: '700' }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClient(c._id, c.name)}
+                          style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700' }}
+                        >
+                          🗑️ Delete
+                        </button>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingClientId(c._id)
-                          setClientFormData({
-                            name: c.name || '',
-                            contactNumber: c.contactNumber || '',
-                            address: c.address || '',
-                            gstNumber: c.gstNumber || '',
-                            email: c.email || '',
-                            notes: c.notes || ''
-                          })
-                        }}
-                        style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', background: '#EFF6FF', color: '#2563EB', border: '1px solid #93C5FD', cursor: 'pointer', fontWeight: '700' }}
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteClient(c._id, c.name)}
-                        style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700' }}
-                      >
-                        🗑️ Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )
+            })()}
           </div>
         </div>
       )}
