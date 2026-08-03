@@ -2147,7 +2147,7 @@ function App() {
 
       cleanProducts.push({
         productName,
-        school: school || 'General',
+        school: 'General',
         unitPrice: Math.max(0, Number(p.unitPrice || 0)),
         frontLogoCost: Math.max(0, Number(p.frontLogoCost || 0)),
         backLogoCost: Math.max(0, Number(p.backLogoCost || 0)),
@@ -7566,7 +7566,7 @@ function App() {
                               clientName: clients.length > 0 ? clients[0].name : '',
                               targetDate: '',
                               notes: '',
-                              products: [{ productName: '', school: '', frontLogoCost: '', backLogoCost: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
+                              products: [{ productName: '', frontLogoCost: '', backLogoCost: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
                             })
                             setShowBulkOrderModal(true)
                           }}
@@ -7831,7 +7831,6 @@ function App() {
                                           const boNumOnly = String(order.boNumber || '').replace(/\D/g, '')
                                           const formattedProducts = getNormalizedProducts(order).map(p => ({
                                             productName: p.productName,
-                                            school: p.school,
                                             frontLogoCost: p.frontLogoCost !== undefined ? String(p.frontLogoCost || '') : '',
                                             backLogoCost: p.backLogoCost !== undefined ? String(p.backLogoCost || '') : '',
                                             sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({
@@ -7846,7 +7845,7 @@ function App() {
                                             clientName: order.clientName,
                                             targetDate: order.targetDate || '',
                                             notes: order.notes || '',
-                                            products: formattedProducts.length > 0 ? formattedProducts : [{ productName: '', school: '', frontLogoCost: '', backLogoCost: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
+                                            products: formattedProducts.length > 0 ? formattedProducts : [{ productName: '', frontLogoCost: '', backLogoCost: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
                                           })
                                           setShowBulkOrderModal(true)
                                         }}
@@ -7924,7 +7923,6 @@ function App() {
                                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                                             <div style={{ fontWeight: '800', fontSize: '14px', color: theme === 'dark' ? '#38BDF8' : '#0284C7', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                               <span>📦 {prod.productName}</span>
-                                              <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748B' }}>({prod.school || 'General'})</span>
                                               {(Number(prod.frontLogoCost || 0) > 0 || Number(prod.backLogoCost || 0) > 0) && (
                                                 <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '12px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
                                                   🏷️ Logos: {prod.frontLogoCost > 0 ? `Front ₹${prod.frontLogoCost}` : ''}{prod.frontLogoCost > 0 && prod.backLogoCost > 0 ? ' | ' : ''}{prod.backLogoCost > 0 ? `Back ₹${prod.backLogoCost}` : ''}
@@ -10476,7 +10474,7 @@ function App() {
                         ...bulkOrderFormData,
                         products: [
                           ...(bulkOrderFormData.products || []),
-                          { productName: '', school: '', frontLogoCost: '', backLogoCost: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }
+                          { productName: '', frontLogoCost: '', backLogoCost: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }
                         ]
                       })
                     }}
@@ -10504,7 +10502,7 @@ function App() {
                       )}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ marginBottom: '10px' }}>
                       <div>
                         <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Product Category / Name *</label>
                         <input
@@ -10517,23 +10515,7 @@ function App() {
                           }}
                           placeholder="e.g. Blazer, Trackpant, Shirt"
                           required
-                          style={{ fontSize: '13px', padding: '8px' }}
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>School / Tag Name *</label>
-                        <input
-                          type="text"
-                          value={p.school}
-                          onChange={(e) => {
-                            const newProds = [...bulkOrderFormData.products]
-                            newProds[pIdx].school = e.target.value
-                            setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                          }}
-                          placeholder="e.g. St. Xavier or General"
-                          required
-                          style={{ fontSize: '13px', padding: '8px' }}
+                          style={{ fontSize: '13px', padding: '8px', width: '100%', boxSizing: 'border-box' }}
                         />
                       </div>
                     </div>
@@ -11028,7 +11010,7 @@ function App() {
               {getNormalizedProducts(selectedBOForPDF).map((p, idx) => (
                 <div key={idx} style={{ marginBottom: '16px' }}>
                   <div style={{ fontWeight: '800', fontSize: '13px', color: '#0284C7', marginBottom: '6px' }}>
-                    📦 {p.productName} ({p.school || 'General'})
+                    📦 {p.productName}
                   </div>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                     <thead>
