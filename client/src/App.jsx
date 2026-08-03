@@ -1910,26 +1910,30 @@ function App() {
     const prods = getNormalizedProducts(order)
     const items = []
     prods.forEach(p => {
-      sortSizesAscending(p.sizeBreakdown || []).forEach(sb => {
+      const legacyPrice = Number(p?.unitPrice || 0)
+      const sbList = Array.isArray(p?.sizeBreakdown) ? p.sizeBreakdown : []
+      sortSizesAscending(sbList).forEach(sb => {
         const instItem = (installment.items || []).find(i => (!i.productName || i.productName === p.productName) && i.size === sb.size)
         // Calculate received from all OTHER installments
         let otherReceived = 0
-          ; (order.installments || []).forEach(otherInst => {
-            if (String(otherInst._id) !== String(installment._id)) {
-              ; (otherInst.items || []).forEach(oi => {
-                if ((!oi.productName || oi.productName === p.productName) && oi.size === sb.size) {
-                  otherReceived += (oi.qty || 0)
-                }
-              })
-            }
-          })
-        const remainingQty = Math.max(0, (sb.orderedQty || 0) - otherReceived)
+        ;(order.installments || []).forEach(otherInst => {
+          if (String(otherInst._id) !== String(installment._id)) {
+            ;(otherInst.items || []).forEach(oi => {
+              if ((!oi.productName || oi.productName === p.productName) && oi.size === sb.size) {
+                otherReceived += (oi.qty || 0)
+              }
+            })
+          }
+        })
+        const sbPrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+
         items.push({
           productName: p.productName,
           school: p.school,
           size: sb.size,
-          orderedQty: sb.orderedQty,
-          remainingQty,
+          orderedQty: sb.orderedQty || 0,
+          unitPrice: sbPrice,
+          otherReceived,
           qty: instItem ? String(instItem.qty || 0) : '0'
         })
       })
@@ -2290,7 +2294,12 @@ function App() {
     const prods = getNormalizedProducts(order)
     const items = []
     prods.forEach(p => {
-      sortSizesAscending(p.sizeBreakdown || []).forEach(sb => {
+      const frontLogo = Number(p?.frontLogoCost || 0)
+      const backLogo = Number(p?.backLogoCost || 0)
+      const logoPerPc = (isNaN(frontLogo) ? 0 : Math.max(0, frontLogo)) + (isNaN(backLogo) ? 0 : Math.max(0, backLogo))
+      const legacyPrice = Number(p?.unitPrice || 0)
+      const sbList = Array.isArray(p?.sizeBreakdown) ? p.sizeBreakdown : []
+      sortSizesAscending(sbList).forEach(sb => {
         const instItem = (dispatch.items || []).find(i => (!i.productName || i.productName === p.productName) && i.size === sb.size)
         let otherDelivered = 0
         ;(order.dispatches || []).forEach(otherInst => {
@@ -2302,13 +2311,16 @@ function App() {
             })
           }
         })
-        const remainingQty = Math.max(0, (sb.orderedQty || 0) - otherDelivered)
+        const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+        const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
+
         items.push({
           productName: p.productName,
           school: p.school,
           size: sb.size,
-          orderedQty: sb.orderedQty,
-          remainingQty,
+          orderedQty: sb.orderedQty || 0,
+          unitPrice: effectiveUnitPrice,
+          otherDelivered,
           qty: instItem ? String(instItem.qty || 0) : '0'
         })
       })
@@ -10392,34 +10404,47 @@ function App() {
                 <table className="mini-table" style={{ width: '100%', fontSize: '12px' }}>
                   <thead>
                     <tr>
-                      <th>Product &amp; Size</th>
-                      <th>Ordered</th>
-                      <th>Pending Limit</th>
-                      <th>Qty Received in Batch</th>
+                      <th style={{ padding: '8px' }}>Product &amp; Size</th>
+                      <th style={{ padding: '8px' }}>Cost / Unit</th>
+                      <th style={{ padding: '8px' }}>Ordered</th>
+                      <th style={{ padding: '8px' }}>Other Batches</th>
+                      <th style={{ padding: '8px' }}>Qty in This Batch</th>
+                      <th style={{ padding: '8px' }}>Batch Value</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(editingInstallment.items || []).map((item, idx) => (
-                      <tr key={idx}>
-                        <td><strong>{item.productName} - Size {item.size}</strong></td>
-                        <td>{item.orderedQty} pcs</td>
-                        <td style={{ color: '#D97706', fontWeight: '700' }}>{item.remainingQty} pcs max</td>
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            value={item.qty}
-                            onChange={(e) => {
-                              const updated = [...(editingInstallment.items || [])]
-                              updated[idx] = { ...updated[idx], qty: e.target.value }
-                              setEditingInstallment({ ...editingInstallment, items: updated })
-                            }}
-                            placeholder="0"
-                            style={{ width: '80px', padding: '4px 6px', fontSize: '12px', fontWeight: '800' }}
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    {(editingInstallment.items || []).map((item, idx) => {
+                      const uPrice = Number(item.unitPrice || 0)
+                      const bQty = Number(item.qty || 0)
+                      const bValue = uPrice > 0 ? bQty * uPrice : 0
+                      return (
+                        <tr key={idx}>
+                          <td style={{ padding: '8px' }}><strong>{item.productName} - Size {item.size}</strong></td>
+                          <td style={{ padding: '8px', color: '#059669', fontWeight: '600' }}>
+                            {uPrice > 0 ? `₹${uPrice.toLocaleString('en-IN')}` : '-'}
+                          </td>
+                          <td style={{ padding: '8px' }}>{item.orderedQty || 0} pcs</td>
+                          <td style={{ padding: '8px', color: '#64748B' }}>{item.otherReceived || 0} pcs</td>
+                          <td style={{ padding: '8px' }}>
+                            <input
+                              type="number"
+                              min="0"
+                              value={item.qty}
+                              onChange={(e) => {
+                                const updated = [...(editingInstallment.items || [])]
+                                updated[idx] = { ...updated[idx], qty: e.target.value }
+                                setEditingInstallment({ ...editingInstallment, items: updated })
+                              }}
+                              placeholder="0"
+                              style={{ width: '80px', padding: '4px 6px', fontSize: '12px', fontWeight: '800' }}
+                            />
+                          </td>
+                          <td style={{ padding: '8px', color: '#059669', fontWeight: '700' }}>
+                            {bValue > 0 ? `₹${bValue.toLocaleString('en-IN')}` : '-'}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -11513,31 +11538,46 @@ function App() {
                 <table className="mini-table" style={{ width: '100%', fontSize: '12px' }}>
                   <thead>
                     <tr>
-                      <th>Product &amp; Size</th>
-                      <th>Ordered</th>
-                      <th>Dispatched Qty</th>
+                      <th style={{ padding: '8px' }}>Product &amp; Size</th>
+                      <th style={{ padding: '8px' }}>Cost / Unit</th>
+                      <th style={{ padding: '8px' }}>Ordered</th>
+                      <th style={{ padding: '8px' }}>Other Batches</th>
+                      <th style={{ padding: '8px' }}>Qty in This Batch</th>
+                      <th style={{ padding: '8px' }}>Batch Value</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(editingDispatch.items || []).map((item, idx) => (
-                      <tr key={idx}>
-                        <td><strong>{item.productName} - Size {item.size}</strong></td>
-                        <td>{item.orderedQty} pcs</td>
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            value={item.qty}
-                            onChange={(e) => {
-                              const newItems = [...editingDispatch.items]
-                              newItems[idx].qty = e.target.value
-                              setEditingDispatch({ ...editingDispatch, items: newItems })
-                            }}
-                            style={{ width: '80px', padding: '4px 6px', fontSize: '12px', fontWeight: '800' }}
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    {(editingDispatch.items || []).map((item, idx) => {
+                      const uPrice = Number(item.unitPrice || 0)
+                      const bQty = Number(item.qty || 0)
+                      const bValue = uPrice > 0 ? bQty * uPrice : 0
+                      return (
+                        <tr key={idx}>
+                          <td style={{ padding: '8px' }}><strong>{item.productName} - Size {item.size}</strong></td>
+                          <td style={{ padding: '8px', color: '#059669', fontWeight: '600' }}>
+                            {uPrice > 0 ? `₹${uPrice.toLocaleString('en-IN')}` : '-'}
+                          </td>
+                          <td style={{ padding: '8px' }}>{item.orderedQty || 0} pcs</td>
+                          <td style={{ padding: '8px', color: '#64748B' }}>{item.otherDelivered || 0} pcs</td>
+                          <td style={{ padding: '8px' }}>
+                            <input
+                              type="number"
+                              min="0"
+                              value={item.qty}
+                              onChange={(e) => {
+                                const newItems = [...editingDispatch.items]
+                                newItems[idx].qty = e.target.value
+                                setEditingDispatch({ ...editingDispatch, items: newItems })
+                              }}
+                              style={{ width: '80px', padding: '4px 6px', fontSize: '12px', fontWeight: '800' }}
+                            />
+                          </td>
+                          <td style={{ padding: '8px', color: '#059669', fontWeight: '700' }}>
+                            {bValue > 0 ? `₹${bValue.toLocaleString('en-IN')}` : '-'}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
