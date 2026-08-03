@@ -7755,81 +7755,55 @@ function App() {
                               })
 
                               const totalPct = totalOrdered > 0 ? Math.round((totalDelivered / totalOrdered) * 100) : 0
+                              const boHasAnyPrices = orderTotalCost > 0
 
                               return (
                                 <div
                                   key={order._id}
-                                  className="card card-panel"
                                   style={{
-                                    borderLeft: order.status === 'Completed'
-                                      ? '4px solid #10B981'
-                                      : (order.status === 'Partial' ? '4px solid #3B82F6' : '4px solid #F59E0B'),
-                                    padding: '20px'
+                                    border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0',
+                                    borderRadius: '12px',
+                                    padding: '16px',
+                                    background: theme === 'dark' ? '#1E293B' : '#F8FAFC'
                                   }}
                                 >
-                                  {/* Card Top Row */}
-                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                                      <div style={{ fontSize: '18px', fontWeight: '900', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span>{order.boNumber}</span>
-                                        <button
-                                          type="button"
-                                          title="Copy BO Number"
-                                          onClick={() => {
-                                            navigator.clipboard.writeText(order.boNumber)
-                                            setMessage(`Copied ${order.boNumber} to clipboard!`)
-                                          }}
-                                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#64748B' }}
-                                        >
-                                          📋
-                                        </button>
+                                  {/* Card Top Header */}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.boNumber}</span>
+                                        <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Client: {order.clientName}</span>
                                       </div>
-
-                                      <span style={{ fontSize: '12px', fontWeight: '800', background: '#ECFDF5', color: '#059669', padding: '4px 12px', borderRadius: '20px', border: '1px solid #A7F3D0' }}>
-                                        🏢 {order.clientName}
-                                      </span>
-
-                                      {/* Status Badge */}
-                                      <span
-                                        style={{
-                                          fontSize: '11px',
-                                          fontWeight: '800',
-                                          padding: '4px 10px',
-                                          borderRadius: '12px',
-                                          textTransform: 'uppercase',
-                                          letterSpacing: '0.5px',
-                                          background: order.status === 'Completed' ? '#D1FAE5' : (order.status === 'Partial' ? '#EFF6FF' : '#FEF3C7'),
-                                          color: order.status === 'Completed' ? '#059669' : (order.status === 'Partial' ? '#2563EB' : '#D97706'),
-                                          border: order.status === 'Completed' ? '1px solid #6EE7B7' : (order.status === 'Partial' ? '1px solid #93C5FD' : '1px solid #FCD34D')
-                                        }}
-                                      >
-                                        {order.status}
-                                      </span>
-
-                                      {/* Target Delivery Date */}
-                                      {order.targetDate && (
-                                        <span style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                          🎯 Target: <strong>{order.targetDate}</strong>
+                                      <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <span>Products: <strong>{prods.length}</strong></span>
+                                        {order.targetDate && <span>Target Delivery: <strong>{order.targetDate}</strong></span>}
+                                        <span>Created: <strong>{new Date(order.createdAt).toLocaleDateString()}</strong></span>
+                                        <span style={{ fontWeight: '700', color: boHasAnyPrices ? (theme === 'dark' ? '#34D399' : '#059669') : '#64748B' }}>
+                                          Total Order Value: <strong>{boHasAnyPrices ? `₹${orderTotalCost.toLocaleString('en-IN')}` : '-'}</strong>
                                         </span>
-                                      )}
+                                      </div>
                                     </div>
 
-                                    {/* Action Buttons */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                      {order.status !== 'Completed' && (
+                                      <span className={`status-badge ${order.status === 'Completed' ? 'ready' : order.status === 'Partial' ? 'partial' : order.status === 'Cancelled' ? 'delivered' : 'pending'}`}>
+                                        {order.status === 'Completed' ? 'Completed (100%)' : order.status === 'Partial' ? `Partial (${totalPct}%)` : order.status}
+                                      </span>
+
+                                      {order.status !== 'Completed' && order.status !== 'Cancelled' && (
                                         <button
                                           type="button"
                                           className="primary-btn"
                                           onClick={() => handleOpenDispatchModal(order)}
-                                          style={{ fontSize: '12px', padding: '6px 12px', background: '#059669', borderColor: '#059669' }}
+                                          style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
                                         >
-                                          🚚 Dispatch Stock
+                                          {getSafeEmoji('🚚')} Record Dispatch
                                         </button>
                                       )}
 
                                       <button
                                         type="button"
-                                        className="secondary-btn"
+                                        className="icon-btn"
+                                        title="Edit Bulk Order details"
                                         onClick={() => {
                                           setSelectedBulkOrder(order)
                                           const boNumOnly = String(order.boNumber || '').replace(/\D/g, '')
@@ -7853,44 +7827,88 @@ function App() {
                                           })
                                           setShowBulkOrderModal(true)
                                         }}
-                                        style={{ fontSize: '12px', padding: '6px 12px' }}
                                       >
-                                        ✏️ Edit
+                                        {getSafeEmoji('✏️')}
                                       </button>
 
                                       <button
                                         type="button"
-                                        className="secondary-btn"
-                                        onClick={() => {
-                                          setSelectedBOForPDF(order)
-                                          setBoPdfFileName(`${order.boNumber}_${(order.clientName || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}_DeliveryOrder`)
-                                          setShowBOPDFModal(true)
-                                        }}
-                                        style={{ fontSize: '12px', padding: '6px 12px' }}
-                                      >
-                                        📄 Print Delivery Order
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        className="secondary-btn"
+                                        className="icon-btn danger"
+                                        title="Delete Bulk Order"
                                         onClick={() => handleDeleteBulkOrder(order._id, order.boNumber)}
-                                        style={{ fontSize: '12px', padding: '6px 12px', color: '#EF4444' }}
                                       >
-                                        🗑️ Delete
+                                        {getSafeEmoji('🗑️')}
                                       </button>
                                     </div>
                                   </div>
 
-                                  {/* Fulfillment Progress Bar */}
-                                  <div style={{ background: theme === 'dark' ? '#1E293B' : '#F1F5F9', padding: '12px 16px', borderRadius: '10px', marginBottom: '16px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', fontWeight: '700' }}>
-                                      <span>Dispatch Progress: Dispatched {totalDelivered} / {totalOrdered} Pcs ({totalPct}%)</span>
-                                      <span style={{ color: pendingBalance > 0 ? '#D97706' : '#059669' }}>
-                                        {pendingBalance > 0 ? `⏳ Pending Delivery: ${pendingBalance} Pcs` : '✅ 100% Fully Dispatched'}
+                                  {/* Action Toolbar */}
+                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '10px 0' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedBOForPDF(order)
+                                        setBoPdfFileName(`${order.boNumber}_${(order.clientName || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}_DeliveryOrder`)
+                                        setShowBOPDFModal(true)
+                                      }}
+                                      style={{
+                                        background: theme === 'dark' ? '#1E293B' : '#F1F5F9',
+                                        color: theme === 'dark' ? '#E2E8F0' : '#334155',
+                                        border: theme === 'dark' ? '1px solid #334155' : '1px solid #CBD5E1',
+                                        borderRadius: '16px',
+                                        padding: '5px 13px',
+                                        fontSize: '11.5px',
+                                        fontWeight: '600',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                      }}
+                                      title="Print Delivery Order PDF"
+                                    >
+                                      <span style={{ fontSize: '13px' }}>{getSafeEmoji('📄')}</span>
+                                      Print Delivery Order PDF
+                                    </button>
+                                  </div>
+
+                                  {/* Prominent Order Notes Callout Banner */}
+                                  {order.notes && (
+                                    <div
+                                      style={{
+                                        margin: '10px 0 14px 0',
+                                        padding: '12px 16px',
+                                        borderRadius: '10px',
+                                        background: theme === 'dark' ? '#1E293B' : '#FEF3C7',
+                                        border: theme === 'dark' ? '1px solid #D97706' : '1px solid #FCD34D',
+                                        color: theme === 'dark' ? '#FDE68A' : '#92400E',
+                                        fontSize: '13px',
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: '10px',
+                                        fontWeight: '600',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                        wordBreak: 'break-word',
+                                        whiteSpace: 'pre-wrap',
+                                        lineHeight: '1.5'
+                                      }}
+                                    >
+                                      <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '2px' }}>{getSafeEmoji('📝')}</span>
+                                      <div style={{ flex: 1 }}>
+                                        <strong style={{ color: theme === 'dark' ? '#FBBF24' : '#B45309' }}>Order Special Instructions / Note:</strong> {order.notes}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Overall Progress Bar */}
+                                  <div style={{ margin: '12px 0 16px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                                      <span>Dispatch Progress: {totalDelivered} / {totalOrdered} pcs ({totalPct}%)</span>
+                                      <span style={{ color: pendingBalance > 0 ? '#EAB308' : '#10B981' }}>
+                                        {pendingBalance > 0 ? `Pending: ${pendingBalance} pcs` : 'All Stock Dispatched'}
                                       </span>
                                     </div>
-                                    <div style={{ height: '8px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ height: '8px', width: '100%', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
                                       <div
                                         style={{
                                           height: '100%',
