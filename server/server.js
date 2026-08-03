@@ -340,7 +340,6 @@ const vendorOrderSchema = new mongoose.Schema(
   {
     poNumber: { type: String, required: true, unique: true, trim: true },
     partyName: { type: String, required: true, trim: true },
-    orderCategory: { type: String, enum: ['supplier', 'client'], default: 'supplier', trim: true },
     itemType: { type: String, default: "", trim: true },
     school: { type: String, default: "", trim: true },
     products: [
@@ -1556,52 +1555,45 @@ setTimeout(autoCleanupExpiredVendorOrders, 5000);
 // Party (Supplier) Endpoints
 app.get("/api/parties", authenticateJWT, async (req, res) => {
   try {
-    const { type } = req.query;
-    const query = {};
-    if (type && ['supplier', 'client'].includes(type)) {
-      query.type = type;
-    }
-    const parties = await Party.find(query).sort({ name: 1 });
+    const parties = await Party.find().sort({ name: 1 });
     res.json(parties);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch parties", error: error.message });
+    res.status(500).json({ message: "Failed to fetch suppliers", error: error.message });
   }
 });
 
 app.post("/api/parties", authenticateJWT, async (req, res) => {
   try {
-    const { name, contactNumber, notes, type } = req.body;
+    const { name, contactNumber, notes } = req.body;
     if (!name || !name.trim()) {
-      return res.status(400).json({ message: "Party name is required." });
+      return res.status(400).json({ message: "Supplier name is required." });
     }
 
     const cleanName = name.trim();
     const existing = await Party.findOne({ name: cleanName });
     if (existing) {
-      return res.status(400).json({ message: "A party with this name already exists." });
+      return res.status(400).json({ message: "A supplier with this name already exists." });
     }
 
-    const partyType = ['supplier', 'client'].includes(type) ? type : 'supplier';
     const party = await Party.create({
       name: cleanName,
       contactNumber: (contactNumber || "").trim(),
-      type: partyType,
       notes: (notes || "").trim()
     });
 
-    await logAudit(null, "System", `${partyType === 'client' ? 'Client' : 'Supplier'} Created`, `${partyType === 'client' ? 'Client' : 'Supplier'} '${cleanName}' added`);
+    await logAudit(null, "System", "Supplier Created", `Supplier '${cleanName}' added`);
     res.status(201).json(party);
   } catch (error) {
-    res.status(500).json({ message: "Failed to create party", error: error.message });
+    res.status(500).json({ message: "Failed to create supplier", error: error.message });
   }
 });
 
 app.patch("/api/parties/:id", authenticateJWT, async (req, res) => {
   try {
-    const { name, contactNumber, notes, type } = req.body;
+    const { name, contactNumber, notes } = req.body;
     const party = await Party.findById(req.params.id);
     if (!party) {
-      return res.status(404).json({ message: "Party not found" });
+      return res.status(404).json({ message: "Supplier not found" });
     }
 
     const oldName = party.name;
@@ -1609,7 +1601,7 @@ app.patch("/api/parties/:id", authenticateJWT, async (req, res) => {
       const newName = name.trim();
       const existing = await Party.findOne({ name: newName });
       if (existing) {
-        return res.status(400).json({ message: "A party with this new name already exists." });
+        return res.status(400).json({ message: "A supplier with this new name already exists." });
       }
       party.name = newName;
       await VendorOrder.updateMany({ partyName: oldName }, { partyName: newName });
@@ -1617,13 +1609,12 @@ app.patch("/api/parties/:id", authenticateJWT, async (req, res) => {
 
     if (contactNumber !== undefined) party.contactNumber = contactNumber.trim();
     if (notes !== undefined) party.notes = notes.trim();
-    if (type && ['supplier', 'client'].includes(type)) party.type = type;
 
     await party.save();
-    await logAudit(null, "System", `${party.type === 'client' ? 'Client' : 'Supplier'} Updated`, `${party.type === 'client' ? 'Client' : 'Supplier'} '${party.name}' updated`);
+    await logAudit(null, "System", "Supplier Updated", `Supplier '${party.name}' updated`);
     res.json(party);
   } catch (error) {
-    res.status(500).json({ message: "Failed to update party", error: error.message });
+    res.status(500).json({ message: "Failed to update supplier", error: error.message });
   }
 });
 
@@ -1643,12 +1634,8 @@ app.delete("/api/parties/:id", authenticateJWT, async (req, res) => {
 // Vendor Restock Order Endpoints
 app.get("/api/vendor-orders", authenticateJWT, async (req, res) => {
   try {
-    const { search, party, status, category } = req.query;
+    const { search, party, status } = req.query;
     const query = {};
-
-    if (category && category !== "All") {
-      query.orderCategory = category;
-    }
 
     if (party && party !== "All") {
       query.partyName = party;
@@ -1703,9 +1690,9 @@ app.post("/api/vendor-orders/renumber-pos", authenticateJWT, async (req, res) =>
 
 app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
   try {
-    const { partyName, products, targetDate, notes, orderCategory } = req.body;
+    const { partyName, products, targetDate, notes } = req.body;
     if (!partyName || !partyName.trim()) {
-      return res.status(400).json({ message: "Client name is required." });
+      return res.status(400).json({ message: "Supplier name is required." });
     }
 
     if (!Array.isArray(products) || products.length === 0) {
@@ -1765,7 +1752,6 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
     const newOrder = new VendorOrder({
       poNumber,
       partyName: partyName.trim(),
-      orderCategory: orderCategory === 'client' ? 'client' : 'supplier',
       products: cleanProducts,
       targetDate: (targetDate || "").trim(),
       status: "Pending",
@@ -1794,7 +1780,6 @@ app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
     if (partyName) order.partyName = partyName.trim();
     if (targetDate !== undefined) order.targetDate = targetDate.trim();
     if (notes !== undefined) order.notes = notes.trim();
-    if (orderCategory && ['supplier', 'client'].includes(orderCategory)) order.orderCategory = orderCategory;
 
     if (Array.isArray(products) && products.length > 0) {
       const cleanProducts = [];

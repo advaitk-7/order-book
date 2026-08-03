@@ -234,29 +234,6 @@ const getNextPoNumber = (vendorOrders) => {
   return Math.max(...nums) + 1
 }
 
-const getOrderCategoryLabel = (category) => category === 'client' ? 'Client' : 'Supplier'
-const getOrderCategoryPlural = (category) => category === 'client' ? 'Clients' : 'Suppliers'
-const getOrderCategoryPageTitle = (category) => category === 'client' ? 'Corporate & Bulk Client Orders' : 'Supplier Restock & Orders'
-const getOrderCategorySectionLabel = (category) => category === 'client' ? 'Corporate & Bulk Orders' : 'Supplier Restock Orders'
-const getOrderCategorySubtitle = (category) => category === 'client'
-  ? 'Track bulk client orders, client details, and size-wise delivery statuses.'
-  : 'Track bulk manufacturing orders, supplier details, and size-wise partial stock installments.'
-const getOrderCategoryButtonLabel = (category) => category === 'client' ? 'Create Bulk Order' : 'New Restock PO'
-const getOrderCategoryReceiveLabel = (category) => category === 'client' ? 'Dispatch / Deliver Stock' : 'Receive Stock'
-const getOrderCategoryDeliveredLabel = (category) => category === 'client' ? 'Dispatched / Delivered Stock Pcs' : 'Received Stock Pcs'
-const getOrderCategoryPendingDesc = (category, partyName) => category === 'client'
-  ? (partyName === 'All' ? 'Awaiting delivery for clients' : `Pending delivery for ${partyName}`)
-  : (partyName === 'All' ? 'Awaiting arrival from suppliers' : `Pending arrival from ${partyName}`)
-const getOrderCategoryTotalDesc = (category, partyName) => category === 'client'
-  ? (partyName === 'All' ? 'Total ordered for client contracts' : `Total ordered for ${partyName}`)
-  : (partyName === 'All' ? 'Across all supplier orders' : `Total ordered from ${partyName}`)
-const getOrderCategoryExportFilePrefix = (category) => category === 'client' ? 'Client_Bulk_Orders' : 'Supplier_Restock_Orders'
-const getOrderCategoryExportOrderTitle = (category) => category === 'client' ? 'CLIENT BULK ORDER' : 'RESTOCK PURCHASE ORDER'
-const getPartyManagerHeader = (type) => type === 'client' ? 'Manage Client Directory' : 'Manage Supplier Directory'
-const getPartyManagerSubtitle = (type) => type === 'client' ? 'Add client profiles to issue bulk orders.' : 'Add supplier profiles to issue bulk restock orders.'
-const getPartyManagerFormTitle = (type, isEditing) => isEditing ? `Edit ${getOrderCategoryLabel(type)} Details:` : `Add New ${getOrderCategoryLabel(type)}:`
-const getPartyManagerButtonText = (type, isEditing) => isEditing ? `Save ${getOrderCategoryLabel(type)} Changes` : `+ Add ${getOrderCategoryLabel(type)} to Directory`
-
 // Gold-Standard Universal Search Matcher (Safe against null/undefined, supports Array, Object, String)
 const checkFuzzyMatch = (searchQuery, target) => {
   if (!searchQuery || !String(searchQuery).trim()) return true
@@ -612,8 +589,6 @@ function App() {
 
   const [activePage, setActivePage] = useState('Dashboard')
   const [restockSubSection, setRestockSubSection] = useState(null)
-  const [currentOrderCategory, setCurrentOrderCategory] = useState('supplier')
-  const [partyManagerType, setPartyManagerType] = useState('supplier')
   const [exportingPDF, setExportingPDF] = useState(false)
   const [showPDFModal, setShowPDFModal] = useState(false)
   const [pdfOrientation, setPdfOrientation] = useState('landscape')
@@ -875,7 +850,7 @@ function App() {
         fetchWaitlist('', 'All', 'All', true),
         fetchWaitlistSchools(),
         fetchParties(),
-        fetchVendorOrders('', 'All', 'All', currentOrderCategory, true)
+        fetchVendorOrders('', 'All', 'All', true)
       ]).catch(() => { })
     } else {
       setOrders([])
@@ -1544,11 +1519,11 @@ function App() {
     window.open(link, '_blank')
   }
 
-  const fetchParties = async (type = 'supplier') => {
+  const fetchParties = async () => {
     if (!token) return
     setLoadingParties(true)
     try {
-      const response = await fetch(`${API_BASE}/api/parties?type=${encodeURIComponent(type)}`, {
+      const response = await fetch(`${API_BASE}/api/parties`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
@@ -1562,22 +1537,11 @@ function App() {
     }
   }
 
-  const openPartyManager = (type = 'supplier') => {
-    setPartyManagerType(type)
-    setShowPartyManagerModal(true)
-    fetchParties(type)
-  }
-
-  const fetchVendorOrders = async (search = vendorOrderSearch, party = vendorOrderPartyFilter, status = vendorOrderStatusFilter, category = currentOrderCategory, silent = false) => {
+  const fetchVendorOrders = async (search = vendorOrderSearch, party = vendorOrderPartyFilter, status = vendorOrderStatusFilter, silent = false) => {
     if (!token) return
     if (!silent && vendorOrders.length === 0) setLoadingVendorOrders(true)
     try {
-      const params = new URLSearchParams()
-      if (search && String(search).trim()) params.set('search', search.trim())
-      if (party && party !== 'All') params.set('party', party)
-      if (status && status !== 'All') params.set('status', status)
-      if (category && category !== 'All') params.set('category', category)
-      const response = await fetch(`${API_BASE}/api/vendor-orders?${params.toString()}`, {
+      const response = await fetch(`${API_BASE}/api/vendor-orders`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.status === 401 || response.status === 403) {
@@ -1609,9 +1573,8 @@ function App() {
 
   const handleSaveParty = async (e) => {
     e.preventDefault()
-    const partyTypeLabel = partyManagerType === 'client' ? 'Client' : 'Supplier'
     if (!partyFormData.name || !partyFormData.name.trim()) {
-      setMessage(`${partyTypeLabel} name is required.`)
+      setMessage('Supplier name is required.')
       return
     }
 
@@ -1629,39 +1592,37 @@ function App() {
         body: JSON.stringify({
           name: partyFormData.name,
           contactNumber: partyFormData.contactNumber,
-          notes: partyFormData.notes,
-          type: partyManagerType
+          notes: partyFormData.notes
         })
       })
       const data = await response.json()
       if (response.ok) {
-        setMessage(isEditing ? `${getOrderCategoryLabel(partyManagerType)} '${data.name}' updated.` : `${getOrderCategoryLabel(partyManagerType)} '${data.name}' added successfully.`)
+        setMessage(isEditing ? `Supplier '${data.name}' updated.` : `Supplier '${data.name}' added successfully.`)
         setPartyFormData({ name: '', contactNumber: '', notes: '' })
         setEditingSupplierId(null)
-        fetchParties(partyManagerType)
+        fetchParties()
       } else {
-        setMessage(data.message || `Failed to save ${getOrderCategoryLabel(partyManagerType).toLowerCase()}.`)
+        setMessage(data.message || 'Failed to save supplier.')
       }
     } catch (err) {
-setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLowerCase()}.`)
+      setMessage('Network error saving supplier.')
     }
   }
 
   const handleDeleteParty = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete ${getOrderCategoryLabel(partyManagerType).toLowerCase()} "${name}"?`)) return
+    if (!window.confirm(`Are you sure you want to delete supplier "${name}"?`)) return
     try {
       const response = await fetch(`${API_BASE}/api/parties/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
-        const partyTypeLabel = partyManagerType === 'client' ? 'Client' : 'Supplier'
-        setMessage(`${partyTypeLabel} '${name}' deleted.`)
+        setMessage(`Supplier '${name}' deleted.`)
         if (editingSupplierId === id) setEditingSupplierId(null)
-        fetchParties(partyManagerType)
+        fetchParties()
       }
     } catch (err) {
-      console.error(`Failed to delete ${getOrderCategoryLabel(partyManagerType).toLowerCase()}`, err)
+      console.error('Failed to delete supplier', err)
     }
   }
 
@@ -1683,7 +1644,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
   const handleSaveVendorOrder = async (e) => {
     e.preventDefault()
     if (!vendorOrderFormData.partyName || !vendorOrderFormData.partyName.trim()) {
-      setMessage(`${getOrderCategoryLabel(currentOrderCategory)} Name is required.`)
+      setMessage('Supplier Name is required.')
       return
     }
 
@@ -1739,37 +1700,36 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
           partyName: vendorOrderFormData.partyName,
           products: cleanProducts,
           targetDate: vendorOrderFormData.targetDate,
-          notes: vendorOrderFormData.notes,
-          orderCategory: selectedVendorOrder ? (selectedVendorOrder.orderCategory || currentOrderCategory) : currentOrderCategory
+          notes: vendorOrderFormData.notes
         })
       })
       const data = await response.json()
       if (response.ok) {
-        setMessage(isEditing ? `Order ${data.poNumber} updated.` : `Order ${data.poNumber} placed with ${getOrderCategoryLabel(currentOrderCategory).toLowerCase()} '${data.partyName}'.`)
+        setMessage(isEditing ? `Order ${data.poNumber} updated.` : `Order ${data.poNumber} placed with supplier '${data.partyName}'.`)
         setShowVendorOrderModal(false)
         setSelectedVendorOrder(null)
-        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, currentOrderCategory, true)
+        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
       } else {
-        setMessage(data.message || `Failed to save ${getOrderCategoryLabel(currentOrderCategory).toLowerCase()} order.`)
+        setMessage(data.message || 'Failed to save supplier order.')
       }
     } catch (err) {
-      setMessage(`Network error saving ${getOrderCategoryLabel(currentOrderCategory).toLowerCase()} order.`)
+      setMessage('Network error saving supplier order.')
     }
   }
 
   const handleDeleteVendorOrder = async (id, poNumber) => {
-    if (!window.confirm(`Delete ${getOrderCategoryLabel(currentOrderCategory)} Order ${poNumber}? This cannot be undone.`)) return
+    if (!window.confirm(`Delete Supplier Order ${poNumber}? This cannot be undone.`)) return
     try {
       const response = await fetch(`${API_BASE}/api/vendor-orders/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
-        setMessage(`${getOrderCategoryLabel(currentOrderCategory)} Order ${poNumber} deleted.`)
+        setMessage(`Supplier Order ${poNumber} deleted.`)
         fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
       }
     } catch (err) {
-      console.error(`Failed to delete ${getOrderCategoryLabel(currentOrderCategory).toLowerCase()} order`, err)
+      console.error('Failed to delete supplier order', err)
     }
   }
 
@@ -1831,7 +1791,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
         setMessage(`Stock installment logged for Order ${data.poNumber}.`)
         setShowInstallmentModal(false)
         setSelectedOrderForInstallment(null)
-        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, currentOrderCategory, true)
+        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
       } else {
         setMessage(data.message || 'Failed to log installment.')
       }
@@ -1906,7 +1866,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
         setMessage(`Stock installment updated for Order ${data.poNumber}.`)
         setShowEditInstallmentModal(false)
         setEditingInstallment(null)
-        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, currentOrderCategory, true)
+        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
       } else {
         setMessage(data.message || 'Failed to update installment.')
       }
@@ -1924,7 +1884,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
       })
       if (response.ok) {
         setMessage(`Stock installment batch deleted for Order ${order.poNumber}.`)
-        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, currentOrderCategory, true)
+        fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, true)
       }
     } catch (err) {
       console.error('Failed to delete installment', err)
@@ -1933,11 +1893,11 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
 
   const exportVendorOrdersCSV = () => {
     if (vendorOrders.length === 0) {
-      alert(`No ${getOrderCategorySectionLabel(currentOrderCategory).toLowerCase()} available to export.`)
+      alert('No supplier restock orders available to export.')
       return
     }
 
-    const headers = ['PO Number', `${getOrderCategoryLabel(currentOrderCategory)} Name`, 'Products & Schools Summary', 'Target Date', 'Status', 'Total Ordered', 'Total Received', 'Pending Balance', 'Notes']
+    const headers = ['PO Number', 'Supplier Name', 'Products & Schools Summary', 'Target Date', 'Status', 'Total Ordered', 'Total Received', 'Pending Balance', 'Notes']
     const rows = vendorOrders.map(vo => {
       const prods = getNormalizedProducts(vo)
       const prodsSummary = prods.map(p => `${p.productName} (${p.school})`).join(' | ')
@@ -1973,7 +1933,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
     const today = new Date().toISOString().split('T')[0]
-    link.setAttribute('download', `${getOrderCategoryExportFilePrefix(currentOrderCategory)}_${today}.csv`)
+    link.setAttribute('download', `Supplier_Restock_Orders_${today}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -1982,13 +1942,12 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
   const exportVendorOrderCSV = (order) => {
     if (!order) return
     const prods = getNormalizedProducts(order)
-    const exportCategory = order.orderCategory || currentOrderCategory
-    const partyClean = (order.partyName || getOrderCategoryLabel(exportCategory)).replace(/[^a-zA-Z0-9_-]/g, '_')
+    const partyClean = (order.partyName || 'Supplier').replace(/[^a-zA-Z0-9_-]/g, '_')
     const fileName = `${order.poNumber || 'PO'}_${partyClean}.csv`
 
     const rows = []
-    rows.push([`${getOrderCategoryExportOrderTitle(exportCategory)} — ${order.poNumber}`])
-    rows.push([`${getOrderCategoryLabel(exportCategory)} Name:`, order.partyName, `Target Date:`, order.targetDate || '-'])
+    rows.push([`RESTOCK PURCHASE ORDER — ${order.poNumber}`])
+    rows.push([`Supplier Name:`, order.partyName, `Target Date:`, order.targetDate || '-'])
     rows.push([])
 
     rows.push(['Product Breakdown'])
@@ -2126,9 +2085,8 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
   const handleOpenPOPDFModal = (order) => {
     if (!order) return
     setSelectedPOForPDF(order)
-    const exportCategory = order.orderCategory || currentOrderCategory
-    const partyClean = (order.partyName || getOrderCategoryLabel(exportCategory)).replace(/[^a-zA-Z0-9_-]/g, '_')
-    setPoPdfFileName(`${getOrderCategoryExportFilePrefix(exportCategory)}_${order.poNumber || '0001'}_${partyClean}`)
+    const partyClean = (order.partyName || 'Supplier').replace(/[^a-zA-Z0-9_-]/g, '_')
+    setPoPdfFileName(`PO_${order.poNumber || '0001'}_${partyClean}`)
     setShowPOPDFModal(true)
   }
 
@@ -2164,18 +2122,17 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
       })
 
       const order = selectedPOForPDF
-      const exportCategory = order.orderCategory || currentOrderCategory
       const prods = getNormalizedProducts(order)
 
       doc.setFontSize(16)
       doc.setTextColor(37, 99, 235)
       doc.setFont('helvetica', 'bold')
-      doc.text(`LIBERTY UNIFORM — ${getOrderCategoryExportOrderTitle(exportCategory)}`, 14, 16)
+      doc.text(`LIBERTY UNIFORM — RESTOCK PURCHASE ORDER`, 14, 16)
 
       doc.setFontSize(10)
       doc.setTextColor(100, 116, 139)
       doc.setFont('helvetica', 'normal')
-      doc.text(`PO Number: ${order.poNumber}  |  ${getOrderCategoryLabel(exportCategory)}: ${order.partyName}`, 14, 23)
+      doc.text(`PO Number: ${order.poNumber}  |  Supplier: ${order.partyName}`, 14, 23)
       if (order.targetDate) {
         doc.text(`Target Delivery Date: ${order.targetDate}`, 14, 28)
       }
@@ -2378,10 +2335,10 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
 
   useEffect(() => {
     if ((activePage === 'Restock & Bulk Orders' || activePage === 'Supplier Restock') && token) {
-      fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, currentOrderCategory, vendorOrders.length > 0)
-      fetchParties(currentOrderCategory)
+      fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, vendorOrders.length > 0)
+      fetchParties()
     }
-  }, [vendorOrderPartyFilter, vendorOrderStatusFilter, activePage, currentOrderCategory, token])
+  }, [vendorOrderPartyFilter, vendorOrderStatusFilter, activePage, token])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -5969,14 +5926,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', maxWidth: '920px', margin: '0 auto' }}>
                     {/* Card 1: Supplier Restock Orders */}
                     <div
-                      onClick={() => {
-                        setCurrentOrderCategory('supplier')
-                        setRestockSubSection('supplier')
-                        setVendorOrderPartyFilter('All')
-                        setVendorOrderStatusFilter('All')
-                        setVendorOrderSchoolFilter('All')
-                        setVendorOrderSearch('')
-                      }}
+                      onClick={() => setRestockSubSection('supplier')}
                       className="card"
                       style={{
                         padding: '28px 24px',
@@ -6031,14 +5981,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
 
                     {/* Card 2: Corporate & Bulk Orders */}
                     <div
-                      onClick={() => {
-                        setCurrentOrderCategory('client')
-                        setRestockSubSection('corporate')
-                        setVendorOrderPartyFilter('All')
-                        setVendorOrderStatusFilter('All')
-                        setVendorOrderSchoolFilter('All')
-                        setVendorOrderSearch('')
-                      }}
+                      onClick={() => setRestockSubSection('corporate')}
                       className="card"
                       style={{
                         padding: '28px 24px',
@@ -6095,7 +6038,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
               )}
 
               {/* Sub-Section 1: Supplier Restock Orders */}
-              {(restockSubSection === 'supplier' || restockSubSection === 'corporate') && (
+              {restockSubSection === 'supplier' && (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                     <button
@@ -6108,8 +6051,8 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
-                      <span style={{ fontSize: '12px', fontWeight: '800', background: currentOrderCategory === 'client' ? '#ECFDF5' : '#EFF6FF', color: currentOrderCategory === 'client' ? '#059669' : '#2563EB', padding: '4px 12px', borderRadius: '6px' }}>
-                        {getSafeEmoji(currentOrderCategory === 'client' ? '🏢' : '🏬')} {getOrderCategorySectionLabel(currentOrderCategory)}
+                      <span style={{ fontSize: '12px', fontWeight: '800', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '6px' }}>
+                        {getSafeEmoji('🏬')} Supplier Restock Orders
                       </span>
                     </div>
                   </div>
@@ -6199,8 +6142,8 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                   <div className="card card-panel">
                     <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <h2 className="card-title">{getSafeEmoji(currentOrderCategory === 'client' ? '🏢' : '🏬')} {getOrderCategoryPageTitle(currentOrderCategory)}</h2>
-                        <p className="card-subtitle">{getOrderCategorySubtitle(currentOrderCategory)}</p>
+                        <h2 className="card-title">{getSafeEmoji('🏬')} Supplier Restock & Orders</h2>
+                        <p className="card-subtitle">Track bulk manufacturing orders, supplier details, and size-wise partial stock installments.</p>
                       </div>
 
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -6233,15 +6176,15 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                           }}
                           style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
                         >
-                          <span>{getSafeEmoji('➕')}</span> {getOrderCategoryButtonLabel(currentOrderCategory)}
+                          <span>{getSafeEmoji('➕')}</span> New Restock PO
                         </button>
                         <button
                           type="button"
                           className="secondary-btn"
-                          onClick={() => openPartyManager(currentOrderCategory)}
+                          onClick={() => setShowPartyManagerModal(true)}
                           style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
                         >
-                          {getSafeEmoji(currentOrderCategory === 'client' ? '🏢' : '🏭')} Manage {getOrderCategoryPlural(currentOrderCategory)} ({parties.length})
+                          {getSafeEmoji('🏭')} Manage Suppliers ({parties.length})
                         </button>
                       </div>
                     </div>
@@ -6250,14 +6193,14 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                     <div style={{ margin: '16px 24px 0 24px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <span style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569' }}>
-                          Select {getOrderCategoryLabel(currentOrderCategory)} Sub-section:
+                          Select Supplier Sub-section:
                         </span>
                         <button
                           type="button"
-                          onClick={() => openPartyManager(currentOrderCategory)}
+                          onClick={() => setShowPartyManagerModal(true)}
                           style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
                         >
-                          {getSafeEmoji('⚙️')} Manage {getOrderCategoryLabel(currentOrderCategory)} Profiles
+                          {getSafeEmoji('⚙️')} Manage Supplier Profiles
                         </button>
                       </div>
 
@@ -6277,10 +6220,10 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                           }}
                         >
                           <div style={{ fontWeight: '800', fontSize: '13px', color: vendorOrderPartyFilter === 'All' ? '#2563EB' : 'inherit' }}>
-                            {getSafeEmoji(currentOrderCategory === 'client' ? '🏢' : '🏬')} All {getOrderCategoryPlural(currentOrderCategory)}
+                            {getSafeEmoji('🏬')} All Suppliers
                           </div>
                           <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
-                            {parties.length} Registered {getOrderCategoryPlural(currentOrderCategory)}
+                            {parties.length} Registered Suppliers
                           </div>
                         </div>
 
@@ -6409,13 +6352,13 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                           <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filter</span>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>{getOrderCategoryLabel(currentOrderCategory)}</span>
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#374151', whiteSpace: 'nowrap' }}>Supplier</span>
                             <select
                               value={vendorOrderPartyFilter}
                               onChange={(e) => setVendorOrderPartyFilter(e.target.value)}
                               style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
                             >
-                              <option value="All">All {getOrderCategoryPlural(currentOrderCategory)} ({parties.length})</option>
+                              <option value="All">All Suppliers ({parties.length})</option>
                               {parties.map(p => (
                                 <option key={p._id} value={p.name}>{p.name}</option>
                               ))}
@@ -6538,15 +6481,13 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                         })
 
                         if (loadingVendorOrders) {
-                          return <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-                            Loading {getOrderCategorySectionLabel(currentOrderCategory).toLowerCase()}...
-                          </div>
+                          return <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading supplier restock orders...</div>
                         }
 
                         if (filteredOrders.length === 0) {
                           return (
                             <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-                              No {getOrderCategorySectionLabel(currentOrderCategory).toLowerCase()} found for this view. Click "+ {getOrderCategoryButtonLabel(currentOrderCategory)}" above to place a new order!
+                              No supplier restock orders found for this view. Click "+ New Restock PO" above to place a new order!
                             </div>
                           )
                         }
@@ -6607,7 +6548,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                                     <div>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                         <span style={{ fontWeight: '800', fontSize: '15px', color: '#2563EB' }}>{order.poNumber}</span>
-                                        <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{getOrderCategoryLabel(order.orderCategory || currentOrderCategory)}: {order.partyName}</span>
+                                        <span style={{ fontWeight: '700', fontSize: '15px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>Supplier: {order.partyName}</span>
                                       </div>
                                       <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                                         <span>Products: <strong>{prods.length}</strong></span>
@@ -6651,7 +6592,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                                         disabled={order.status === 'Completed' || order.status === 'Cancelled'}
                                         style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
                                       >
-                                        {getSafeEmoji('➕')} {getOrderCategoryReceiveLabel(order.orderCategory || currentOrderCategory)}
+                                        {getSafeEmoji('➕')} Receive Stock
                                       </button>
                                       <button
                                         type="button"
@@ -7015,6 +6956,46 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                 </div>
               )}
 
+              {/* Sub-Section 2: Corporate & Bulk Orders */}
+              {restockSubSection === 'corporate' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setRestockSubSection(null)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '7px 14px', fontWeight: '700' }}
+                    >
+                      &larr; Back to Restock &amp; Bulk Hub
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
+                      <span style={{ fontSize: '12px', fontWeight: '800', background: '#ECFDF5', color: '#059669', padding: '4px 12px', borderRadius: '6px' }}>
+                        {getSafeEmoji('🏢')} Corporate &amp; Bulk Orders
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="card card-panel">
+                    <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <h2 className="card-title">{getSafeEmoji('🏢')} Corporate &amp; Bulk Client Orders</h2>
+                        <p className="card-subtitle">Manage bulk uniform supply contracts, firm requisitions, and commercial client orders.</p>
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '48px 20px', textAlign: 'center', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', borderRadius: '12px', border: '1px dashed var(--border-color, #CBD5E1)', margin: '16px 0' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>{getSafeEmoji('🏢')}</div>
+                      <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '6px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                        Corporate &amp; Bulk Orders Management
+                      </h3>
+                      <p style={{ fontSize: '13px', color: theme === 'dark' ? '#94A3B8' : '#64748B', maxWidth: '520px', margin: '0 auto 20px', lineHeight: '1.5' }}>
+                        This section is dedicated to taking and managing inbound bulk supply orders from firms, corporates, factories, schools, and institutions.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
@@ -8344,11 +8325,11 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
             <button type="button" className="manage-modal-close" onClick={() => setShowVendorOrderModal(false)}>
               {getSafeEmoji('✕')}
             </button>
-                  <p className="manage-modal-title">
-              {selectedVendorOrder ? `${getSafeEmoji('✏️')} Edit ${getOrderCategoryButtonLabel(selectedVendorOrder?.orderCategory || currentOrderCategory)} ${selectedVendorOrder.poNumber}` : `${getSafeEmoji('➕')} ${getOrderCategoryButtonLabel(currentOrderCategory)}`}
+            <p className="manage-modal-title">
+              {selectedVendorOrder ? `${getSafeEmoji('✏️')} Edit Restock PO ${selectedVendorOrder.poNumber}` : `${getSafeEmoji('➕')} Create New Restock PO`}
             </p>
             <p className="manage-modal-subtitle">
-              Issue a bulk manufacturing order to a {getOrderCategoryLabel(currentOrderCategory).toLowerCase()} with products, schools, and size-wise target quantities.
+              Issue a bulk manufacturing order to a supplier with products, schools, and size-wise target quantities.
             </p>
 
             <form onSubmit={handleSaveVendorOrder}>
@@ -8381,13 +8362,13 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
 
               <div className="manage-input-group">
                 <label>
-                  {getOrderCategoryLabel(currentOrderCategory)} Name *
+                  Supplier Name *
                   <select
                     value={vendorOrderFormData.partyName}
                     onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, partyName: e.target.value })}
                     required
                   >
-                    <option value="">-- Select {getOrderCategoryLabel(currentOrderCategory)} --</option>
+                    <option value="">-- Select Supplier --</option>
                     {parties.map(p => (
                       <option key={p._id} value={p.name}>{p.name}</option>
                     ))}
@@ -8633,7 +8614,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                   Cancel
                 </button>
                 <button type="submit" className="primary-btn">
-                  {selectedVendorOrder ? 'Save Order Changes' : `Place ${getOrderCategoryButtonLabel(currentOrderCategory)}`}
+                  {selectedVendorOrder ? 'Save Order Changes' : 'Place Restock PO'}
                 </button>
               </div>
             </form>
@@ -8827,21 +8808,21 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
               {getSafeEmoji('✕')}
             </button>
             <p className="manage-modal-title">
-              {getSafeEmoji(currentOrderCategory === 'client' ? '🏢' : '🏭')} {getPartyManagerHeader(partyManagerType)} ({parties.length})
+              {getSafeEmoji('🏭')} Manage Supplier Directory ({parties.length})
             </p>
             <p className="manage-modal-subtitle">
-              {getPartyManagerSubtitle(partyManagerType)}
+              Add supplier profiles to issue bulk restock orders.
             </p>
 
             {/* Add / Edit Supplier Form */}
             <form onSubmit={handleSaveParty} style={{ background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '10px', marginBottom: '20px', border: '1px solid var(--border-color, #E2E8F0)' }}>
               <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 10px 0' }}>
-                {editingSupplierId ? getPartyManagerFormTitle(partyManagerType, true) : getPartyManagerFormTitle(partyManagerType, false)}
+                {editingSupplierId ? 'Edit Supplier Details:' : 'Add New Supplier:'}
               </p>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
                 <input
                   type="text"
-                  placeholder={`${getOrderCategoryLabel(partyManagerType)} Name * (e.g. Ramsons)`}
+                  placeholder="Supplier Name * (e.g. Ramsons)"
                   value={partyFormData.name}
                   onChange={(e) => setPartyFormData({ ...partyFormData, name: e.target.value })}
                   required
@@ -8857,7 +8838,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="submit" className="primary-btn" style={{ flex: 1, padding: '8px', fontSize: '13px', marginTop: '4px' }}>
-                  {getPartyManagerButtonText(partyManagerType, Boolean(editingSupplierId))}
+                  {editingSupplierId ? 'Save Supplier Changes' : '+ Add Supplier to Directory'}
                 </button>
                 {editingSupplierId && (
                   <button
@@ -8877,9 +8858,9 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
 
             {/* Supplier List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 4px 0' }}>Existing {getOrderCategoryPlural(partyManagerType)} ({parties.length}):</p>
+              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 4px 0' }}>Existing Suppliers ({parties.length}):</p>
               {parties.length === 0 ? (
-                <p style={{ fontSize: '12px', color: '#64748B' }}>No {getOrderCategoryPlural(partyManagerType).toLowerCase()} added yet.</p>
+                <p style={{ fontSize: '12px', color: '#64748B' }}>No suppliers added yet.</p>
               ) : (
                 parties.map(p => (
                   <div
@@ -8907,7 +8888,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                           setEditingSupplierId(p._id)
                           setPartyFormData({ name: p.name, contactNumber: p.contactNumber || '', notes: p.notes || '' })
                         }}
-                        title={`Edit ${getOrderCategoryLabel(partyManagerType)}`}
+                        title="Edit Supplier"
                       >
                         {getSafeEmoji('✏️')}
                       </button>
@@ -8915,7 +8896,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                         type="button"
                         className="icon-btn danger"
                         onClick={() => handleDeleteParty(p._id, p.name)}
-                        title={`Delete ${getOrderCategoryLabel(partyManagerType)}`}
+                        title="Delete Supplier"
                       >
                         {getSafeEmoji('🗑️')}
                       </button>
@@ -9126,7 +9107,7 @@ setMessage(`Network error saving ${getOrderCategoryLabel(partyManagerType).toLow
                             Liberty Uniform &mdash; Purchase Order
                           </h2>
                           <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                            <strong>PO Number:</strong> {order.poNumber} &nbsp;|&nbsp; <strong>{getOrderCategoryLabel(order.orderCategory || currentOrderCategory)}:</strong> {order.partyName}
+                            <strong>PO Number:</strong> {order.poNumber} &nbsp;|&nbsp; <strong>Supplier:</strong> {order.partyName}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748B' }}>
