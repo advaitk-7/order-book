@@ -2980,6 +2980,7 @@ function App() {
 
       const cleanFileName = boPdfFileName ? boPdfFileName.replace(/[^a-zA-Z0-9_-]/g, '_') : `${order.boNumber}_BulkOrder`
       doc.save(`${cleanFileName}.pdf`)
+      setShowBOPDFModal(false)
     } catch (err) {
       console.error('Error generating BO PDF:', err)
       alert('Failed to generate BO PDF. Please try again.')
