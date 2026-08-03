@@ -7383,7 +7383,7 @@ function App() {
                                   }
                                 })
                               })
-                              const progressPct = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0
+                              const progressPct = totalOrdered > 0 ? Math.round((totalReceived / totalOrdered) * 100) : 0
 
                               let daysLeftForDeletion = null
                               let completedDateStr = ''
@@ -7426,7 +7426,7 @@ function App() {
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                       <span className={`status-badge ${order.status === 'Completed' ? 'ready' : order.status === 'Partial' ? 'partial' : order.status === 'Cancelled' ? 'delivered' : 'pending'}`}>
-                                        {order.status === 'Completed' ? 'Completed (100%)' : order.status === 'Partial' ? `Partial (${progressPct}%)` : order.status}
+                                        {order.status === 'Completed' ? `Completed (${progressPct}%)` : order.status === 'Partial' ? `Partial (${progressPct}%)` : order.status}
                                       </span>
 
                                       {order.status === 'Completed' && (
@@ -7626,7 +7626,7 @@ function App() {
                                         totalProdPending += Math.max(0, (sb.orderedQty || 0) - (sb.receivedQty || 0))
                                         totalProdCost += sbPrice > 0 ? (sb.receivedQty || 0) * sbPrice : 0
                                       })
-                                      const totalProdPct = totalProdOrdered > 0 ? Math.min(100, Math.round((totalProdReceived / totalProdOrdered) * 100)) : 0
+                                      const totalProdPct = totalProdOrdered > 0 ? Math.round((totalProdReceived / totalProdOrdered) * 100) : 0
 
                                       return (
                                         <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
@@ -7668,7 +7668,7 @@ function App() {
                                                 const pending = Math.max(0, ordQty - recQty)
                                                 const surplus = recQty > ordQty ? recQty - ordQty : 0
                                                 const rowCost = sbPrice > 0 ? recQty * sbPrice : 0
-                                                const sizePct = ordQty > 0 ? Math.min(100, Math.round((recQty / ordQty) * 100)) : 0
+                                                const sizePct = ordQty > 0 ? Math.round((recQty / ordQty) * 100) : 0
                                                 return (
                                                   <tr key={sb.size} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
                                                     <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>{sb.size}</td>
@@ -8179,7 +8179,7 @@ function App() {
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                       <span className={`status-badge ${order.status === 'Completed' ? 'ready' : order.status === 'Partial' ? 'partial' : order.status === 'Cancelled' ? 'delivered' : 'pending'}`}>
-                                        {order.status === 'Completed' ? 'Completed (100%)' : order.status === 'Partial' ? `Partial (${totalPct}%)` : order.status}
+                                        {order.status === 'Completed' ? `Completed (${totalPct}%)` : order.status === 'Partial' ? `Partial (${totalPct}%)` : order.status}
                                       </span>
 
                                       <button
@@ -8348,7 +8348,7 @@ function App() {
                                         style={{
                                           height: '100%',
                                           width: `${Math.min(100, totalPct)}%`,
-                                          background: totalPct === 100 ? '#10B981' : (totalPct > 0 ? '#3B82F6' : '#F59E0B'),
+                                          background: totalPct >= 100 ? '#10B981' : (totalPct > 0 ? '#3B82F6' : '#F59E0B'),
                                           borderRadius: '4px',
                                           transition: 'width 0.3s ease'
                                         }}
@@ -8375,7 +8375,7 @@ function App() {
                                         totalProdCost += sbPrice > 0 ? del * sbPrice : 0
                                       })
 
-                                      const totalProdPct = totalProdOrd > 0 ? Math.min(100, Math.round((totalProdDel / totalProdOrd) * 100)) : 0
+                                      const totalProdPct = totalProdOrd > 0 ? Math.round((totalProdDel / totalProdOrd) * 100) : 0
 
                                       return (
                                         <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
@@ -8415,7 +8415,7 @@ function App() {
                                                 const pend = Math.max(0, ord - del)
                                                 const sbPrice = Number(sb.unitPrice || 0) || Number(prod.unitPrice || 0)
                                                 const rowCost = sbPrice > 0 ? del * sbPrice : 0
-                                                const sizePct = ord > 0 ? Math.min(100, Math.round((del / ord) * 100)) : 0
+                                                const sizePct = ord > 0 ? Math.round((del / ord) * 100) : 0
 
                                                 return (
                                                   <tr key={sbIdx} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
