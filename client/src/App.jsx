@@ -588,6 +588,7 @@ function App() {
   }
 
   const [activePage, setActivePage] = useState('Dashboard')
+  const [restockSubSection, setRestockSubSection] = useState(null)
   const [exportingPDF, setExportingPDF] = useState(false)
   const [showPDFModal, setShowPDFModal] = useState(false)
   const [pdfOrientation, setPdfOrientation] = useState('landscape')
@@ -2333,7 +2334,7 @@ function App() {
   }
 
   useEffect(() => {
-    if (activePage === 'Supplier Restock' && token) {
+    if ((activePage === 'Restock & Bulk Orders' || activePage === 'Supplier Restock') && token) {
       fetchVendorOrders(vendorOrderSearch, vendorOrderPartyFilter, vendorOrderStatusFilter, vendorOrders.length > 0)
       fetchParties()
     }
@@ -2342,7 +2343,7 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        if (activePage === 'Supplier Restock' && poSearchInputRef.current) {
+        if ((activePage === 'Restock & Bulk Orders' || activePage === 'Supplier Restock') && poSearchInputRef.current) {
           e.preventDefault()
           poSearchInputRef.current.focus()
         }
@@ -2625,6 +2626,10 @@ function App() {
     setMessage('')
     setTimerAlertOrder(null)
     setFormError('')
+
+    if (page === 'Restock & Bulk Orders' || page === 'Supplier Restock') {
+      setRestockSubSection(null)
+    }
 
     // Automatically reset Production Queue and Orders Desk filters to default when navigating
     setTailorStatusFilter('Pending')
@@ -2977,6 +2982,7 @@ function App() {
     Orders: 'Search, filter and manage existing orders',
     'Production Queue': 'Garment-level measurements, deadlines and notes for tailors',
     'Stock Waitlist': 'Manage out-of-stock items and customer notification list',
+    'Restock & Bulk Orders': 'Manage supplier procurement restock orders and corporate/bulk client supply contracts',
     'Supplier Restock': 'Track bulk manufacturing orders, supplier details, and size-wise partial stock installments',
     Reports: 'Business performance and delivery trends',
     Settings: 'System preferences and administrative settings',
@@ -4220,13 +4226,14 @@ function App() {
         </div>
 
         <nav className="sidebar-nav">
-          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Supplier Restock', 'Settings'].map((page) => {
+          {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Restock & Bulk Orders', 'Settings'].map((page) => {
             const emojis = {
               'Dashboard': getSafeEmoji('📊'),
               'New Order': getSafeEmoji('➕'),
               'Orders': getSafeEmoji('📋'),
               'Production Queue': getSafeEmoji('🧵'),
               'Stock Waitlist': getSafeEmoji('🔔'),
+              'Restock & Bulk Orders': getSafeEmoji('🏬'),
               'Supplier Restock': getSafeEmoji('🏬'),
               'Settings': getSafeEmoji('⚙️')
             };
@@ -5902,8 +5909,153 @@ function App() {
             </section>
           )}
 
-          {activePage === 'Supplier Restock' && (
+          {(activePage === 'Restock & Bulk Orders' || activePage === 'Supplier Restock') && (
             <section className="page-panel">
+              {/* Landing Page: Two Big Cards */}
+              {restockSubSection === null && (
+                <div style={{ padding: '10px 0' }}>
+                  <div style={{ marginBottom: '32px', textAlign: 'center', maxWidth: '650px', margin: '0 auto 32px' }}>
+                    <h2 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                      {getSafeEmoji('🏬')} Restock &amp; Bulk Orders Hub
+                    </h2>
+                    <p style={{ fontSize: '14px', color: theme === 'dark' ? '#94A3B8' : '#64748B', lineHeight: '1.5' }}>
+                      Select a subsection below to manage manufacturing orders placed with suppliers or bulk uniform supply contracts taken from commercial clients.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', maxWidth: '920px', margin: '0 auto' }}>
+                    {/* Card 1: Supplier Restock Orders */}
+                    <div
+                      onClick={() => setRestockSubSection('supplier')}
+                      className="card"
+                      style={{
+                        padding: '28px 24px',
+                        borderRadius: '16px',
+                        cursor: 'pointer',
+                        border: theme === 'dark' ? '2px solid #334155' : '2px solid #E2E8F0',
+                        background: theme === 'dark' ? '#0F172A' : '#FFFFFF',
+                        transition: 'all 0.25s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justify: 'space-between',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#2563EB'
+                        e.currentTarget.style.transform = 'translateY(-4px)'
+                        e.currentTarget.style.boxShadow = '0 12px 24px rgba(37,99,235,0.15)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = theme === 'dark' ? '#334155' : '#E2E8F0'
+                        e.currentTarget.style.transform = 'translateY(0)'
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                          <div style={{ width: '56px', height: '56px', borderRadius: '12px', background: 'rgba(37,99,235,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>
+                            {getSafeEmoji('🏬')}
+                          </div>
+                          <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#EFF6FF', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Outbound POs
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                          Supplier Restock Orders
+                        </h3>
+                        <p style={{ fontSize: '13px', color: theme === 'dark' ? '#94A3B8' : '#64748B', lineHeight: '1.5', marginBottom: '20px' }}>
+                          Track manufacturing orders given to suppliers &amp; factories, size-wise stock installments, supplier accounts, and pending balances.
+                        </p>
+                      </div>
+                      <div>
+                        <div style={{ borderTop: theme === 'dark' ? '1px solid #1E293B' : '1px solid #F1F5F9', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#2563EB' }}>
+                            {vendorOrders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length} Active Supplier POs
+                          </span>
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: '#2563EB', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            Open Section &rarr;
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 2: Corporate & Bulk Orders */}
+                    <div
+                      onClick={() => setRestockSubSection('corporate')}
+                      className="card"
+                      style={{
+                        padding: '28px 24px',
+                        borderRadius: '16px',
+                        cursor: 'pointer',
+                        border: theme === 'dark' ? '2px solid #334155' : '2px solid #E2E8F0',
+                        background: theme === 'dark' ? '#0F172A' : '#FFFFFF',
+                        transition: 'all 0.25s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justify: 'space-between',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#059669'
+                        e.currentTarget.style.transform = 'translateY(-4px)'
+                        e.currentTarget.style.boxShadow = '0 12px 24px rgba(5,150,105,0.15)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = theme === 'dark' ? '#334155' : '#E2E8F0'
+                        e.currentTarget.style.transform = 'translateY(0)'
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                          <div style={{ width: '56px', height: '56px', borderRadius: '12px', background: 'rgba(5,150,105,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>
+                            {getSafeEmoji('🏢')}
+                          </div>
+                          <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#ECFDF5', color: '#059669', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Inbound Client Sales
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                          Corporate &amp; Bulk Orders
+                        </h3>
+                        <p style={{ fontSize: '13px', color: theme === 'dark' ? '#94A3B8' : '#64748B', lineHeight: '1.5', marginBottom: '20px' }}>
+                          Take and manage bulk uniform supply contracts from firms, corporates, factories, schools, and commercial clients.
+                        </p>
+                      </div>
+                      <div>
+                        <div style={{ borderTop: theme === 'dark' ? '1px solid #1E293B' : '1px solid #F1F5F9', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#059669' }}>
+                            Commercial Client Orders
+                          </span>
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            Open Section &rarr;
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-Section 1: Supplier Restock Orders */}
+              {restockSubSection === 'supplier' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setRestockSubSection(null)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '7px 14px', fontWeight: '700' }}
+                    >
+                      &larr; Back to Restock &amp; Bulk Hub
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
+                      <span style={{ fontSize: '12px', fontWeight: '800', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '6px' }}>
+                        {getSafeEmoji('🏬')} Supplier Restock Orders
+                      </span>
+                    </div>
+                  </div>
               {/* Summary Metric Cards */}
               {(() => {
                 const ordersForStats = vendorOrderPartyFilter === 'All'
@@ -6796,9 +6948,53 @@ function App() {
                         )
                       })}
                     </div>
-                  )})()}
-                </div>
+                  )
+                })()}
               </div>
+            </div>
+          </div>
+        )}
+
+              {/* Sub-Section 2: Corporate & Bulk Orders */}
+              {restockSubSection === 'corporate' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setRestockSubSection(null)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '7px 14px', fontWeight: '700' }}
+                    >
+                      &larr; Back to Restock &amp; Bulk Hub
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
+                      <span style={{ fontSize: '12px', fontWeight: '800', background: '#ECFDF5', color: '#059669', padding: '4px 12px', borderRadius: '6px' }}>
+                        {getSafeEmoji('🏢')} Corporate &amp; Bulk Orders
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="card card-panel">
+                    <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <h2 className="card-title">{getSafeEmoji('🏢')} Corporate &amp; Bulk Client Orders</h2>
+                        <p className="card-subtitle">Manage bulk uniform supply contracts, firm requisitions, and commercial client orders.</p>
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '48px 20px', textAlign: 'center', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', borderRadius: '12px', border: '1px dashed var(--border-color, #CBD5E1)', margin: '16px 0' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>{getSafeEmoji('🏢')}</div>
+                      <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '6px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                        Corporate &amp; Bulk Orders Management
+                      </h3>
+                      <p style={{ fontSize: '13px', color: theme === 'dark' ? '#94A3B8' : '#64748B', maxWidth: '520px', margin: '0 auto 20px', lineHeight: '1.5' }}>
+                        This section is dedicated to taking and managing inbound bulk supply orders from firms, corporates, factories, schools, and institutions.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
