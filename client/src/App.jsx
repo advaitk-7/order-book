@@ -2555,6 +2555,161 @@ function App() {
     URL.revokeObjectURL(url)
   }
 
+  const exportBulkOrderCSV = (order) => {
+    if (!order) return
+    const prods = getNormalizedProducts(order)
+    const clientClean = (order.clientName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_')
+    const fileName = `${order.boNumber || 'BO'}_${clientClean}.csv`
+
+    const rows = []
+    rows.push([`BULK CLIENT SALES ORDER — ${order.boNumber}`])
+    rows.push([`Client Name:`, order.clientName, `Target Delivery:`, order.targetDate || '-'])
+    rows.push([])
+
+    rows.push(['Product Breakdown'])
+    rows.push(['Product Name', 'Front Logo Cost (₹)', 'Back Logo Cost (₹)', 'Size', 'Cost / Unit (₹)', 'Ordered Qty', 'Dispatched Qty', 'Pending Balance', 'Row Cost (₹)'])
+
+    let grandOrdered = 0
+    let grandDelivered = 0
+    let grandPending = 0
+    let grandCost = 0
+
+    prods.forEach((p, pIdx) => {
+      const sorted = sortSizesAscending(p.sizeBreakdown || [])
+      const legacyPrice = Number(p.unitPrice || 0)
+      let pOrdered = 0
+      let pDelivered = 0
+      let pPending = 0
+      let pTotalCost = 0
+
+      sorted.forEach((sb, idx) => {
+        const ordered = sb.orderedQty || 0
+        const delivered = sb.deliveredQty || 0
+        const pending = Math.max(0, ordered - delivered)
+        const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+        const rowCost = sbPrice > 0 ? delivered * sbPrice : 0
+
+        pOrdered += ordered
+        pDelivered += delivered
+        pPending += pending
+        pTotalCost += rowCost
+        grandOrdered += ordered
+        grandDelivered += delivered
+        grandPending += pending
+        grandCost += rowCost
+
+        const surplus = delivered > ordered ? delivered - ordered : 0
+        const delStr = surplus > 0 ? `${delivered} pcs (+${surplus} Extra)` : `${delivered} pcs`
+
+        rows.push([
+          idx === 0 ? p.productName : '',
+          idx === 0 ? (Number(p.frontLogoCost || 0) > 0 ? `Rs. ${p.frontLogoCost}` : '-') : '',
+          idx === 0 ? (Number(p.backLogoCost || 0) > 0 ? `Rs. ${p.backLogoCost}` : '-') : '',
+          sb.size,
+          sbPrice > 0 ? `Rs. ${sbPrice}` : '-',
+          `${ordered} pcs`,
+          delStr,
+          pending > 0 ? `${pending} pcs` : 'Done',
+          rowCost > 0 ? `Rs. ${rowCost}` : '-'
+        ])
+      })
+
+      const pSurplus = pDelivered > pOrdered ? pDelivered - pOrdered : 0
+      const pDelStr = pSurplus > 0 ? `${pDelivered} pcs (+${pSurplus} Extra)` : `${pDelivered} pcs`
+
+      rows.push([
+        `Total (${p.productName})`,
+        '',
+        '',
+        '',
+        '',
+        `${pOrdered} pcs`,
+        pDelStr,
+        pPending > 0 ? `${pPending} pcs` : 'Done',
+        pTotalCost > 0 ? `Total Product Cost: Rs. ${pTotalCost}` : '-'
+      ])
+
+      if (pIdx < prods.length - 1) {
+        rows.push([])
+      }
+    })
+
+    const grandSurplus = grandDelivered > grandOrdered ? grandDelivered - grandOrdered : 0
+    const grandDelStr = grandSurplus > 0 ? `${grandDelivered} pcs (+${grandSurplus} Extra)` : `${grandDelivered} pcs`
+
+    rows.push([])
+    rows.push([
+      'TOTAL BO SUMMARY', '', '', '',
+      `${grandOrdered} pcs`,
+      grandDelStr,
+      `${grandPending > 0 ? grandPending + ' pcs' : 'Done'}`,
+      grandCost > 0 ? `Total Order Value: Rs. ${grandCost}` : '-'
+    ])
+
+    if (order.dispatches && order.dispatches.length > 0) {
+      rows.push([])
+      rows.push([])
+      rows.push(['STOCK DISPATCH HISTORY LOG'])
+      rows.push(['Batch #', 'Dispatch Date', 'Batch Total Pcs', 'Product Name', 'Size', 'Dispatched Qty', 'Remarks / Notes'])
+
+      order.dispatches.forEach((inst, idx) => {
+        const items = inst.items || []
+        const bTotal = items.reduce((sum, item) => sum + (item.qty || 0), 0)
+
+        if (items.length === 0) {
+          rows.push([
+            `Batch #${idx + 1}`,
+            new Date(inst.dispatchedAt).toLocaleDateString(),
+            `${bTotal} pcs`,
+            '-', '-', '-',
+            inst.notes || '-'
+          ])
+        } else {
+          items.forEach((item, iIdx) => {
+            rows.push([
+              iIdx === 0 ? `Batch #${idx + 1}` : '',
+              iIdx === 0 ? new Date(inst.dispatchedAt).toLocaleDateString() : '',
+              iIdx === 0 ? `${bTotal} pcs` : '',
+              item.productName || '-',
+              `Size ${item.size}`,
+              `${item.qty} pcs`,
+              iIdx === 0 ? (inst.notes || '-') : ''
+            ])
+          })
+        }
+
+        if (idx < order.dispatches.length - 1) {
+          rows.push([])
+        }
+      })
+    }
+
+    if (order.notes) {
+      rows.push([])
+      rows.push(['BO Special Instructions / Notes'])
+      rows.push([order.notes])
+    }
+
+    const csvContent = '\uFEFF' + rows.map(r => r.map(c => `"${String(c || '').replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleOpenBOPDFModal = (order) => {
+    if (!order) return
+    setSelectedBOForPDF(order)
+    const clientClean = (order.clientName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_')
+    setBoPdfFileName(`BO_${order.boNumber || '0001'}_${clientClean}`)
+    setShowBOPDFModal(true)
+  }
+
   const handleOpenPOPDFModal = (order) => {
     if (!order) return
     setSelectedPOForPDF(order)
@@ -7554,14 +7709,6 @@ function App() {
                         </button>
                         <button
                           type="button"
-                          className="secondary-btn"
-                          onClick={exportBulkOrdersCSV}
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
-                        >
-                          <span>{getSafeEmoji('📊')}</span> Export Excel (CSV)
-                        </button>
-                        <button
-                          type="button"
                           className="primary-btn"
                           onClick={() => {
                             setSelectedBulkOrder(null)
@@ -7853,15 +8000,45 @@ function App() {
                                     </div>
                                   </div>
 
-                                  {/* Action Toolbar */}
-                                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '10px 0' }}>
+                                  {/* Export Actions Row */}
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px 12px',
+                                    borderTop: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
+                                    background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(37,99,235,0.03)',
+                                    borderRadius: '0 0 10px 10px',
+                                    flexWrap: 'wrap',
+                                    margin: '10px 0'
+                                  }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: theme === 'dark' ? '#94A3B8' : '#64748B', marginRight: '2px' }}>Export:</span>
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setSelectedBOForPDF(order)
-                                        setBoPdfFileName(`${order.boNumber}_${(order.clientName || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}_DeliveryOrder`)
-                                        setShowBOPDFModal(true)
+                                      onClick={() => exportBulkOrderCSV(order)}
+                                      style={{
+                                        background: '#2563EB',
+                                        color: '#FFFFFF',
+                                        border: 'none',
+                                        borderRadius: '16px',
+                                        padding: '5px 13px',
+                                        fontSize: '11.5px',
+                                        fontWeight: '600',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 1px 4px rgba(37,99,235,0.25)',
+                                        transition: 'all 0.2s ease'
                                       }}
+                                      title="Export Excel (CSV) Spreadsheet"
+                                    >
+                                      <span style={{ fontSize: '13px' }}>{getSafeEmoji('📊')}</span>
+                                      Export Excel (CSV)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenBOPDFModal(order)}
                                       style={{
                                         background: theme === 'dark' ? '#1E293B' : '#F1F5F9',
                                         color: theme === 'dark' ? '#E2E8F0' : '#334155',
@@ -7876,10 +8053,10 @@ function App() {
                                         cursor: 'pointer',
                                         transition: 'all 0.2s ease'
                                       }}
-                                      title="Print Delivery Order PDF"
+                                      title="Configure and Save as PDF"
                                     >
                                       <span style={{ fontSize: '13px' }}>{getSafeEmoji('📄')}</span>
-                                      Print Delivery Order PDF
+                                      Save as PDF
                                     </button>
                                   </div>
 
