@@ -723,6 +723,7 @@ function App() {
     notes: ''
   })
   const [clientSearchQuery, setClientSearchQuery] = useState('')
+  const [supplierSearchQuery, setSupplierSearchQuery] = useState('')
 
   // Edit Dispatch Batch Modal State
   const [showEditDispatchModal, setShowEditDispatchModal] = useState(false)
@@ -10513,52 +10514,89 @@ function App() {
 
             {/* Supplier List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 4px 0' }}>Existing Suppliers ({parties.length}):</p>
-              {parties.length === 0 ? (
-                <p style={{ fontSize: '12px', color: '#64748B' }}>No suppliers added yet.</p>
-              ) : (
-                parties.map(p => (
-                  <div
-                    key={p._id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-color, #E2E8F0)',
-                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: '700', fontSize: '13px' }}>
-                        {p.name} {p.contactNumber && <span style={{ fontWeight: 'normal', color: '#64748B', fontSize: '11px' }}>({p.contactNumber})</span>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <p style={{ fontSize: '13px', fontWeight: '700', margin: 0 }}>
+                  Existing Suppliers ({parties.length}):
+                </p>
+                {parties.length > 3 && (
+                  <input
+                    type="text"
+                    placeholder="🔍 Search supplier..."
+                    value={supplierSearchQuery}
+                    onChange={(e) => setSupplierSearchQuery(e.target.value)}
+                    style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', width: '180px' }}
+                  />
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  maxHeight: '320px',
+                  overflowY: 'auto',
+                  paddingRight: '4px',
+                  border: '1px solid var(--border-color, #E2E8F0)',
+                  borderRadius: '8px',
+                  padding: '8px',
+                  background: theme === 'dark' ? '#0F172A' : '#FAFAFA'
+                }}
+              >
+                {parties.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: '#64748B', padding: '12px', textAlign: 'center', margin: 0 }}>No suppliers added yet.</p>
+                ) : (() => {
+                  const filtered = parties.filter(p => {
+                    if (!supplierSearchQuery || !supplierSearchQuery.trim()) return true
+                    const q = supplierSearchQuery.toLowerCase().trim()
+                    return (p.name || '').toLowerCase().includes(q) || (p.contactNumber || '').toLowerCase().includes(q)
+                  })
+                  if (filtered.length === 0) {
+                    return <p style={{ fontSize: '12px', color: '#64748B', padding: '12px', textAlign: 'center', margin: 0 }}>No suppliers found matching "{supplierSearchQuery}".</p>
+                  }
+                  return filtered.map(p => (
+                    <div
+                      key={p._id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-color, #E2E8F0)',
+                        background: theme === 'dark' ? '#1E293B' : '#FFFFFF'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: '700', fontSize: '13px' }}>
+                          {p.name} {p.contactNumber && <span style={{ fontWeight: 'normal', color: '#64748B', fontSize: '11px' }}>({p.contactNumber})</span>}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          onClick={() => {
+                            setEditingSupplierId(p._id)
+                            setPartyFormData({ name: p.name, contactNumber: p.contactNumber || '', notes: p.notes || '' })
+                          }}
+                          title="Edit Supplier Details"
+                        >
+                          {getSafeEmoji('✏️')}
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn danger"
+                          onClick={() => handleDeleteParty(p._id, p.name)}
+                          title="Delete Supplier"
+                        >
+                          {getSafeEmoji('🗑️')}
+                        </button>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        onClick={() => {
-                          setEditingSupplierId(p._id)
-                          setPartyFormData({ name: p.name, contactNumber: p.contactNumber || '', notes: p.notes || '' })
-                        }}
-                        title="Edit Supplier"
-                      >
-                        {getSafeEmoji('✏️')}
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn danger"
-                        onClick={() => handleDeleteParty(p._id, p.name)}
-                        title="Delete Supplier"
-                      >
-                        {getSafeEmoji('🗑️')}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+                  ))
+                })()}
+              </div>
             </div>
 
             <div style={{ textAlign: 'right', marginTop: '20px' }}>
