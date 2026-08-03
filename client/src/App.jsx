@@ -7653,7 +7653,7 @@ function App() {
                           value={bulkOrderClientFilter}
                           onChange={(e) => setBulkOrderClientFilter(e.target.value)}
                           className="filter-select"
-                          style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', minWidth: '180px' }}
+                          style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', width: '280px', maxWidth: '100%' }}
                         >
                           <option value="All">All Clients ({clients.length})</option>
                           {clients.map(c => (
@@ -7666,7 +7666,7 @@ function App() {
                           value={bulkOrderStatusFilter}
                           onChange={(e) => setBulkOrderStatusFilter(e.target.value)}
                           className="filter-select"
-                          style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '700' }}
+                          style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', width: '180px', maxWidth: '100%' }}
                         >
                           <option value="All">All Statuses</option>
                           <option value="Pending">Pending (0% Dispatched)</option>
@@ -7907,6 +7907,7 @@ function App() {
                                       const sortedBreakdown = sortSizesAscending(prod.sizeBreakdown || [])
                                       let totalProdOrd = 0
                                       let totalProdDel = 0
+                                      let totalProdPending = 0
                                       let totalProdCost = 0
 
                                       sortedBreakdown.forEach(sb => {
@@ -7915,37 +7916,41 @@ function App() {
                                         const del = sb.deliveredQty || 0
                                         totalProdOrd += ord
                                         totalProdDel += del
-                                        totalProdCost += del * sbPrice
+                                        totalProdPending += Math.max(0, ord - del)
+                                        totalProdCost += sbPrice > 0 ? del * sbPrice : 0
                                       })
 
-                                      const totalProdPct = totalProdOrd > 0 ? Math.round((totalProdDel / totalProdOrd) * 100) : 0
+                                      const totalProdPct = totalProdOrd > 0 ? Math.min(100, Math.round((totalProdDel / totalProdOrd) * 100)) : 0
 
                                       return (
-                                        <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FAFAFA', borderRadius: '10px', padding: '14px', border: '1px solid var(--border-color, #E2E8F0)' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                                            <div style={{ fontWeight: '800', fontSize: '14px', color: theme === 'dark' ? '#38BDF8' : '#0284C7', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                              <span>📦 {prod.productName}</span>
+                                        <div key={pIdx} style={{ background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '8px', padding: '14px 16px', border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                                            <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                              <span>Product {pIdx + 1} &mdash; {prod.productName}</span>
                                               {(Number(prod.frontLogoCost || 0) > 0 || Number(prod.backLogoCost || 0) > 0) && (
                                                 <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '12px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
                                                   🏷️ Logos: {prod.frontLogoCost > 0 ? `Front ₹${prod.frontLogoCost}` : ''}{prod.frontLogoCost > 0 && prod.backLogoCost > 0 ? ' | ' : ''}{prod.backLogoCost > 0 ? `Back ₹${prod.backLogoCost}` : ''}
                                                 </span>
                                               )}
                                             </div>
-                                            <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748B' }}>
-                                              Product Summary: Dispatched {totalProdDel} / {totalProdOrd} pcs ({totalProdPct}%)
-                                            </div>
+
+                                            {totalProdCost > 0 && (
+                                              <div style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#34D399' : '#059669' }}>
+                                                Total Product Cost: ₹{totalProdCost.toLocaleString('en-IN')}
+                                              </div>
+                                            )}
                                           </div>
 
-                                          <table className="mini-table" style={{ width: '100%', fontSize: '12px' }}>
+                                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                             <thead>
-                                              <tr>
-                                                <th>Size</th>
-                                                <th>Cost / Unit (₹)</th>
-                                                <th>Ordered Qty</th>
-                                                <th>Dispatched Qty</th>
-                                                <th>Pending Balance</th>
-                                                <th>Row Value (₹)</th>
-                                                <th>Progress</th>
+                                              <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
+                                                <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '120px' }}>Size</th>
+                                                <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '140px' }}>Cost / Unit</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Ordered</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Dispatched</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Pending Balance</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Row Cost</th>
+                                                <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Fulfillment</th>
                                               </tr>
                                             </thead>
                                             <tbody>
@@ -7954,33 +7959,59 @@ function App() {
                                                 const del = sb.deliveredQty || 0
                                                 const pend = Math.max(0, ord - del)
                                                 const sbPrice = Number(sb.unitPrice || 0) || Number(prod.unitPrice || 0)
-                                                const rowCost = del * sbPrice
-                                                const pct = ord > 0 ? Math.round((del / ord) * 100) : 0
+                                                const rowCost = sbPrice > 0 ? del * sbPrice : 0
+                                                const sizePct = ord > 0 ? Math.min(100, Math.round((del / ord) * 100)) : 0
 
                                                 return (
-                                                  <tr key={sbIdx}>
-                                                    <td><strong>Size {sb.size}</strong></td>
-                                                    <td>{sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}</td>
-                                                    <td>{ord} pcs</td>
-                                                    <td style={{ color: '#059669', fontWeight: '800' }}>{del} pcs</td>
-                                                    <td style={{ color: pend > 0 ? '#D97706' : '#64748B', fontWeight: pend > 0 ? '800' : 'normal' }}>
-                                                      {pend > 0 ? `${pend} pcs` : '0 (Complete)'}
+                                                  <tr key={sbIdx} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
+                                                    <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>{sb.size}</td>
+                                                    <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '140px' }}>
+                                                      {sbPrice > 0 ? `₹${sbPrice.toLocaleString('en-IN')}` : '-'}
                                                     </td>
-                                                    <td style={{ fontWeight: '700' }}>
+                                                    <td style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>{ord} pcs</td>
+                                                    <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                      {del} pcs
+                                                    </td>
+                                                    <td style={{ padding: '8px 16px 8px 8px', color: pend > 0 ? '#EAB308' : '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                      {pend > 0 ? `${pend} pcs` : 'Done'}
+                                                    </td>
+                                                    <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '700', whiteSpace: 'nowrap' }}>
                                                       {rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}
                                                     </td>
-                                                    <td>
-                                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <div style={{ flex: 1, height: '6px', background: '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
-                                                          <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: pct === 100 ? '#10B981' : '#3B82F6' }} />
+                                                    <td style={{ padding: '6px 8px' }}>
+                                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                          <div style={{ height: '100%', width: `${sizePct}%`, background: sizePct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
                                                         </div>
-                                                        <span style={{ fontSize: '11px', width: '32px', textAlign: 'right' }}>{pct}%</span>
+                                                        <span style={{ fontSize: '10px', width: '32px', textAlign: 'right' }}>{sizePct}%</span>
                                                       </div>
                                                     </td>
                                                   </tr>
                                                 )
                                               })}
                                             </tbody>
+                                            <tfoot style={{ borderTop: '2px solid var(--border-color, #CBD5E1)', fontWeight: '800', background: theme === 'dark' ? '#1E293B' : '#F8FAFC' }}>
+                                              <tr>
+                                                <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap', minWidth: '120px' }}>Total</td>
+                                                <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap', minWidth: '140px' }}>-</td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrd} pcs</td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>{totalProdDel} pcs</td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
+                                                  {totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}
+                                                </td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', whiteSpace: 'nowrap' }}>
+                                                  {totalProdCost > 0 ? `₹${totalProdCost.toLocaleString('en-IN')}` : '-'}
+                                                </td>
+                                                <td style={{ padding: '6px 8px' }}>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                      <div style={{ height: '100%', width: `${totalProdPct}%`, background: totalProdPct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
+                                                    </div>
+                                                    <span style={{ fontSize: '10px', width: '32px', textAlign: 'right' }}>{totalProdPct}%</span>
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            </tfoot>
                                           </table>
                                         </div>
                                       )
