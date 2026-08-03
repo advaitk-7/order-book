@@ -2718,6 +2718,242 @@ function App() {
     setShowPOPDFModal(true)
   }
 
+  const executeBOPDFDownload = async () => {
+    if (!selectedBOForPDF) return
+    try {
+      setExportingBOPDF(true)
+      if (!window.jspdf) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+          s.onload = resolve
+          s.onerror = reject
+          document.head.appendChild(s)
+        })
+      }
+      if (!window.jspdfAutoTable) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'
+          s.onload = resolve
+          s.onerror = reject
+          document.head.appendChild(s)
+        })
+        window.jspdfAutoTable = true
+      }
+
+      const { jsPDF } = window.jspdf
+      const doc = new jsPDF({
+        orientation: boPdfOrientation,
+        unit: 'mm',
+        format: boPdfFormat
+      })
+
+      const order = selectedBOForPDF
+      const prods = getNormalizedProducts(order)
+
+      doc.setFontSize(16)
+      doc.setTextColor(37, 99, 235)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`LIBERTY UNIFORM — BULK CLIENT SALES ORDER`, 14, 16)
+
+      doc.setFontSize(10)
+      doc.setTextColor(100, 116, 139)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`BO Number: ${order.boNumber}  |  Client: ${order.clientName}`, 14, 23)
+      if (order.targetDate) {
+        doc.text(`Target Delivery Date: ${order.targetDate}`, 14, 28)
+      }
+
+      let startY = order.targetDate ? 34 : 29
+
+      let grandBOCost = 0
+      let grandBOHasCost = false
+      prods.forEach(p => {
+        const legacyPrice = Number(p.unitPrice || 0)
+        ;(p.sizeBreakdown || []).forEach(sb => {
+          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+          if (sbPrice > 0) {
+            grandBOCost += (sb.deliveredQty || 0) * sbPrice
+            grandBOHasCost = true
+          }
+        })
+      })
+
+      prods.forEach((prod, pIdx) => {
+        if (startY > 240) { doc.addPage(); startY = 16 }
+        const sorted = sortSizesAscending(prod.sizeBreakdown || [])
+        const legacyPrice = Number(prod.unitPrice || 0)
+
+        doc.setFontSize(10.5)
+        doc.setTextColor(15, 23, 42)
+        doc.setFont('helvetica', 'bold')
+        let logoText = []
+        if (Number(prod.frontLogoCost || 0) > 0) logoText.push(`Front Logo: Rs.${prod.frontLogoCost}`)
+        if (Number(prod.backLogoCost || 0) > 0) logoText.push(`Back Logo: Rs.${prod.backLogoCost}`)
+        const logoStr = logoText.length > 0 ? `  [${logoText.join(' | ')}]` : ''
+        doc.text(`Product ${pIdx + 1}: ${prod.productName}${logoStr}`, 14, startY)
+        startY += 5
+
+        let pTotalCost = 0
+        let pDelivered = 0
+        let pOrdered = 0
+        const tableData = sorted.map(sb => {
+          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+          const pending = Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))
+          const rowCost = sbPrice > 0 ? (sb.deliveredQty || 0) * sbPrice : 0
+          pTotalCost += rowCost
+          pDelivered += (sb.deliveredQty || 0)
+          pOrdered += (sb.orderedQty || 0)
+          const delQty = sb.deliveredQty || 0
+          const ordQty = sb.orderedQty || 0
+          const surplus = delQty > ordQty ? delQty - ordQty : 0
+          const delStr = surplus > 0 ? `${delQty} pcs (+${surplus} Extra)` : `${delQty} pcs`
+
+          return [
+            `${sb.size}`,
+            sbPrice > 0 ? `Rs.${sbPrice}` : '-',
+            `${ordQty} pcs`,
+            delStr,
+            pending > 0 ? `${pending} pcs` : 'Done',
+            rowCost > 0 ? `Rs.${rowCost.toLocaleString('en-IN')}` : '-'
+          ]
+        })
+
+        const pPending = Math.max(0, pOrdered - pDelivered)
+        const pSurplus = pDelivered > pOrdered ? pDelivered - pOrdered : 0
+        const pDelStr = pSurplus > 0 ? `${pDelivered} pcs (+${pSurplus} Extra)` : `${pDelivered} pcs`
+
+        tableData.push([
+          'Total',
+          '',
+          `${pOrdered} pcs`,
+          pDelStr,
+          pPending > 0 ? `${pPending} pcs` : 'Done',
+          pTotalCost > 0 ? `Rs.${pTotalCost.toLocaleString('en-IN')}` : '-'
+        ])
+
+        doc.autoTable({
+          startY,
+          head: [['Size', 'Cost / Unit', 'Ordered', 'Dispatched', 'Pending', 'Row Cost']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+          styles: { fontSize: 8.5, cellPadding: 3, overflow: 'linebreak' },
+          columnStyles: {
+            0: { cellWidth: 28 },
+            1: { cellWidth: 34 },
+            5: { fontStyle: 'bold', textColor: [5, 150, 105] }
+          },
+          rowPageBreak: 'avoid',
+          pageBreak: 'avoid'
+        })
+
+        startY = doc.lastAutoTable.finalY + 3
+
+        if (pTotalCost > 0) {
+          doc.setFontSize(9.5)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(5, 150, 105)
+          doc.text(
+            `Total Product Cost (${prod.productName}): Rs.${pTotalCost.toLocaleString('en-IN')}  (${pDelivered} pcs dispatched)`,
+            14, startY
+          )
+          startY += 7
+        } else {
+          startY += 4
+        }
+      })
+
+      if (grandBOHasCost) {
+        if (startY > 255) { doc.addPage(); startY = 16 }
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(37, 99, 235)
+        doc.text(`Total Order Value: Rs.${grandBOCost.toLocaleString('en-IN')}`, 14, startY)
+        startY += 10
+      }
+
+      if (order.dispatches && order.dispatches.length > 0) {
+        const pageHeight = doc.internal.pageSize.getHeight()
+        const marginBottom = 15
+        if (startY + 21 > pageHeight - marginBottom) {
+          doc.addPage()
+          startY = 16
+        }
+
+        const batchRows = []
+        order.dispatches.forEach((inst, idx) => {
+          const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+          const items = inst.items || []
+          if (items.length === 0) {
+            batchRows.push([`Batch #${idx + 1}`, new Date(inst.dispatchedAt).toLocaleDateString(), `${bTotal} pcs`, '-', '-', inst.notes || '-'])
+          } else {
+            items.forEach((item, iIdx) => {
+              batchRows.push([
+                iIdx === 0 ? `Batch #${idx + 1}` : '',
+                iIdx === 0 ? new Date(inst.dispatchedAt).toLocaleDateString() : '',
+                iIdx === 0 ? `${bTotal} pcs` : '',
+                item.productName || '-',
+                `Size ${item.size}: ${item.qty} pcs`,
+                iIdx === 0 ? (inst.notes || '-') : ''
+              ])
+            })
+          }
+        })
+
+        const batchHeadingY = startY
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(15, 23, 42)
+        doc.text(`Dispatched Stock History (Batches):`, 14, batchHeadingY)
+
+        doc.autoTable({
+          startY: batchHeadingY + 5,
+          head: [['Batch #', 'Dispatch Date', 'Total Qty', 'Product', 'Size & Qty', 'Notes']],
+          body: batchRows,
+          theme: 'striped',
+          headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+          styles: { fontSize: 8.5, cellPadding: 2.5, overflow: 'linebreak' },
+          rowPageBreak: 'avoid',
+          didDrawPage: (data) => {
+            if (data.pageNumber > 1) {
+              doc.setFontSize(10)
+              doc.setFont('helvetica', 'bold')
+              doc.setTextColor(15, 23, 42)
+              doc.text(`Dispatched Stock History (Batches) — continued:`, 14, 12)
+            }
+          }
+        })
+
+        startY = doc.lastAutoTable.finalY + 8
+      }
+
+      if (order.notes) {
+        if (startY > 250) { doc.addPage(); startY = 16 }
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(180, 83, 9)
+        doc.text(`Special Instructions / Notes:`, 14, startY)
+        startY += 5
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 65, 85)
+        const splitNotes = doc.splitTextToSize(order.notes, 180)
+        doc.text(splitNotes, 14, startY)
+        startY += (splitNotes.length * 4) + 6
+      }
+
+      const cleanFileName = boPdfFileName ? boPdfFileName.replace(/[^a-zA-Z0-9_-]/g, '_') : `${order.boNumber}_BulkOrder`
+      doc.save(`${cleanFileName}.pdf`)
+    } catch (err) {
+      console.error('Error generating BO PDF:', err)
+      alert('Failed to generate BO PDF. Please try again.')
+    } finally {
+      setExportingBOPDF(false)
+    }
+  }
+
   const executePOPDFDownload = async () => {
     if (!selectedPOForPDF) return
     try {
@@ -11233,95 +11469,350 @@ function App() {
         </div>
       )}
 
-      {/* Bulk Order PDF Modal */}
+      {/* Bulk Client Order PDF Export & Live Preview Modal */}
       {showBOPDFModal && selectedBOForPDF && (
-        <div className="manage-modal-backdrop">
-          <div className="manage-modal-card" style={{ maxWidth: '850px', width: '90vw', maxHeight: '95vh', overflowY: 'auto' }}>
-            <button type="button" className="manage-modal-close" onClick={() => setShowBOPDFModal(false)}>
-              {getSafeEmoji('✕')}
-            </button>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div className="pdf-modal-backdrop">
+          <div className="pdf-modal-card">
+            <div className="pdf-modal-header">
               <div>
-                <p className="manage-modal-title">📄 Bulk Order Delivery Order / Invoice</p>
-                <p className="manage-modal-subtitle">Official printable delivery document for {selectedBOForPDF.boNumber}</p>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} BO PDF Export &amp; Live Preview</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
+                  Configure paper format, orientation, margins, and density with a live sheet preview for {selectedBOForPDF.boNumber}.
+                </p>
               </div>
               <button
                 type="button"
-                className="primary-btn"
-                onClick={() => {
-                  window.print()
-                }}
-                style={{ background: '#059669', borderColor: '#059669' }}
+                className="manage-modal-close"
+                onClick={() => setShowBOPDFModal(false)}
+                style={{ position: 'static', fontSize: '20px' }}
               >
-                🖨️ Print Document
+                {getSafeEmoji('✕')}
               </button>
             </div>
 
-            {/* Document Printable View */}
-            <div style={{ background: '#FFFFFF', color: '#0F172A', padding: '30px', borderRadius: '12px', border: '1px solid #CBD5E1' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #059669', paddingBottom: '16px', marginBottom: '20px' }}>
-                <div>
-                  <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#059669', margin: 0 }}>BULK SALES DELIVERY ORDER</h1>
-                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>School Uniform Order Book &amp; Supply Hub</div>
+            <div className="pdf-modal-body">
+              {/* Settings Controls Sidebar */}
+              <div className="pdf-controls-sidebar">
+                <div className="pdf-control-group">
+                  <label>FILE NAME</label>
+                  <input
+                    type="text"
+                    value={boPdfFileName}
+                    onChange={(e) => setBoPdfFileName(e.target.value)}
+                    placeholder="Enter file name"
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#059669' }}>{selectedBOForPDF.boNumber}</div>
-                  <div style={{ fontSize: '12px', color: '#64748B' }}>Date: {new Date(selectedBOForPDF.createdAt).toLocaleDateString()}</div>
+
+                <div className="pdf-control-group">
+                  <label>ORIENTATION</label>
+                  <select
+                    value={boPdfOrientation}
+                    onChange={(e) => setBoPdfOrientation(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="landscape">Landscape (Horizontal &mdash; Recommended)</option>
+                    <option value="portrait">Portrait (Vertical)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>PAPER FORMAT</label>
+                  <select
+                    value={boPdfFormat}
+                    onChange={(e) => setBoPdfFormat(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="a4">A4 (210 &times; 297 mm)</option>
+                    <option value="letter">Letter (8.5 &times; 11 in)</option>
+                    <option value="legal">Legal (8.5 &times; 14 in)</option>
+                    <option value="a3">A3 (297 &times; 420 mm)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>MARGINS</label>
+                  <select
+                    value={boPdfMargin}
+                    onChange={(e) => setBoPdfMargin(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="compact">Compact (3mm)</option>
+                    <option value="normal">Normal (6mm)</option>
+                    <option value="wide">Wide (12mm)</option>
+                  </select>
+                </div>
+
+                <div className="pdf-control-group">
+                  <label>TABLE SCALE</label>
+                  <select
+                    value={boPdfScale}
+                    onChange={(e) => setBoPdfScale(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`,
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      color: 'inherit',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="compact">Compact (80%)</option>
+                    <option value="normal">Normal (100%)</option>
+                    <option value="large">Large (120%)</option>
+                  </select>
+                </div>
+
+                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={executeBOPDFDownload}
+                    disabled={exportingBOPDF}
+                    style={{ padding: '12px', width: '100%', fontSize: '13px', justifyContent: 'center' }}
+                  >
+                    {exportingBOPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('⬇️')} Download PDF`}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setShowBOPDFModal(false)}
+                    style={{ padding: '10px', width: '100%', fontSize: '13px', justifyContent: 'center' }}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px', background: '#F8FAFC', padding: '14px', borderRadius: '8px' }}>
-                <div>
-                  <strong style={{ fontSize: '12px', color: '#64748B', textTransform: 'uppercase' }}>CLIENT DETAILS:</strong>
-                  <div style={{ fontSize: '16px', fontWeight: '800', marginTop: '4px', color: '#0F172A' }}>🏢 {selectedBOForPDF.clientName}</div>
-                </div>
-                <div>
-                  <strong style={{ fontSize: '12px', color: '#64748B', textTransform: 'uppercase' }}>ORDER STATUS:</strong>
-                  <div style={{ fontSize: '14px', fontWeight: '800', marginTop: '4px', color: selectedBOForPDF.status === 'Completed' ? '#059669' : '#D97706' }}>
-                    {selectedBOForPDF.status}
-                  </div>
-                  {selectedBOForPDF.targetDate && (
-                    <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>Target: {selectedBOForPDF.targetDate}</div>
-                  )}
-                </div>
+              {/* Right Live Sheet Preview */}
+              <div className="pdf-preview-pane">
+                {(() => {
+                  const order = selectedBOForPDF
+                  const prods = getNormalizedProducts(order)
+                  let boTotalCost = 0
+                  let boHasAnyPrices = false
+                  prods.forEach(p => {
+                    const legacyPrice = Number(p.unitPrice || 0)
+                    ;(p.sizeBreakdown || []).forEach(sb => {
+                      const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                      if (sbPrice > 0) {
+                        boTotalCost += (sb.deliveredQty || 0) * sbPrice
+                        boHasAnyPrices = true
+                      }
+                    })
+                  })
+
+                  return (
+                    <div
+                      ref={boPdfPreviewSheetRef}
+                      className="pdf-sheet-page"
+                      style={{
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        padding: boPdfMargin === 'compact' ? '12px' : boPdfMargin === 'wide' ? '32px' : '20px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                        borderRadius: '4px',
+                        minHeight: '600px'
+                      }}
+                    >
+                      {/* Document Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #2563EB', paddingBottom: '12px', marginBottom: '16px' }}>
+                        <div>
+                          <h2 style={{ margin: 0, fontSize: '18px', color: '#2563EB', fontWeight: '800' }}>
+                            Liberty Uniform &mdash; Bulk Client Sales Order
+                          </h2>
+                          <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
+                            <strong>BO Number:</strong> {order.boNumber} &nbsp;|&nbsp; <strong>Client:</strong> {order.clientName}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748B' }}>
+                          <div>Generated: {new Date().toLocaleDateString()}</div>
+                        </div>
+                      </div>
+
+                      {/* Meta Information Bar */}
+                      <div style={{ background: '#F8FAFC', padding: '10px 14px', borderRadius: '6px', border: '1px solid #E2E8F0', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                        <div>Target Delivery Date: <strong>{order.targetDate || 'Not specified'}</strong></div>
+                        <div>Total Order Value: <strong style={{ color: boHasAnyPrices ? '#059669' : '#64748B' }}>{boHasAnyPrices ? `₹${boTotalCost.toLocaleString('en-IN')}` : '-'}</strong></div>
+                      </div>
+
+                      {/* Product Tables */}
+                      {prods.map((prod, pIdx) => {
+                        const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
+                        const legacyPrice = Number(prod.unitPrice || 0)
+                        let totalProdOrdered = 0
+                        let totalProdDelivered = 0
+                        let totalProdPending = 0
+                        let totalProdCost = 0
+
+                        sortedSizes.forEach(sb => {
+                          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                          totalProdOrdered += (sb.orderedQty || 0)
+                          totalProdDelivered += (sb.deliveredQty || 0)
+                          totalProdPending += Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))
+                          totalProdCost += sbPrice > 0 ? (sb.deliveredQty || 0) * sbPrice : 0
+                        })
+
+                        return (
+                          <div key={pIdx} style={{ marginBottom: '16px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px' }}>
+                            <div style={{ fontWeight: '800', fontSize: '13px', color: '#0284C7', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>Product {pIdx + 1} &mdash; {prod.productName}</span>
+                              {(Number(prod.frontLogoCost || 0) > 0 || Number(prod.backLogoCost || 0) > 0) && (
+                                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600' }}>
+                                  {Number(prod.frontLogoCost || 0) > 0 && `Front Logo: ₹${prod.frontLogoCost}`}
+                                  {Number(prod.frontLogoCost || 0) > 0 && Number(prod.backLogoCost || 0) > 0 && ' | '}
+                                  {Number(prod.backLogoCost || 0) > 0 && `Back Logo: ₹${prod.backLogoCost}`}
+                                </span>
+                              )}
+                            </div>
+
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                              <thead>
+                                <tr style={{ background: '#2563EB', color: '#FFFFFF' }}>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Size</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Cost / Unit</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Ordered</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Dispatched</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Pending</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Row Cost</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sortedSizes.map((sb) => {
+                                  const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
+                                  const delQty = sb.deliveredQty || 0
+                                  const ordQty = sb.orderedQty || 0
+                                  const pending = Math.max(0, ordQty - delQty)
+                                  const surplus = delQty > ordQty ? delQty - ordQty : 0
+                                  const rowCost = sbPrice > 0 ? delQty * sbPrice : 0
+                                  return (
+                                    <tr key={sb.size} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                      <td style={{ padding: '5px 8px', fontWeight: '700' }}>{sb.size}</td>
+                                      <td style={{ padding: '5px 8px', color: '#475569' }}>{sbPrice > 0 ? `₹${sbPrice}` : '-'}</td>
+                                      <td style={{ padding: '5px 8px' }}>{ordQty} pcs</td>
+                                      <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '600' }}>
+                                        {delQty} pcs {surplus > 0 ? `(+${surplus} Extra)` : ''}
+                                      </td>
+                                      <td style={{ padding: '5px 8px', color: pending > 0 ? '#D97706' : '#059669', fontWeight: '600' }}>{pending > 0 ? `${pending} pcs` : 'Done'}</td>
+                                      <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '700' }}>{rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                              <tfoot style={{ background: '#F8FAFC', fontWeight: '800', borderTop: '2px solid #CBD5E1' }}>
+                                <tr>
+                                  <td style={{ padding: '6px 8px' }}>Total</td>
+                                  <td style={{ padding: '6px 8px' }}>—</td>
+                                  <td style={{ padding: '6px 8px', color: '#2563EB' }}>{totalProdOrdered} pcs</td>
+                                  <td style={{ padding: '6px 8px', color: '#059669' }}>{totalProdDelivered} pcs</td>
+                                  <td style={{ padding: '6px 8px', color: totalProdPending > 0 ? '#D97706' : '#059669' }}>{totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}</td>
+                                  <td style={{ padding: '6px 8px', color: '#059669' }}>{totalProdCost > 0 ? `₹${totalProdCost.toLocaleString('en-IN')}` : '-'}</td>
+                                </tr>
+                              </tfoot>
+                            </table>
+
+                            {/* Total Product Cost summary below table */}
+                            {totalProdCost > 0 && (
+                              <div style={{ marginTop: '6px', fontSize: '11px', fontWeight: '700', color: '#059669' }}>
+                                Total Product Cost: ₹{totalProdCost.toLocaleString('en-IN')}
+                                <span style={{ fontWeight: '400', color: '#64748B', marginLeft: '6px' }}>({totalProdDelivered} pcs dispatched)</span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+
+                      {/* Total BO Value block */}
+                      {boHasAnyPrices && (
+                        <div style={{ background: '#EFF6FF', border: '2px solid #2563EB', borderRadius: '6px', padding: '10px 14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: '#1E40AF' }}>Total Order Value</span>
+                          <span style={{ fontSize: '15px', fontWeight: '800', color: '#2563EB' }}>₹{boTotalCost.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+
+                      {/* Dispatched Stock Batches Section */}
+                      {order.dispatches && order.dispatches.length > 0 && (
+                        <div style={{ marginTop: '16px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px' }}>
+                          <div style={{ fontWeight: '800', fontSize: '13px', color: '#059669', marginBottom: '8px' }}>
+                            Dispatched Stock History (Batches)
+                          </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                            <thead>
+                              <tr style={{ background: '#059669', color: '#FFFFFF' }}>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Batch #</th>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Dispatch Date</th>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Dispatched Qty</th>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Product &amp; Size Breakdown</th>
+                                <th style={{ padding: '5px 8px', textAlign: 'left' }}>Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {order.dispatches.map((inst, idx) => {
+                                const bTotal = (inst.items || []).reduce((s, i) => s + (i.qty || 0), 0)
+                                const itemsStr = (inst.items || []).map(i => `${i.productName ? i.productName + ' ' : ''}Size ${i.size}: ${i.qty}pcs`).join(' • ')
+                                return (
+                                  <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                    <td style={{ padding: '5px 8px', fontWeight: '700' }}>Batch #{idx + 1}</td>
+                                    <td style={{ padding: '5px 8px' }}>{new Date(inst.dispatchedAt).toLocaleDateString()}</td>
+                                    <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '600' }}>{bTotal} pcs</td>
+                                    <td style={{ padding: '5px 8px' }}>{itemsStr || '-'}</td>
+                                    <td style={{ padding: '5px 8px', color: '#64748B' }}>{inst.notes || '-'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {/* Special Instructions / Notes Banner */}
+                      {order.notes && (
+                        <div style={{ marginTop: '16px', background: '#FEF3C7', border: '1px solid #FCD34D', padding: '10px 14px', borderRadius: '6px', fontSize: '12px', color: '#92400E' }}>
+                          <strong>Special Instructions / Notes:</strong> {order.notes}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
-
-              {/* Product tables */}
-              {getNormalizedProducts(selectedBOForPDF).map((p, idx) => (
-                <div key={idx} style={{ marginBottom: '16px' }}>
-                  <div style={{ fontWeight: '800', fontSize: '13px', color: '#0284C7', marginBottom: '6px' }}>
-                    📦 {p.productName}
-                  </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead>
-                      <tr style={{ background: '#059669', color: '#FFFFFF' }}>
-                        <th style={{ padding: '6px', textAlign: 'left' }}>Size</th>
-                        <th style={{ padding: '6px', textAlign: 'center' }}>Ordered Qty</th>
-                        <th style={{ padding: '6px', textAlign: 'center' }}>Dispatched Qty</th>
-                        <th style={{ padding: '6px', textAlign: 'center' }}>Pending Balance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(p.sizeBreakdown || []).map((sb, sbIdx) => (
-                        <tr key={sbIdx} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                          <td style={{ padding: '6px' }}>Size {sb.size}</td>
-                          <td style={{ padding: '6px', textAlign: 'center' }}>{sb.orderedQty || 0} pcs</td>
-                          <td style={{ padding: '6px', textAlign: 'center', color: '#059669', fontWeight: '700' }}>{sb.deliveredQty || 0} pcs</td>
-                          <td style={{ padding: '6px', textAlign: 'center', color: (sb.orderedQty - sb.deliveredQty) > 0 ? '#D97706' : '#059669' }}>
-                            {Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))} pcs
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-
-              {selectedBOForPDF.notes && (
-                <div style={{ marginTop: '16px', background: '#FEF3C7', border: '1px solid #FCD34D', padding: '10px', borderRadius: '6px', fontSize: '12px', color: '#92400E' }}>
-                  <strong>Notes / Remarks:</strong> {selectedBOForPDF.notes}
-                </div>
-              )}
             </div>
           </div>
         </div>
