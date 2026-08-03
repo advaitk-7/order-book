@@ -7,11 +7,21 @@
   color: #0F172A;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   background: #F8FAFC;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+.manage-modal-backdrop,
+.pdf-modal-backdrop {
+  will-change: opacity, transform;
+  transform: translateZ(0);
 }
 
 * {

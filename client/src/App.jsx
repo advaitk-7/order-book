@@ -755,12 +755,93 @@ function App() {
     return Math.max(...orders.map((o) => Number(o.cycle || 1)))
   }, [orders])
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(Date.now())
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [])
+  const vendorOrderSchools = useMemo(() => {
+    if (!vendorOrders || vendorOrders.length === 0) return []
+    const schoolsSet = new Set()
+    vendorOrders.forEach(o => {
+      getNormalizedProducts(o).forEach(p => {
+        if (p.school) schoolsSet.add(p.school)
+      })
+    })
+    return Array.from(schoolsSet).sort()
+  }, [vendorOrders])
+
+  const filteredVendorOrders = useMemo(() => {
+    if (!vendorOrders) return []
+    let result = vendorOrders.filter(o => {
+      if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
+      if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
+      if (vendorOrderSchoolFilter !== 'All') {
+        const prods = getNormalizedProducts(o)
+        if (!prods.some(p => p.school === vendorOrderSchoolFilter)) return false
+      }
+      if (vendorOrderSearch && vendorOrderSearch.trim()) {
+        const prods = getNormalizedProducts(o)
+        const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
+        const dates = [
+          o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
+          o.targetDate || '',
+          ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
+        ]
+        const fields = [
+          o.poNumber,
+          o.notes,
+          ...(prods.map(p => p.productName)),
+          ...sizes,
+          ...dates
+        ]
+        return checkFuzzyMatch(vendorOrderSearch, fields)
+      }
+      return true
+    })
+
+    result.sort((a, b) => {
+      const numA = parseInt(String(a.poNumber || '').replace(/\D/g, ''), 10) || 0
+      const numB = parseInt(String(b.poNumber || '').replace(/\D/g, ''), 10) || 0
+      if (numA !== numB) return numA - numB
+      return String(a.poNumber || '').localeCompare(String(b.poNumber || ''), undefined, { numeric: true, sensitivity: 'base' })
+    })
+    return result
+  }, [vendorOrders, vendorOrderPartyFilter, vendorOrderStatusFilter, vendorOrderSchoolFilter, vendorOrderSearch])
+
+  const filteredBulkOrders = useMemo(() => {
+    if (!bulkOrders) return []
+    let result = bulkOrders.filter(o => {
+      if (bulkOrderClientFilter !== 'All' && o.clientName !== bulkOrderClientFilter) return false
+      if (bulkOrderStatusFilter !== 'All' && o.status !== bulkOrderStatusFilter) return false
+      if (bulkOrderSearch && bulkOrderSearch.trim()) {
+        const prods = getNormalizedProducts(o)
+        const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
+        const dates = [
+          o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
+          o.targetDate || '',
+          ...(o.dispatches || []).map(inst => inst.dispatchedAt ? new Date(inst.dispatchedAt).toLocaleDateString() : '')
+        ]
+        const fields = [
+          o.boNumber,
+          o.clientName,
+          o.notes,
+          o.status,
+          ...prods.map(p => p.productName),
+          ...prods.map(p => p.school),
+          ...sizes,
+          ...dates,
+          ...(o.dispatches || []).map(inst => inst.challanNumber || ''),
+          ...(o.dispatches || []).map(inst => inst.notes || '')
+        ]
+        return checkFuzzyMatch(bulkOrderSearch, fields)
+      }
+      return true
+    })
+
+    result.sort((a, b) => {
+      const numA = parseInt(String(a.boNumber || '').replace(/\D/g, ''), 10) || 0
+      const numB = parseInt(String(b.boNumber || '').replace(/\D/g, ''), 10) || 0
+      if (numA !== numB) return numA - numB
+      return String(a.boNumber || '').localeCompare(String(b.boNumber || ''), undefined, { numeric: true, sensitivity: 'base' })
+    })
+    return result
+  }, [bulkOrders, bulkOrderClientFilter, bulkOrderStatusFilter, bulkOrderSearch])
 
   useEffect(() => {
     if (!highlightedOrderId) return undefined
@@ -7272,7 +7353,7 @@ function App() {
                               style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${theme === 'dark' ? '#475569' : '#CBD5E1'}`, fontSize: '13px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit', fontWeight: '500', cursor: 'pointer' }}
                             >
                               <option value="All">All Schools / Firms</option>
-                              {Array.from(new Set(vendorOrders.flatMap(o => getNormalizedProducts(o).map(p => p.school)).filter(Boolean))).sort().map(school => (
+                              {vendorOrderSchools.map(school => (
                                 <option key={school} value={school}>{school}</option>
                               ))}
                             </select>
@@ -7294,82 +7375,27 @@ function App() {
                         </div>
 
                         {/* Live PO Counter Pill */}
-                        {(() => {
-                          const tempFiltered = vendorOrders.filter(o => {
-                            if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
-                            if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
-                            if (vendorOrderSchoolFilter !== 'All') {
-                              const prods = getNormalizedProducts(o)
-                              if (!prods.some(p => p.school === vendorOrderSchoolFilter)) return false
-                            }
-                            if (vendorOrderSearch && vendorOrderSearch.trim()) {
-                              const prods = getNormalizedProducts(o)
-                              const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
-                              const dates = [
-                                o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
-                                o.targetDate || '',
-                                ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
-                              ]
-                              const fields = [
-                                o.poNumber,
-                                o.notes,
-                                ...(prods.map(p => p.productName)),
-                                ...sizes,
-                                ...dates
-                              ]
-                              return checkFuzzyMatch(vendorOrderSearch, fields)
-                            }
-                            return true
-                          })
-                          return (
-                            <span
-                              style={{
-                                fontSize: '12px',
-                                fontWeight: '700',
-                                padding: '5px 12px',
-                                borderRadius: '20px',
-                                background: theme === 'dark' ? '#0F172A' : '#EFF6FF',
-                                color: theme === 'dark' ? '#38BDF8' : '#0284C7',
-                                border: theme === 'dark' ? '1px solid #0284C7' : '1px solid #BAE6FD',
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              Showing {tempFiltered.length} of {vendorOrders.length} POs
-                            </span>
-                          )
-                        })()}
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            padding: '5px 12px',
+                            borderRadius: '20px',
+                            background: theme === 'dark' ? '#0F172A' : '#EFF6FF',
+                            color: theme === 'dark' ? '#38BDF8' : '#0284C7',
+                            border: theme === 'dark' ? '1px solid #0284C7' : '1px solid #BAE6FD',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          Showing {filteredVendorOrders.length} of {vendorOrders.length} POs
+                        </span>
                       </div>
                     </div>
 
                     {/* Orders List View */}
                     <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
                       {(() => {
-                        const filteredOrders = vendorOrders.filter(o => {
-                          if (vendorOrderPartyFilter !== 'All' && o.partyName !== vendorOrderPartyFilter) return false
-                          if (vendorOrderStatusFilter !== 'All' && o.status !== vendorOrderStatusFilter) return false
-                          if (vendorOrderSchoolFilter !== 'All') {
-                            const prods = getNormalizedProducts(o)
-                            if (!prods.some(p => p.school === vendorOrderSchoolFilter)) return false
-                          }
-                          if (vendorOrderSearch && vendorOrderSearch.trim()) {
-                            const prods = getNormalizedProducts(o)
-                            const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
-                            const dates = [
-                              o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
-                              o.targetDate || '',
-                              ...(o.installments || []).map(i => i.receivedAt ? new Date(i.receivedAt).toLocaleDateString() : '')
-                            ]
-                            const fields = [
-                              o.poNumber,
-                              o.notes,
-                              ...(prods.map(p => p.productName)),
-                              ...sizes,
-                              ...dates
-                            ]
-                            return checkFuzzyMatch(vendorOrderSearch, fields)
-                          }
-                          return true
-                        })
+                        const filteredOrders = filteredVendorOrders
 
                         // Sort POs ascending (lower PO numbers above, increasing as we go down)
                         filteredOrders.sort((a, b) => {
@@ -8113,40 +8139,7 @@ function App() {
                     {/* Orders List View */}
                     <div className="table-wrap" style={{ margin: '0 24px 24px', overflowX: 'auto' }}>
                       {(() => {
-                        const filteredOrders = bulkOrders.filter(o => {
-                          if (bulkOrderClientFilter !== 'All' && o.clientName !== bulkOrderClientFilter) return false
-                          if (bulkOrderStatusFilter !== 'All' && o.status !== bulkOrderStatusFilter) return false
-                          if (bulkOrderSearch && bulkOrderSearch.trim()) {
-                            const prods = getNormalizedProducts(o)
-                            const sizes = prods.flatMap(p => (p.sizeBreakdown || []).map(sb => `Size ${sb.size} ${sb.size}`))
-                            const dates = [
-                              o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '',
-                              o.targetDate || '',
-                              ...(o.dispatches || []).map(inst => inst.dispatchedAt ? new Date(inst.dispatchedAt).toLocaleDateString() : '')
-                            ]
-                            const fields = [
-                              o.boNumber,
-                              o.clientName,
-                              o.notes,
-                              o.status,
-                              ...prods.map(p => p.productName),
-                              ...prods.map(p => p.school),
-                              ...sizes,
-                              ...dates,
-                              ...(o.dispatches || []).map(inst => inst.challanNumber || ''),
-                              ...(o.dispatches || []).map(inst => inst.notes || '')
-                            ]
-                            return checkFuzzyMatch(bulkOrderSearch, fields)
-                          }
-                          return true
-                        })
-
-                        filteredOrders.sort((a, b) => {
-                          const numA = parseInt(String(a.boNumber || '').replace(/\D/g, ''), 10) || 0
-                          const numB = parseInt(String(b.boNumber || '').replace(/\D/g, ''), 10) || 0
-                          if (numA !== numB) return numA - numB
-                          return String(a.boNumber || '').localeCompare(String(b.boNumber || ''), undefined, { numeric: true, sensitivity: 'base' })
-                        })
+                        const filteredOrders = filteredBulkOrders
 
                         if (loadingBulkOrders) {
                           return <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading bulk client orders...</div>
