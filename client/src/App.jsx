@@ -6615,7 +6615,7 @@ function App() {
                   <div className="card card-panel">
                     <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <h2 className="card-title">{getSafeEmoji('🏬')} Supplier Restock & Orders</h2>
+                        <h2 className="card-title" style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{getSafeEmoji('🏬')} Supplier Restock & Orders</h2>
                         <p className="card-subtitle">Track bulk manufacturing orders, supplier details, and size-wise partial stock installments.</p>
                       </div>
 
@@ -7535,7 +7535,7 @@ function App() {
                   <div className="card card-panel">
                     <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <h2 className="card-title">{getSafeEmoji('🏢')} Bulk Client Sales Orders</h2>
+                        <h2 className="card-title" style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{getSafeEmoji('🏢')} Bulk Client Sales Orders</h2>
                         <p className="card-subtitle">Manage uniform supply contracts, commercial client orders, size-wise dispatch batches, and delivery balances.</p>
                       </div>
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -9804,18 +9804,6 @@ function App() {
             </p>
 
             <form onSubmit={handleLogInstallment}>
-              <div className="manage-input-group">
-                <label>
-                  Delivery Challan / Invoice # (Optional)
-                  <input
-                    type="text"
-                    value={installmentFormData.challanNumber || ''}
-                    onChange={(e) => setInstallmentFormData({ ...installmentFormData, challanNumber: e.target.value })}
-                    placeholder="e.g. DC-1024 or INV-889"
-                  />
-                </label>
-              </div>
-
               {/* Items Table */}
               <div style={{ marginTop: '14px', marginBottom: '14px' }}>
                 <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px' }}>Received Stock Quantities by Size:</div>
@@ -9896,18 +9884,6 @@ function App() {
             </p>
 
             <form onSubmit={handleUpdateInstallment}>
-              <div className="manage-input-group">
-                <label>
-                  Delivery Challan / Invoice # (Optional)
-                  <input
-                    type="text"
-                    value={editingInstallment.challanNumber || ''}
-                    onChange={(e) => setEditingInstallment({ ...editingInstallment, challanNumber: e.target.value })}
-                    placeholder="e.g. DC-1024 or INV-889"
-                  />
-                </label>
-              </div>
-
               {/* Items Table */}
               <div style={{ marginTop: '14px', marginBottom: '14px' }}>
                 <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px' }}>Adjust Received Stock Quantities:</div>
@@ -10900,18 +10876,6 @@ function App() {
             </p>
 
             <form onSubmit={handleLogDispatch}>
-              <div className="manage-input-group">
-                <label>
-                  Delivery Challan / Invoice # (Optional)
-                  <input
-                    type="text"
-                    value={dispatchFormData.challanNumber}
-                    onChange={(e) => setDispatchFormData({ ...dispatchFormData, challanNumber: e.target.value })}
-                    placeholder="e.g. DC-1024 or INV-889"
-                  />
-                </label>
-              </div>
-
               {/* Items Table */}
               <div style={{ marginTop: '14px', marginBottom: '14px' }}>
                 <div style={{ fontSize: '13px', fontWeight: '800', marginBottom: '8px' }}>Dispatched Stock Quantities by Size:</div>
