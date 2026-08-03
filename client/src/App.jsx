@@ -2575,21 +2575,23 @@ function App() {
     let grandCost = 0
 
     prods.forEach((p, pIdx) => {
-      const sorted = sortSizesAscending(p.sizeBreakdown || [])
-      const legacyPrice = Number(p.unitPrice || 0)
+      const frontLogo = Number(p?.frontLogoCost || 0)
+      const backLogo = Number(p?.backLogoCost || 0)
+      const logoPerPc = (isNaN(frontLogo) ? 0 : Math.max(0, frontLogo)) + (isNaN(backLogo) ? 0 : Math.max(0, backLogo))
+      const sorted = sortSizesAscending(p?.sizeBreakdown || [])
+      const legacyPrice = Number(p?.unitPrice || 0)
       let pOrdered = 0
       let pDelivered = 0
       let pPending = 0
       let pTotalCost = 0
 
       sorted.forEach((sb, idx) => {
-        const ordered = sb.orderedQty || 0
-        const delivered = sb.deliveredQty || 0
+        const ordered = Number(sb?.orderedQty || 0) || 0
+        const delivered = Number(sb?.deliveredQty || 0) || 0
         const pending = Math.max(0, ordered - delivered)
-        const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-        const logoPerUnit = Number(p.frontLogoCost || 0) + Number(p.backLogoCost || 0)
-        const effPrice = sbPrice + logoPerUnit
-        const rowCost = effPrice > 0 ? delivered * effPrice : 0
+        const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+        const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
+        const rowCost = effectiveUnitPrice > 0 ? delivered * effectiveUnitPrice : 0
 
         pOrdered += ordered
         pDelivered += delivered
@@ -2603,12 +2605,16 @@ function App() {
         const surplus = delivered > ordered ? delivered - ordered : 0
         const delStr = surplus > 0 ? `${delivered} pcs (+${surplus} Extra)` : `${delivered} pcs`
 
+        const unitPriceDisplay = logoPerPc > 0
+          ? `Rs. ${effectiveUnitPrice} (Base Rs. ${basePrice} + Logo Rs. ${logoPerPc})`
+          : (basePrice > 0 ? `Rs. ${basePrice}` : '-')
+
         rows.push([
           idx === 0 ? p.productName : '',
-          idx === 0 ? (Number(p.frontLogoCost || 0) > 0 ? `Rs. ${p.frontLogoCost}` : '-') : '',
-          idx === 0 ? (Number(p.backLogoCost || 0) > 0 ? `Rs. ${p.backLogoCost}` : '-') : '',
+          idx === 0 ? (frontLogo > 0 ? `Rs. ${frontLogo}` : '-') : '',
+          idx === 0 ? (backLogo > 0 ? `Rs. ${backLogo}` : '-') : '',
           sb.size,
-          effPrice > 0 ? `Rs. ${effPrice}${logoPerUnit > 0 ? ` (incl. Rs.${logoPerUnit} logo)` : ''}` : '-',
+          unitPriceDisplay,
           `${ordered} pcs`,
           delStr,
           pending > 0 ? `${pending} pcs` : 'Done',
@@ -2772,13 +2778,15 @@ function App() {
       let grandBOCost = 0
       let grandBOHasCost = false
       prods.forEach(p => {
-        const legacyPrice = Number(p.unitPrice || 0)
-        const logoPerUnit = Number(p.frontLogoCost || 0) + Number(p.backLogoCost || 0)
-        ;(p.sizeBreakdown || []).forEach(sb => {
-          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-          const effPrice = sbPrice + logoPerUnit
-          if (effPrice > 0) {
-            grandBOCost += (sb.deliveredQty || 0) * effPrice
+        const frontLogo = Number(p?.frontLogoCost || 0)
+        const backLogo = Number(p?.backLogoCost || 0)
+        const logoPerPc = (isNaN(frontLogo) ? 0 : Math.max(0, frontLogo)) + (isNaN(backLogo) ? 0 : Math.max(0, backLogo))
+        const legacyPrice = Number(p?.unitPrice || 0)
+        ;(p?.sizeBreakdown || []).forEach(sb => {
+          const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+          const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
+          if (effectiveUnitPrice > 0) {
+            grandBOCost += (sb?.deliveredQty || 0) * effectiveUnitPrice
             grandBOHasCost = true
           }
         })
@@ -2786,15 +2794,18 @@ function App() {
 
       prods.forEach((prod, pIdx) => {
         if (startY > 240) { doc.addPage(); startY = 16 }
-        const sorted = sortSizesAscending(prod.sizeBreakdown || [])
-        const legacyPrice = Number(prod.unitPrice || 0)
+        const frontLogo = Number(prod?.frontLogoCost || 0)
+        const backLogo = Number(prod?.backLogoCost || 0)
+        const logoPerPc = (isNaN(frontLogo) ? 0 : Math.max(0, frontLogo)) + (isNaN(backLogo) ? 0 : Math.max(0, backLogo))
+        const sorted = sortSizesAscending(prod?.sizeBreakdown || [])
+        const legacyPrice = Number(prod?.unitPrice || 0)
 
         doc.setFontSize(10.5)
         doc.setTextColor(15, 23, 42)
         doc.setFont('helvetica', 'bold')
         let logoText = []
-        if (Number(prod.frontLogoCost || 0) > 0) logoText.push(`Front Logo: Rs.${prod.frontLogoCost}`)
-        if (Number(prod.backLogoCost || 0) > 0) logoText.push(`Back Logo: Rs.${prod.backLogoCost}`)
+        if (frontLogo > 0) logoText.push(`Front Logo: Rs.${frontLogo}`)
+        if (backLogo > 0) logoText.push(`Back Logo: Rs.${backLogo}`)
         const logoStr = logoText.length > 0 ? `  [${logoText.join(' | ')}]` : ''
         doc.text(`Product ${pIdx + 1}: ${prod.productName}${logoStr}`, 14, startY)
         startY += 5
@@ -2802,23 +2813,26 @@ function App() {
         let pTotalCost = 0
         let pDelivered = 0
         let pOrdered = 0
-        const logoPerUnit = Number(prod.frontLogoCost || 0) + Number(prod.backLogoCost || 0)
         const tableData = sorted.map(sb => {
-          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-          const effPrice = sbPrice + logoPerUnit
-          const pending = Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))
-          const rowCost = effPrice > 0 ? (sb.deliveredQty || 0) * effPrice : 0
+          const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+          const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
+          const pending = Math.max(0, (sb?.orderedQty || 0) - (sb?.deliveredQty || 0))
+          const rowCost = effectiveUnitPrice > 0 ? (sb?.deliveredQty || 0) * effectiveUnitPrice : 0
           pTotalCost += rowCost
-          pDelivered += (sb.deliveredQty || 0)
-          pOrdered += (sb.orderedQty || 0)
-          const delQty = sb.deliveredQty || 0
-          const ordQty = sb.orderedQty || 0
+          pDelivered += (sb?.deliveredQty || 0)
+          pOrdered += (sb?.orderedQty || 0)
+          const delQty = sb?.deliveredQty || 0
+          const ordQty = sb?.orderedQty || 0
           const surplus = delQty > ordQty ? delQty - ordQty : 0
           const delStr = surplus > 0 ? `${delQty} pcs (+${surplus} Extra)` : `${delQty} pcs`
 
+          const unitPriceDisplay = logoPerPc > 0
+            ? `Rs.${effectiveUnitPrice} (Base Rs.${basePrice} + Logo Rs.${logoPerPc})`
+            : (basePrice > 0 ? `Rs.${basePrice}` : '-')
+
           return [
             `${sb.size}`,
-            effPrice > 0 ? `Rs.${effPrice}${logoPerUnit > 0 ? ` (incl. Rs.${logoPerUnit} logo)` : ''}` : '-',
+            unitPriceDisplay,
             `${ordQty} pcs`,
             delStr,
             pending > 0 ? `${pending} pcs` : 'Done',
@@ -8132,21 +8146,24 @@ function App() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {filteredOrders.map((order) => {
                               const prods = getNormalizedProducts(order)
+                              let orderTotalCost = 0
                               let totalOrdered = 0
                               let totalDelivered = 0
                               let pendingBalance = 0
-                              let orderTotalCost = 0
 
                               prods.forEach(p => {
-                                const logoPerUnit = Number(p.frontLogoCost || 0) + Number(p.backLogoCost || 0)
-                                (p.sizeBreakdown || []).forEach(sb => {
-                                  const sbPrice = Number(sb.unitPrice || 0) || Number(p.unitPrice || 0)
-                                  const effPrice = sbPrice + logoPerUnit
-                                  if (effPrice > 0) {
-                                    orderTotalCost += (sb.deliveredQty || 0) * effPrice
+                                const frontLogo = Number(p?.frontLogoCost || 0)
+                                const backLogo = Number(p?.backLogoCost || 0)
+                                const logoPerPc = (isNaN(frontLogo) ? 0 : Math.max(0, frontLogo)) + (isNaN(backLogo) ? 0 : Math.max(0, backLogo))
+                                const legacyPrice = Number(p?.unitPrice || 0)
+                                (p?.sizeBreakdown || []).forEach(sb => {
+                                  const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+                                  const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
+                                  const del = Number(sb?.deliveredQty || 0) || 0
+                                  const ord = Number(sb?.orderedQty || 0) || 0
+                                  if (effectiveUnitPrice > 0) {
+                                    orderTotalCost += del * effectiveUnitPrice
                                   }
-                                  const ord = sb.orderedQty || 0
-                                  const del = sb.deliveredQty || 0
                                   totalOrdered += ord
                                   totalDelivered += del
                                   if (del < ord) {
@@ -8227,7 +8244,7 @@ function App() {
                                             sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({
                                               size: sb.size,
                                               orderedQty: String(sb.orderedQty || ''),
-                                              unitPrice: String(sb.unitPrice || p.unitPrice || '')
+                                              unitPrice: String(sb.unitPrice || '')
                                             }))
                                           }))
 
@@ -8367,21 +8384,26 @@ function App() {
                                   {/* Products & Size Breakdown Tables */}
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                     {prods.map((prod, pIdx) => {
-                                      const sortedBreakdown = sortSizesAscending(prod.sizeBreakdown || [])
+                                      const sortedBreakdown = sortSizesAscending(prod?.sizeBreakdown || [])
+                                      const frontLogo = Number(prod?.frontLogoCost || 0)
+                                      const backLogo = Number(prod?.backLogoCost || 0)
+                                      const logoPerPc = (isNaN(frontLogo) ? 0 : Math.max(0, frontLogo)) + (isNaN(backLogo) ? 0 : Math.max(0, backLogo))
+                                      const legacyPrice = Number(prod?.unitPrice || 0)
+
                                       let totalProdOrd = 0
                                       let totalProdDel = 0
                                       let totalProdPending = 0
                                       let totalProdCost = 0
 
                                       sortedBreakdown.forEach(sb => {
-                                        const sbPrice = Number(sb.unitPrice || 0) || Number(prod.unitPrice || 0)
-                                        const effPrice = sbPrice + logoPerUnit
-                                        const ord = sb.orderedQty || 0
-                                        const del = sb.deliveredQty || 0
+                                        const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+                                        const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
+                                        const ord = Number(sb?.orderedQty || 0) || 0
+                                        const del = Number(sb?.deliveredQty || 0) || 0
                                         totalProdOrd += ord
                                         totalProdDel += del
                                         totalProdPending += Math.max(0, ord - del)
-                                        totalProdCost += effPrice > 0 ? del * effPrice : 0
+                                        totalProdCost += effectiveUnitPrice > 0 ? del * effectiveUnitPrice : 0
                                       })
 
                                       const totalProdPct = totalProdOrd > 0 ? Math.round((totalProdDel / totalProdOrd) * 100) : 0
@@ -8391,9 +8413,9 @@ function App() {
                                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                                             <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                               <span>Product {pIdx + 1} &mdash; {prod.productName}</span>
-                                              {(Number(prod.frontLogoCost || 0) > 0 || Number(prod.backLogoCost || 0) > 0) && (
+                                              {logoPerPc > 0 && (
                                                 <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '12px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
-                                                  🏷️ Logos: {prod.frontLogoCost > 0 ? `Front ₹${prod.frontLogoCost}` : ''}{prod.frontLogoCost > 0 && prod.backLogoCost > 0 ? ' | ' : ''}{prod.backLogoCost > 0 ? `Back ₹${prod.backLogoCost}` : ''}
+                                                  🏷️ Logos: {frontLogo > 0 ? `Front ₹${frontLogo}` : ''}{frontLogo > 0 && backLogo > 0 ? ' | ' : ''}{backLogo > 0 ? `Back ₹${backLogo}` : ''} (Total ₹{logoPerPc}/pc)
                                                 </span>
                                               )}
                                             </div>
@@ -8419,24 +8441,24 @@ function App() {
                                             </thead>
                                             <tbody>
                                               {sortedBreakdown.map((sb, sbIdx) => {
-                                                const ord = sb.orderedQty || 0
-                                                const del = sb.deliveredQty || 0
+                                                const ord = Number(sb?.orderedQty || 0) || 0
+                                                const del = Number(sb?.deliveredQty || 0) || 0
                                                 const pend = Math.max(0, ord - del)
-                                                const sbPrice = Number(sb.unitPrice || 0) || Number(prod.unitPrice || 0)
-                                                const effPrice = sbPrice + logoPerUnit
-                                                const rowCost = effPrice > 0 ? del * effPrice : 0
+                                                const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+                                                const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
+                                                const rowCost = effectiveUnitPrice > 0 ? del * effectiveUnitPrice : 0
                                                 const sizePct = ord > 0 ? Math.round((del / ord) * 100) : 0
 
                                                 return (
                                                   <tr key={sbIdx} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
                                                     <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>{sb.size}</td>
                                                     <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '140px' }}>
-                                                      {effPrice > 0 ? (
+                                                      {effectiveUnitPrice > 0 ? (
                                                         <div>
-                                                          <span>₹{effPrice.toLocaleString('en-IN')}</span>
-                                                          {logoPerUnit > 0 && (
+                                                          <span>₹{effectiveUnitPrice.toLocaleString('en-IN')}</span>
+                                                          {logoPerPc > 0 && (
                                                             <span style={{ fontSize: '10px', color: theme === 'dark' ? '#94A3B8' : '#64748B', display: 'block', fontWeight: '500' }}>
-                                                              (₹{sbPrice} base + ₹{logoPerUnit} logo)
+                                                              (Base ₹{basePrice} + Logo ₹{logoPerPc})
                                                             </span>
                                                           )}
                                                         </div>
@@ -11650,12 +11672,10 @@ function App() {
                   let boHasAnyPrices = false
                   prods.forEach(p => {
                     const legacyPrice = Number(p.unitPrice || 0)
-                    const logoPerUnit = Number(p.frontLogoCost || 0) + Number(p.backLogoCost || 0)
                     ;(p.sizeBreakdown || []).forEach(sb => {
                       const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-                      const effPrice = sbPrice + logoPerUnit
-                      if (effPrice > 0) {
-                        boTotalCost += (sb.deliveredQty || 0) * effPrice
+                      if (sbPrice > 0) {
+                        boTotalCost += (sb.deliveredQty || 0) * sbPrice
                         boHasAnyPrices = true
                       }
                     })
@@ -11697,30 +11717,37 @@ function App() {
 
                       {/* Product Tables */}
                       {prods.map((prod, pIdx) => {
-                        const sortedSizes = sortSizesAscending(prod.sizeBreakdown || [])
-                        const legacyPrice = Number(prod.unitPrice || 0)
+                        const frontLogo = Number(prod?.frontLogoCost || 0)
+                        const backLogo = Number(prod?.backLogoCost || 0)
+                        const logoPerPc = (isNaN(frontLogo) ? 0 : Math.max(0, frontLogo)) + (isNaN(backLogo) ? 0 : Math.max(0, backLogo))
+                        const sortedSizes = sortSizesAscending(prod?.sizeBreakdown || [])
+                        const legacyPrice = Number(prod?.unitPrice || 0)
                         let totalProdOrdered = 0
                         let totalProdDelivered = 0
                         let totalProdPending = 0
                         let totalProdCost = 0
 
                         sortedSizes.forEach(sb => {
-                          const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-                          totalProdOrdered += (sb.orderedQty || 0)
-                          totalProdDelivered += (sb.deliveredQty || 0)
-                          totalProdPending += Math.max(0, (sb.orderedQty || 0) - (sb.deliveredQty || 0))
-                          totalProdCost += sbPrice > 0 ? (sb.deliveredQty || 0) * sbPrice : 0
+                          const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+                          const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
+                          const ord = Number(sb?.orderedQty || 0) || 0
+                          const del = Number(sb?.deliveredQty || 0) || 0
+                          totalProdOrdered += ord
+                          totalProdDelivered += del
+                          totalProdPending += Math.max(0, ord - del)
+                          totalProdCost += effectiveUnitPrice > 0 ? del * effectiveUnitPrice : 0
                         })
 
                         return (
                           <div key={pIdx} style={{ marginBottom: '16px', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px' }}>
                             <div style={{ fontWeight: '800', fontSize: '13px', color: '#0284C7', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
                               <span>Product {pIdx + 1} &mdash; {prod.productName}</span>
-                              {(Number(prod.frontLogoCost || 0) > 0 || Number(prod.backLogoCost || 0) > 0) && (
+                              {logoPerPc > 0 && (
                                 <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600' }}>
-                                  {Number(prod.frontLogoCost || 0) > 0 && `Front Logo: ₹${prod.frontLogoCost}`}
-                                  {Number(prod.frontLogoCost || 0) > 0 && Number(prod.backLogoCost || 0) > 0 && ' | '}
-                                  {Number(prod.backLogoCost || 0) > 0 && `Back Logo: ₹${prod.backLogoCost}`}
+                                  {frontLogo > 0 && `Front Logo: ₹${frontLogo}`}
+                                  {frontLogo > 0 && backLogo > 0 && ' | '}
+                                  {backLogo > 0 && `Back Logo: ₹${backLogo}`}
+                                  {` (Total ₹${logoPerPc}/pc)`}
                                 </span>
                               )}
                             </div>
@@ -11738,19 +11765,23 @@ function App() {
                               </thead>
                               <tbody>
                                 {sortedSizes.map((sb) => {
-                                  const sbPrice = Number(sb.unitPrice || 0) || legacyPrice
-                                  const logoPerUnit = Number(prod.frontLogoCost || 0) + Number(prod.backLogoCost || 0)
-                                  const effPrice = sbPrice + logoPerUnit
-                                  const delQty = sb.deliveredQty || 0
-                                  const ordQty = sb.orderedQty || 0
+                                  const basePrice = Number(sb?.unitPrice || 0) || (isNaN(legacyPrice) ? 0 : Math.max(0, legacyPrice))
+                                  const effectiveUnitPrice = basePrice > 0 || logoPerPc > 0 ? basePrice + logoPerPc : 0
+                                  const delQty = Number(sb?.deliveredQty || 0) || 0
+                                  const ordQty = Number(sb?.orderedQty || 0) || 0
                                   const pending = Math.max(0, ordQty - delQty)
                                   const surplus = delQty > ordQty ? delQty - ordQty : 0
-                                  const rowCost = effPrice > 0 ? delQty * effPrice : 0
+                                  const rowCost = effectiveUnitPrice > 0 ? delQty * effectiveUnitPrice : 0
                                   return (
                                     <tr key={sb.size} style={{ borderBottom: '1px solid #F1F5F9' }}>
                                       <td style={{ padding: '5px 8px', fontWeight: '700' }}>{sb.size}</td>
                                       <td style={{ padding: '5px 8px', color: '#475569' }}>
-                                        {effPrice > 0 ? `₹${effPrice}${logoPerUnit > 0 ? ` (incl. ₹${logoPerUnit} logo)` : ''}` : '-'}
+                                        {effectiveUnitPrice > 0 ? (
+                                          <span>
+                                            ₹{effectiveUnitPrice}
+                                            {logoPerPc > 0 && <span style={{ fontSize: '9px', color: '#64748B', display: 'block' }}>(Base ₹{basePrice} + Logo ₹{logoPerPc})</span>}
+                                          </span>
+                                        ) : '-'}
                                       </td>
                                       <td style={{ padding: '5px 8px' }}>{ordQty} pcs</td>
                                       <td style={{ padding: '5px 8px', color: '#059669', fontWeight: '600' }}>
