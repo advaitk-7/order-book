@@ -2419,7 +2419,7 @@ function App() {
     rows.push([])
 
     rows.push(['Product Breakdown'])
-    rows.push(['Product Name', 'School / Firm', 'Size', 'Price / Unit (₹)', 'Ordered Qty', 'Received Qty', 'Pending Balance', 'Row Cost (₹)'])
+    rows.push(['Product Name', 'School / Firm', 'Size', 'Cost / Unit (₹)', 'Ordered Qty', 'Received Qty', 'Pending Balance', 'Row Cost (₹)'])
 
     let grandOrdered = 0
     let grandReceived = 0
@@ -2675,7 +2675,7 @@ function App() {
 
         doc.autoTable({
           startY,
-          head: [['Size', 'Price / Unit', 'Ordered', 'Received', 'Pending', 'Row Cost']],
+          head: [['Size', 'Cost / Unit', 'Ordered', 'Received', 'Pending', 'Row Cost']],
           body: tableData,
           theme: 'striped',
           headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
@@ -7246,7 +7246,7 @@ function App() {
                                             <thead>
                                               <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
                                                 <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '120px' }}>Size</th>
-                                                <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '140px' }}>Price / Unit</th>
+                                                <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '140px' }}>Cost / Unit</th>
                                                 <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Ordered</th>
                                                 <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Received</th>
                                                 <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Pending Balance</th>
@@ -9658,7 +9658,7 @@ function App() {
                               type="number"
                               min="0"
                               step="any"
-                              placeholder="Price/Unit (₹)"
+                              placeholder="Cost/Unit (₹)"
                               value={sb.unitPrice !== undefined ? sb.unitPrice : ''}
                               onChange={(e) => {
                                 const updatedProds = [...(vendorOrderFormData.products || [])]
@@ -10256,7 +10256,7 @@ function App() {
                               <thead>
                                 <tr style={{ background: '#2563EB', color: '#FFFFFF' }}>
                                   <th style={{ padding: '5px 8px', textAlign: 'left' }}>Size</th>
-                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Price / Unit</th>
+                                  <th style={{ padding: '5px 8px', textAlign: 'left' }}>Cost / Unit</th>
                                   <th style={{ padding: '5px 8px', textAlign: 'left' }}>Ordered</th>
                                   <th style={{ padding: '5px 8px', textAlign: 'left' }}>Received</th>
                                   <th style={{ padding: '5px 8px', textAlign: 'left' }}>Pending</th>
