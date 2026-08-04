@@ -10309,7 +10309,7 @@ function App() {
       {showInstallmentModal && selectedOrderForInstallment && (
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <button type="button" className="manage-modal-close" onClick={() => setShowInstallmentModal(false)}>
+            <button type="button" className="manage-modal-close" onClick={() => { setShowInstallmentModal(false); setSelectedOrderForInstallment(null); }}>
               {getSafeEmoji('✕')}
             </button>
             <p className="manage-modal-title">📦 Record Stock Delivery Batch</p>
@@ -10373,7 +10373,7 @@ function App() {
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                <button type="button" className="secondary-btn" onClick={() => setShowInstallmentModal(false)}>
+                <button type="button" className="secondary-btn" onClick={() => { setShowInstallmentModal(false); setSelectedOrderForInstallment(null); }}>
                   Cancel
                 </button>
                 <button type="submit" className="primary-btn" style={{ background: '#059669', borderColor: '#059669' }}>
@@ -10389,7 +10389,7 @@ function App() {
       {showEditInstallmentModal && editingInstallment && (
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <button type="button" className="manage-modal-close" onClick={() => setShowEditInstallmentModal(false)}>
+            <button type="button" className="manage-modal-close" onClick={() => { setShowEditInstallmentModal(false); setEditingInstallment(null); }}>
               {getSafeEmoji('✕')}
             </button>
             <p className="manage-modal-title">✏️ Edit Stock Delivery Batch</p>
@@ -10462,7 +10462,7 @@ function App() {
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                <button type="button" className="secondary-btn" onClick={() => setShowEditInstallmentModal(false)}>
+                <button type="button" className="secondary-btn" onClick={() => { setShowEditInstallmentModal(false); setEditingInstallment(null); }}>
                   Cancel
                 </button>
                 <button type="submit" className="primary-btn" style={{ background: '#059669', borderColor: '#059669' }}>
@@ -11516,7 +11516,7 @@ function App() {
       {showEditDispatchModal && editingDispatch && (
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <button type="button" className="manage-modal-close" onClick={() => setShowEditDispatchModal(false)}>
+            <button type="button" className="manage-modal-close" onClick={() => { setShowEditDispatchModal(false); setEditingDispatch(null); }}>
               {getSafeEmoji('✕')}
             </button>
             <p className="manage-modal-title">✏️ Edit Stock Dispatch Batch</p>
