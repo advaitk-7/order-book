@@ -1565,6 +1565,32 @@ tbody tr:hover {
   }
 }
 
+/* Improve modal behavior on small and medium screens (mobile & tablets) */
+@media (max-width: 768px) {
+  .manage-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .manage-modal-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 12px 12px 0 0 !important;
+    max-height: 100vh !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    box-shadow: 0 -10px 30px rgba(2,6,23,0.25) !important;
+    padding: 18px !important;
+  }
+
+  .manage-modal-close {
+    top: 12px !important;
+    right: 12px !important;
+    font-size: 20px !important;
+  }
+}
+
 /* Highlighted Row (Recently Edited) - Built using box-shadow to prevent alignment shifts */
 tr.highlighted-row td {
   background: #EFF6FF !important;

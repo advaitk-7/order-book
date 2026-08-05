@@ -2190,18 +2190,39 @@ function App() {
           notes: bulkOrderFormData.notes
         })
       })
-      const data = await response.json()
-      if (response.ok) {
-        const coStr = getDisplayCoNumber(data)
-        setMessage(isEditing ? `Client Order ${coStr} updated.` : `Client Order ${coStr} created for client '${data.clientName}'.`)
-        setShowBulkOrderModal(false)
-        setSelectedBulkOrder(null)
-        fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
-      } else {
-        setMessage(data.message || 'Failed to save client order.')
+
+      // Read response safely (handle JSON and plain text)
+      let respBody = null
+      const contentType = response.headers.get('content-type') || ''
+      try {
+        if (contentType.includes('application/json')) respBody = await response.json()
+        else respBody = await response.text()
+      } catch (e) {
+        respBody = await response.text().catch(() => null)
       }
+
+      if (response.status === 401 || response.status === 403) {
+        console.warn('Auth error when saving bulk order', respBody)
+        handleLogout()
+        return
+      }
+
+      if (!response.ok) {
+        console.error('Failed to save bulk order', response.status, respBody)
+        const serverMsg = (respBody && typeof respBody === 'object' && respBody.message) ? respBody.message : (typeof respBody === 'string' ? respBody : null)
+        setMessage(serverMsg || `Failed to save client order (status ${response.status}).`)
+        return
+      }
+
+      const data = respBody
+      const coStr = getDisplayCoNumber(data)
+      setMessage(isEditing ? `Client Order ${coStr} updated.` : `Client Order ${coStr} created for client '${data.clientName}'.`)
+      setShowBulkOrderModal(false)
+      setSelectedBulkOrder(null)
+      fetchBulkOrders(bulkOrderSearch, bulkOrderClientFilter, bulkOrderStatusFilter, true)
     } catch (err) {
-      setMessage('Network error saving client order.')
+      console.error('Network error saving client order', err)
+      setMessage('Network error saving client order. Check console for details.')
     }
   }
 
