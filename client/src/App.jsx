@@ -727,6 +727,7 @@ function App() {
   const [editingSpecProductIndex, setEditingSpecProductIndex] = useState(null)
   const [editingSpecType, setEditingSpecType] = useState(null) // 'vendor' or 'bulk'
   const [draggedSpecIndex, setDraggedSpecIndex] = useState(null)
+  const [editingLabelKey, setEditingLabelKey] = useState(null)
 
   // Bulk Client Orders State
   const [clients, setClients] = useState([])
@@ -10282,6 +10283,7 @@ function App() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {getNormalizedSpecifications(prod).map((spec, sIdx, allSpecs) => {
                           const isDragging = draggedSpecIndex === sIdx
+                          const isEditingLabel = editingLabelKey === `vendor-${pIdx}-${sIdx}`
                           return (
                             <div
                               key={sIdx}
@@ -10310,37 +10312,76 @@ function App() {
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '8px',
+                                gap: '6px',
                                 background: isDragging ? (theme === 'dark' ? '#334155' : '#EFF6FF') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
-                                padding: '6px 10px',
+                                padding: '6px 8px',
                                 borderRadius: '8px',
                                 border: isDragging ? '2px dashed #2563EB' : '1px solid var(--border-color, #CBD5E1)',
+                                boxSizing: 'border-box',
+                                width: '100%',
                                 boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
                                 transition: 'all 0.15s ease'
                               }}
                             >
+                              {/* Drag Handle */}
                               <div
                                 title="Click and drag to reorder position"
-                                style={{ fontSize: '14px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', paddingRight: '2px' }}
+                                style={{ fontSize: '13px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', flexShrink: 0, paddingRight: '2px' }}
                               >
                                 ⋮⋮
                               </div>
 
-                              <input
-                                type="text"
-                                value={spec.label}
-                                onChange={(e) => {
-                                  const updated = [...allSpecs]
-                                  updated[sIdx] = { ...updated[sIdx], label: e.target.value }
-                                  setVendorOrderFormData(prev => ({
-                                    ...prev,
-                                    products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
-                                  }))
-                                }}
-                                placeholder="Category Name"
-                                style={{ width: '150px', fontSize: '12px', padding: '5px 8px', fontWeight: '700', borderRadius: '6px', border: '1px solid #CBD5E1' }}
-                              />
+                              {/* Category Label Section */}
+                              <div style={{ width: '140px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {isEditingLabel ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%' }}>
+                                    <input
+                                      type="text"
+                                      autoFocus
+                                      value={spec.label}
+                                      onChange={(e) => {
+                                        const updated = [...allSpecs]
+                                        updated[sIdx] = { ...updated[sIdx], label: e.target.value }
+                                        setVendorOrderFormData(prev => ({
+                                          ...prev,
+                                          products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
+                                        }))
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') setEditingLabelKey(null)
+                                      }}
+                                      style={{ width: '100%', fontSize: '11px', padding: '3px 5px', fontWeight: '700', borderRadius: '4px', border: '1px solid #2563EB', boxSizing: 'border-box' }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingLabelKey(null)}
+                                      title="Save category name"
+                                      style={{ fontSize: '10px', padding: '3px 6px', borderRadius: '4px', background: '#2563EB', color: '#FFF', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                                    >
+                                      ✓
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%', overflow: 'hidden' }}>
+                                    <span
+                                      title={spec.label}
+                                      style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}
+                                    >
+                                      {spec.label || 'Category'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingLabelKey(`vendor-${pIdx}-${sIdx}`)}
+                                      title="Edit Category Name"
+                                      style={{ background: 'none', border: 'none', fontSize: '11px', color: '#64748B', cursor: 'pointer', padding: '2px', opacity: 0.8, flexShrink: 0 }}
+                                    >
+                                      ✏️
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
 
+                              {/* Value Detail Input */}
                               <input
                                 type="text"
                                 value={spec.value}
@@ -10352,10 +10393,11 @@ function App() {
                                     products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
                                   }))
                                 }}
-                                placeholder="Enter detail / value (leave blank if none)"
-                                style={{ flex: 1, minWidth: '140px', fontSize: '12px', padding: '5px 8px', borderRadius: '6px', border: '1px solid #CBD5E1' }}
+                                placeholder="Enter detail / value (optional)"
+                                style={{ flex: 1, minWidth: '0', fontSize: '12px', padding: '5px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }}
                               />
 
+                              {/* Delete Category Button */}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -10366,7 +10408,7 @@ function App() {
                                   }))
                                 }}
                                 title="Delete Category"
-                                style={{ fontSize: '11px', padding: '5px 8px', borderRadius: '6px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700' }}
+                                style={{ fontSize: '11px', padding: '5px 8px', borderRadius: '6px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700', flexShrink: 0 }}
                               >
                                 🗑️
                               </button>
@@ -11351,6 +11393,7 @@ function App() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {getNormalizedSpecifications(p).map((spec, sIdx, allSpecs) => {
                           const isDragging = draggedSpecIndex === sIdx
+                          const isEditingLabel = editingLabelKey === `bulk-${pIdx}-${sIdx}`
                           return (
                             <div
                               key={sIdx}
@@ -11378,36 +11421,75 @@ function App() {
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '8px',
+                                gap: '6px',
                                 background: isDragging ? (theme === 'dark' ? '#334155' : '#EFF6FF') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
-                                padding: '6px 10px',
+                                padding: '6px 8px',
                                 borderRadius: '8px',
                                 border: isDragging ? '2px dashed #059669' : '1px solid var(--border-color, #CBD5E1)',
+                                boxSizing: 'border-box',
+                                width: '100%',
                                 boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
                                 transition: 'all 0.15s ease'
                               }}
                             >
+                              {/* Drag Handle */}
                               <div
                                 title="Click and drag to reorder position"
-                                style={{ fontSize: '14px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', paddingRight: '2px' }}
+                                style={{ fontSize: '13px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', flexShrink: 0, paddingRight: '2px' }}
                               >
                                 ⋮⋮
                               </div>
 
-                              <input
-                                type="text"
-                                value={spec.label}
-                                onChange={(e) => {
-                                  const updated = [...allSpecs]
-                                  updated[sIdx] = { ...updated[sIdx], label: e.target.value }
-                                  const newProds = [...bulkOrderFormData.products]
-                                  newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
-                                  setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                                }}
-                                placeholder="Category Name"
-                                style={{ width: '150px', fontSize: '12px', padding: '5px 8px', fontWeight: '700', borderRadius: '6px', border: '1px solid #CBD5E1' }}
-                              />
+                              {/* Category Label Section */}
+                              <div style={{ width: '140px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {isEditingLabel ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%' }}>
+                                    <input
+                                      type="text"
+                                      autoFocus
+                                      value={spec.label}
+                                      onChange={(e) => {
+                                        const updated = [...allSpecs]
+                                        updated[sIdx] = { ...updated[sIdx], label: e.target.value }
+                                        const newProds = [...bulkOrderFormData.products]
+                                        newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
+                                        setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') setEditingLabelKey(null)
+                                      }}
+                                      style={{ width: '100%', fontSize: '11px', padding: '3px 5px', fontWeight: '700', borderRadius: '4px', border: '1px solid #059669', boxSizing: 'border-box' }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingLabelKey(null)}
+                                      title="Save category name"
+                                      style={{ fontSize: '10px', padding: '3px 6px', borderRadius: '4px', background: '#059669', color: '#FFF', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                                    >
+                                      ✓
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%', overflow: 'hidden' }}>
+                                    <span
+                                      title={spec.label}
+                                      style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}
+                                    >
+                                      {spec.label || 'Category'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingLabelKey(`bulk-${pIdx}-${sIdx}`)}
+                                      title="Edit Category Name"
+                                      style={{ background: 'none', border: 'none', fontSize: '11px', color: '#64748B', cursor: 'pointer', padding: '2px', opacity: 0.8, flexShrink: 0 }}
+                                    >
+                                      ✏️
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
 
+                              {/* Value Detail Input */}
                               <input
                                 type="text"
                                 value={spec.value}
@@ -11418,10 +11500,11 @@ function App() {
                                   newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
                                   setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                                 }}
-                                placeholder="Enter detail / value (leave blank if none)"
-                                style={{ flex: 1, minWidth: '140px', fontSize: '12px', padding: '5px 8px', borderRadius: '6px', border: '1px solid #CBD5E1' }}
+                                placeholder="Enter detail / value (optional)"
+                                style={{ flex: 1, minWidth: '0', fontSize: '12px', padding: '5px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', boxSizing: 'border-box' }}
                               />
 
+                              {/* Delete Category Button */}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -11431,7 +11514,7 @@ function App() {
                                   setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                                 }}
                                 title="Delete Category"
-                                style={{ fontSize: '11px', padding: '5px 8px', borderRadius: '6px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700' }}
+                                style={{ fontSize: '11px', padding: '5px 8px', borderRadius: '6px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700', flexShrink: 0 }}
                               >
                                 🗑️
                               </button>
