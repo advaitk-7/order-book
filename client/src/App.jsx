@@ -2065,53 +2065,6 @@ function App() {
     }
   }
 
-  const exportVendorOrdersCSV = () => {
-    if (vendorOrders.length === 0) {
-      alert('No supplier restock orders available to export.')
-      return
-    }
-
-    const headers = ['PO Number', 'Supplier Name', 'Products & Schools Summary', 'Target Date', 'Status', 'Total Ordered', 'Total Received', 'Pending Balance', 'Notes']
-    const rows = vendorOrders.map(vo => {
-      const prods = getNormalizedProducts(vo)
-      const prodsSummary = prods.map(p => `${p.productName} (${p.school})`).join(' | ')
-      let totalOrdered = 0
-      let totalReceived = 0
-      let pendingBalance = 0
-      prods.forEach(p => {
-        (p.sizeBreakdown || []).forEach(s => {
-          const ord = s.orderedQty || 0
-          const rec = s.receivedQty || 0
-          totalOrdered += ord
-          totalReceived += rec
-          if (rec < ord) {
-            pendingBalance += (ord - rec)
-          }
-        })
-      })
-      return [
-        vo.poNumber,
-        `"${(vo.partyName || '').replace(/"/g, '""')}"`,
-        `"${prodsSummary.replace(/"/g, '""')}"`,
-        vo.targetDate || '-',
-        vo.status || 'Pending',
-        totalOrdered,
-        totalReceived,
-        pendingBalance,
-        `"${(vo.notes || '').replace(/"/g, '""')}"`
-      ]
-    })
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    const today = new Date().toISOString().split('T')[0]
-    link.setAttribute('download', `Purchase_Orders_${today}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
   const getDisplayCoNumber = (o) => {
     if (!o) return ''
@@ -2473,53 +2426,6 @@ function App() {
     }
   }
 
-  const exportBulkOrdersCSV = () => {
-    if (bulkOrders.length === 0) {
-      alert('No bulk client orders available to export.')
-      return
-    }
-
-    const headers = ['CO Number', 'Client Name', 'Products Summary', 'Target Delivery Date', 'Status', 'Total Ordered', 'Total Dispatched', 'Pending Delivery Balance', 'Notes']
-    const rows = bulkOrders.map(bo => {
-      const prods = getNormalizedProducts(bo)
-      const prodsSummary = prods.map(p => `${p.productName} (${p.school})`).join(' | ')
-      let totalOrdered = 0
-      let totalDelivered = 0
-      let pendingBalance = 0
-      prods.forEach(p => {
-        (p.sizeBreakdown || []).forEach(s => {
-          const ord = s.orderedQty || 0
-          const del = s.deliveredQty || 0
-          totalOrdered += ord
-          totalDelivered += del
-          if (del < ord) {
-            pendingBalance += (ord - del)
-          }
-        })
-      })
-      return [
-        getDisplayCoNumber(bo),
-        `"${(bo.clientName || '').replace(/"/g, '""')}"`,
-        `"${prodsSummary.replace(/"/g, '""')}"`,
-        bo.targetDate || '-',
-        bo.status || 'Pending',
-        totalOrdered,
-        totalDelivered,
-        pendingBalance,
-        `"${(bo.notes || '').replace(/"/g, '""')}"`
-      ]
-    })
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    const today = new Date().toISOString().split('T')[0]
-    link.setAttribute('download', `Client_Orders_${today}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
   const exportVendorOrderCSV = (order) => {
     if (!order) return
