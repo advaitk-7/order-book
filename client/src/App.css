@@ -3199,3 +3199,62 @@ tr.clickable-row.highlighted-row td {
   break-inside: avoid !important;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Restock & Bulk Orders Mobile Responsiveness
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.restock-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 24px;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.restock-section-margin {
+  margin: 20px 24px 16px;
+}
+
+.restock-table-wrap-margin {
+  margin: 0 24px 24px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.restock-table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .restock-hub-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    padding: 0 4px !important;
+  }
+
+  .restock-section-margin {
+    margin: 12px 8px 12px !important;
+  }
+
+  .restock-table-wrap-margin {
+    margin: 0 4px 16px !important;
+  }
+
+  .restock-modal-size-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    background: rgba(241, 245, 249, 0.5);
+    padding: 8px !important;
+    border-radius: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .restock-modal-size-row > div {
+    flex: 1 1 calc(50% - 6px) !important;
+    min-width: 90px !important;
+  }
+}
+
