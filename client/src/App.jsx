@@ -726,7 +726,7 @@ function App() {
   // Specification Editor & Drag-and-Drop State
   const [editingSpecProductIndex, setEditingSpecProductIndex] = useState(null)
   const [editingSpecType, setEditingSpecType] = useState(null) // 'vendor' or 'bulk'
-  const [draggedSpecIndex, setDraggedSpecIndex] = useState(null)
+
   const [editingLabelKey, setEditingLabelKey] = useState(null)
 
   // Bulk Client Orders State
@@ -10226,7 +10226,7 @@ function App() {
                     <div style={{ marginTop: '12px', padding: '12px', borderRadius: '10px', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', border: '1px solid var(--border-color, #E2E8F0)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                         <div style={{ fontSize: '12px', fontWeight: '800', color: theme === 'dark' ? '#60A5FA' : '#2563EB', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Product Specifications (Drag <span style={{ color: '#94A3B8' }}>⋮⋮</span> to reorder)
+                          Product Specifications
                         </div>
                         <button
                           type="button"
@@ -10246,7 +10246,6 @@ function App() {
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {getNormalizedSpecifications(prod).map((spec, sIdx, allSpecs) => {
-                          const isDragging = draggedSpecIndex === sIdx
                           const isEditingLabel = editingLabelKey === `vendor-${pIdx}-${sIdx}`
                           return (
                             <div
@@ -10255,46 +10254,15 @@ function App() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                background: isDragging ? (theme === 'dark' ? '#334155' : '#EFF6FF') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
+                                background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
                                 padding: '6px 8px',
                                 borderRadius: '8px',
-                                border: isDragging ? '2px dashed #2563EB' : '1px solid var(--border-color, #CBD5E1)',
+                                border: '1px solid var(--border-color, #CBD5E1)',
                                 boxSizing: 'border-box',
                                 width: '100%',
-                                boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
                                 transition: 'all 0.15s ease'
                               }}
-                              onDragOver={(e) => {
-                                e.preventDefault()
-                                e.dataTransfer.dropEffect = 'move'
-                              }}
-                              onDrop={(e) => {
-                                e.preventDefault()
-                                if (draggedSpecIndex === null || draggedSpecIndex === sIdx) return
-                                const updated = [...allSpecs]
-                                const [draggedItem] = updated.splice(draggedSpecIndex, 1)
-                                updated.splice(sIdx, 0, draggedItem)
-                                setVendorOrderFormData(prev => ({
-                                  ...prev,
-                                  products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
-                                }))
-                                setDraggedSpecIndex(null)
-                              }}
-                              onDragEnd={() => setDraggedSpecIndex(null)}
                             >
-                              {/* Drag Handle */}
-                              <div
-                                title="Click and drag to reorder position"
-                                draggable
-                                onDragStart={(e) => {
-                                  e.stopPropagation()
-                                  setDraggedSpecIndex(sIdx)
-                                  e.dataTransfer.effectAllowed = 'move'
-                                }}
-                                style={{ fontSize: '13px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', flexShrink: 0, paddingRight: '2px' }}
-                              >
-                                ⋮⋮
-                              </div>
 
                               {/* Category Label Section */}
                               <div style={{ width: '140px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -11338,7 +11306,7 @@ function App() {
                     <div style={{ marginTop: '12px', padding: '12px', borderRadius: '10px', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', border: '1px solid var(--border-color, #E2E8F0)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                         <div style={{ fontSize: '12px', fontWeight: '800', color: theme === 'dark' ? '#34D399' : '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          Product Specifications (Drag <span style={{ color: '#94A3B8' }}>⋮⋮</span> to reorder)
+                          Product Specifications
                         </div>
                         <button
                           type="button"
@@ -11357,7 +11325,6 @@ function App() {
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {getNormalizedSpecifications(p).map((spec, sIdx, allSpecs) => {
-                          const isDragging = draggedSpecIndex === sIdx
                           const isEditingLabel = editingLabelKey === `bulk-${pIdx}-${sIdx}`
                           return (
                             <div
@@ -11366,45 +11333,15 @@ function App() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                background: isDragging ? (theme === 'dark' ? '#334155' : '#ECFDF5') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
+                                background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
                                 padding: '6px 8px',
                                 borderRadius: '8px',
-                                border: isDragging ? '2px dashed #059669' : '1px solid var(--border-color, #CBD5E1)',
+                                border: '1px solid var(--border-color, #CBD5E1)',
                                 boxSizing: 'border-box',
                                 width: '100%',
-                                boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
                                 transition: 'all 0.15s ease'
                               }}
-                              onDragOver={(e) => {
-                                e.preventDefault()
-                                e.dataTransfer.dropEffect = 'move'
-                              }}
-                              onDrop={(e) => {
-                                e.preventDefault()
-                                if (draggedSpecIndex === null || draggedSpecIndex === sIdx) return
-                                const updated = [...allSpecs]
-                                const [draggedItem] = updated.splice(draggedSpecIndex, 1)
-                                updated.splice(sIdx, 0, draggedItem)
-                                const newProds = [...bulkOrderFormData.products]
-                                newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
-                                setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                                setDraggedSpecIndex(null)
-                              }}
-                              onDragEnd={() => setDraggedSpecIndex(null)}
                             >
-                              {/* Drag Handle */}
-                              <div
-                                title="Click and drag to reorder position"
-                                draggable
-                                onDragStart={(e) => {
-                                  e.stopPropagation()
-                                  setDraggedSpecIndex(sIdx)
-                                  e.dataTransfer.effectAllowed = 'move'
-                                }}
-                                style={{ fontSize: '13px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', flexShrink: 0, paddingRight: '2px' }}
-                              >
-                                ⋮⋮
-                              </div>
 
                               {/* Category Label Section */}
                               <div style={{ width: '140px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
