@@ -6928,7 +6928,7 @@ function App() {
                       <div>
                         <div style={{ borderTop: theme === 'dark' ? '1px solid #1E293B' : '1px solid #F1F5F9', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: '12px', fontWeight: '700', color: '#059669' }}>
-                            Commercial Client Orders
+                            {bulkOrders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length} Active Client COs
                           </span>
                           <span style={{ fontSize: '13px', fontWeight: '800', color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             Open Section &rarr;
