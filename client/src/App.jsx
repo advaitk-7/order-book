@@ -46,8 +46,8 @@ const getDefaultSpecifications = () => [
 const getNormalizedSpecifications = (product = {}) => {
   if (Array.isArray(product?.specifications) && product.specifications.length > 0) {
     return product.specifications.map(s => ({
-      label: String(s?.label || '').trim(),
-      value: String(s?.value || '').trim()
+      label: s?.label !== undefined ? String(s.label) : '',
+      value: s?.value !== undefined ? String(s.value) : ''
     }))
   }
 
