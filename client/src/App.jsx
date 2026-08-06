@@ -6860,7 +6860,7 @@ function App() {
                             {getSafeEmoji('🏬')}
                           </div>
                           <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#EFF6FF', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            Outbound POs
+                            Outbound Purchase Orders
                           </span>
                         </div>
                         <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
@@ -6915,7 +6915,7 @@ function App() {
                             {getSafeEmoji('🏢')}
                           </div>
                           <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#ECFDF5', color: '#059669', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            Inbound Client Sales
+                            Inbound Client Orders
                           </span>
                         </div>
                         <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
