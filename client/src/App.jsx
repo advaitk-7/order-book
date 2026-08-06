@@ -28,6 +28,39 @@ const createItem = () => ({
   },
 })
 
+const createProductSpecification = () => ({
+  fabric: '',
+  collarPattern: '',
+  greepOption: '',
+  extraPattern: '',
+  logoType: '',
+  frontSideSize: '',
+  backSideSize: '',
+  sleeveSideSize: '',
+  nameNumber: '',
+  extraPrinting: '',
+  sizeFormat: '',
+  sideSlit: ''
+})
+
+const getSpecificationEntries = (spec = {}) => {
+  const entries = [
+    ['Fabric', spec.fabric],
+    ['Collar', spec.collarPattern],
+    ['Greep', spec.greepOption],
+    ['Extra Pattern', spec.extraPattern],
+    ['Logo Type', spec.logoType],
+    ['Front Side Size', spec.frontSideSize],
+    ['Back Side Size', spec.backSideSize],
+    ['Sleeve Side Size', spec.sleeveSideSize],
+    ['Name & Number', spec.nameNumber],
+    ['Extra Printing', spec.extraPrinting],
+    ['Size Format', spec.sizeFormat],
+    ['Side Slit', spec.sideSlit]
+  ]
+  return entries.filter(([, value]) => value && String(value).trim())
+}
+
 const createEmptyForm = (orderNumber = '') => ({
   orderNumber,
   customerName: '',
@@ -632,7 +665,7 @@ function App() {
     partyName: '',
     targetDate: '',
     notes: '',
-    products: [{ productName: '', school: '', sizeBreakdown: [{ size: '28', orderedQty: '' }] }]
+    products: [{ productName: '', school: '', specification: createProductSpecification(), sizeBreakdown: [{ size: '28', orderedQty: '' }] }]
   })
 
   // PO PDF Export Modal State
@@ -688,7 +721,7 @@ function App() {
     clientName: '',
     targetDate: '',
     notes: '',
-    products: [{ productName: '', school: '', sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
+    products: [{ productName: '', school: '', specification: createProductSpecification(), sizeBreakdown: [{ size: '28', orderedQty: '', unitPrice: '' }] }]
   })
 
   // Bulk Order PDF Export Modal State
@@ -1782,9 +1815,24 @@ function App() {
         return
       }
 
+      const spec = p.specification || {}
       cleanProducts.push({
         productName,
         school,
+        specification: {
+          fabric: String(spec.fabric || '').trim(),
+          collarPattern: String(spec.collarPattern || '').trim(),
+          greepOption: String(spec.greepOption || '').trim(),
+          extraPattern: String(spec.extraPattern || '').trim(),
+          logoType: String(spec.logoType || '').trim(),
+          frontSideSize: String(spec.frontSideSize || '').trim(),
+          backSideSize: String(spec.backSideSize || '').trim(),
+          sleeveSideSize: String(spec.sleeveSideSize || '').trim(),
+          nameNumber: String(spec.nameNumber || '').trim(),
+          extraPrinting: String(spec.extraPrinting || '').trim(),
+          sizeFormat: String(spec.sizeFormat || '').trim(),
+          sideSlit: String(spec.sideSlit || '').trim()
+        },
         sizeBreakdown: cleanBreakdown
       })
     }
@@ -2161,9 +2209,24 @@ function App() {
         return
       }
 
+      const spec = p.specification || {}
       cleanProducts.push({
         productName,
         school: 'General',
+        specification: {
+          fabric: String(spec.fabric || '').trim(),
+          collarPattern: String(spec.collarPattern || '').trim(),
+          greepOption: String(spec.greepOption || '').trim(),
+          extraPattern: String(spec.extraPattern || '').trim(),
+          logoType: String(spec.logoType || '').trim(),
+          frontSideSize: String(spec.frontSideSize || '').trim(),
+          backSideSize: String(spec.backSideSize || '').trim(),
+          sleeveSideSize: String(spec.sleeveSideSize || '').trim(),
+          nameNumber: String(spec.nameNumber || '').trim(),
+          extraPrinting: String(spec.extraPrinting || '').trim(),
+          sizeFormat: String(spec.sizeFormat || '').trim(),
+          sideSlit: String(spec.sideSlit || '').trim()
+        },
         unitPrice: Math.max(0, Number(p.unitPrice || 0)),
         frontLogoCost: Math.max(0, Number(p.frontLogoCost || 0)),
         backLogoCost: Math.max(0, Number(p.backLogoCost || 0)),
@@ -7094,6 +7157,7 @@ function App() {
                                 {
                                   productName: '',
                                   school: '',
+                                  specification: createProductSpecification(),
                                   sizeBreakdown: [
                                     { size: '28', orderedQty: '' },
                                     { size: '30', orderedQty: '' },
@@ -7550,6 +7614,20 @@ function App() {
                                             products: prods.map(p => ({
                                               productName: p.productName,
                                               school: p.school,
+                                              specification: {
+                                                fabric: p.specification?.fabric || '',
+                                                collarPattern: p.specification?.collarPattern || '',
+                                                greepOption: p.specification?.greepOption || '',
+                                                extraPattern: p.specification?.extraPattern || '',
+                                                logoType: p.specification?.logoType || '',
+                                                frontSideSize: p.specification?.frontSideSize || '',
+                                                backSideSize: p.specification?.backSideSize || '',
+                                                sleeveSideSize: p.specification?.sleeveSideSize || '',
+                                                nameNumber: p.specification?.nameNumber || '',
+                                                extraPrinting: p.specification?.extraPrinting || '',
+                                                sizeFormat: p.specification?.sizeFormat || '',
+                                                sideSlit: p.specification?.sideSlit || ''
+                                              },
                                               sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({ size: sb.size, orderedQty: sb.orderedQty, unitPrice: sb.unitPrice !== undefined ? sb.unitPrice : '' }))
                                             }))
                                           })
@@ -8293,6 +8371,20 @@ function App() {
                                             productName: p.productName,
                                             frontLogoCost: p.frontLogoCost !== undefined ? String(p.frontLogoCost || '') : '',
                                             backLogoCost: p.backLogoCost !== undefined ? String(p.backLogoCost || '') : '',
+                                            specification: {
+                                              fabric: p.specification?.fabric || '',
+                                              collarPattern: p.specification?.collarPattern || '',
+                                              greepOption: p.specification?.greepOption || '',
+                                              extraPattern: p.specification?.extraPattern || '',
+                                              logoType: p.specification?.logoType || '',
+                                              frontSideSize: p.specification?.frontSideSize || '',
+                                              backSideSize: p.specification?.backSideSize || '',
+                                              sleeveSideSize: p.specification?.sleeveSideSize || '',
+                                              nameNumber: p.specification?.nameNumber || '',
+                                              extraPrinting: p.specification?.extraPrinting || '',
+                                              sizeFormat: p.specification?.sizeFormat || '',
+                                              sideSlit: p.specification?.sideSlit || ''
+                                            },
                                             sizeBreakdown: (p.sizeBreakdown || []).map(sb => ({
                                               size: sb.size,
                                               orderedQty: String(sb.orderedQty || ''),
@@ -10191,6 +10283,219 @@ function App() {
                       </div>
                     </div>
 
+                    <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '800', color: '#2563EB', marginBottom: '8px' }}>Product Specification Details (Optional)</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Fabric</label>
+                          <input
+                            type="text"
+                            value={prod.specification?.fabric || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), fabric: e.target.value }
+                              } : item)
+                            }))}
+                            placeholder="e.g. Cotton / Polyester"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Collar colour & pattern</label>
+                          <input
+                            type="text"
+                            value={prod.specification?.collarPattern || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), collarPattern: e.target.value }
+                              } : item)
+                            }))}
+                            placeholder="e.g. White stand collar"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Greep colour / without greep</label>
+                          <select
+                            value={prod.specification?.greepOption || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), greepOption: e.target.value }
+                              } : item)
+                            }))}
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          >
+                            <option value="">Select / Leave blank</option>
+                            <option value="Without greep">Without greep</option>
+                            <option value="With greep">With greep</option>
+                            <option value="Black">Black</option>
+                            <option value="White">White</option>
+                            <option value="Navy">Navy</option>
+                            <option value="Maroon">Maroon</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Extra pattern</label>
+                          <input
+                            type="text"
+                            value={prod.specification?.extraPattern || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), extraPattern: e.target.value }
+                              } : item)
+                            }))}
+                            placeholder="e.g. Pinstripe"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Logo printing / embroidery</label>
+                          <select
+                            value={prod.specification?.logoType || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), logoType: e.target.value }
+                              } : item)
+                            }))}
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          >
+                            <option value="">Select / Leave blank</option>
+                            <option value="No logo">No logo</option>
+                            <option value="Embroidery">Embroidery</option>
+                            <option value="Printing">Printing</option>
+                            <option value="Print + Embroidery">Print + Embroidery</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Front side size</label>
+                          <input
+                            type="text"
+                            value={prod.specification?.frontSideSize || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), frontSideSize: e.target.value }
+                              } : item)
+                            }))}
+                            placeholder="e.g. 6x4 cm"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Back side size</label>
+                          <input
+                            type="text"
+                            value={prod.specification?.backSideSize || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), backSideSize: e.target.value }
+                              } : item)
+                            }))}
+                            placeholder="e.g. 8x4 cm"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Sleeve side size</label>
+                          <input
+                            type="text"
+                            value={prod.specification?.sleeveSideSize || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), sleeveSideSize: e.target.value }
+                              } : item)
+                            }))}
+                            placeholder="e.g. 3x2 cm"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Name & number</label>
+                          <input
+                            type="text"
+                            value={prod.specification?.nameNumber || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), nameNumber: e.target.value }
+                              } : item)
+                            }))}
+                            placeholder="e.g. Name + number"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Extra printing</label>
+                          <input
+                            type="text"
+                            value={prod.specification?.extraPrinting || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), extraPrinting: e.target.value }
+                              } : item)
+                            }))}
+                            placeholder="e.g. Chest monogram"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Size format</label>
+                          <select
+                            value={prod.specification?.sizeFormat || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), sizeFormat: e.target.value }
+                              } : item)
+                            }))}
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          >
+                            <option value="">Select / Leave blank</option>
+                            <option value="Regular">Regular</option>
+                            <option value="Slim">Slim</option>
+                            <option value="Oversize">Oversize</option>
+                            <option value="Custom">Custom</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Side slit</label>
+                          <select
+                            value={prod.specification?.sideSlit || ''}
+                            onChange={(e) => setVendorOrderFormData(prev => ({
+                              ...prev,
+                              products: (prev.products || []).map((item, idx) => idx === pIdx ? {
+                                ...item,
+                                specification: { ...(item.specification || createProductSpecification()), sideSlit: e.target.value }
+                              } : item)
+                            }))}
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          >
+                            <option value="">Select / Leave blank</option>
+                            <option value="Regular">Regular</option>
+                            <option value="With cover">With cover</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
 
                     {/* Size Breakdown per Product */}
                     <div style={{ background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)' }}>
@@ -11141,6 +11446,232 @@ function App() {
                           required
                           style={{ fontSize: '13px', padding: '8px', width: '100%', boxSizing: 'border-box' }}
                         />
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '800', color: '#059669', marginBottom: '8px' }}>Product Specification Details (Optional)</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Fabric</label>
+                          <input
+                            type="text"
+                            value={p.specification?.fabric || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), fabric: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="e.g. Cotton / Polyester"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Collar colour & pattern</label>
+                          <input
+                            type="text"
+                            value={p.specification?.collarPattern || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), collarPattern: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="e.g. White stand collar"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Greep colour / without greep</label>
+                          <select
+                            value={p.specification?.greepOption || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), greepOption: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          >
+                            <option value="">Select / Leave blank</option>
+                            <option value="Without greep">Without greep</option>
+                            <option value="With greep">With greep</option>
+                            <option value="Black">Black</option>
+                            <option value="White">White</option>
+                            <option value="Navy">Navy</option>
+                            <option value="Maroon">Maroon</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Extra pattern</label>
+                          <input
+                            type="text"
+                            value={p.specification?.extraPattern || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), extraPattern: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="e.g. Pinstripe"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Logo printing / embroidery</label>
+                          <select
+                            value={p.specification?.logoType || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), logoType: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          >
+                            <option value="">Select / Leave blank</option>
+                            <option value="No logo">No logo</option>
+                            <option value="Embroidery">Embroidery</option>
+                            <option value="Printing">Printing</option>
+                            <option value="Print + Embroidery">Print + Embroidery</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Front side size</label>
+                          <input
+                            type="text"
+                            value={p.specification?.frontSideSize || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), frontSideSize: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="e.g. 6x4 cm"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Back side size</label>
+                          <input
+                            type="text"
+                            value={p.specification?.backSideSize || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), backSideSize: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="e.g. 8x4 cm"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Sleeve side size</label>
+                          <input
+                            type="text"
+                            value={p.specification?.sleeveSideSize || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), sleeveSideSize: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="e.g. 3x2 cm"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Name & number</label>
+                          <input
+                            type="text"
+                            value={p.specification?.nameNumber || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), nameNumber: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="e.g. Name + number"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Extra printing</label>
+                          <input
+                            type="text"
+                            value={p.specification?.extraPrinting || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), extraPrinting: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            placeholder="e.g. Chest monogram"
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Size format</label>
+                          <select
+                            value={p.specification?.sizeFormat || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), sizeFormat: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          >
+                            <option value="">Select / Leave blank</option>
+                            <option value="Regular">Regular</option>
+                            <option value="Slim">Slim</option>
+                            <option value="Oversize">Oversize</option>
+                            <option value="Custom">Custom</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>Side slit</label>
+                          <select
+                            value={p.specification?.sideSlit || ''}
+                            onChange={(e) => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx] = {
+                                ...newProds[pIdx],
+                                specification: { ...(newProds[pIdx].specification || createProductSpecification()), sideSlit: e.target.value }
+                              }
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            style={{ fontSize: '12px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+                          >
+                            <option value="">Select / Leave blank</option>
+                            <option value="Regular">Regular</option>
+                            <option value="With cover">With cover</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
 

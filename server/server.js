@@ -346,6 +346,20 @@ const vendorOrderSchema = new mongoose.Schema(
       {
         productName: { type: String, required: true, trim: true },
         school: { type: String, required: true, trim: true },
+        specification: {
+          fabric: { type: String, default: "", trim: true },
+          collarPattern: { type: String, default: "", trim: true },
+          greepOption: { type: String, default: "", trim: true },
+          extraPattern: { type: String, default: "", trim: true },
+          logoType: { type: String, default: "", trim: true },
+          frontSideSize: { type: String, default: "", trim: true },
+          backSideSize: { type: String, default: "", trim: true },
+          sleeveSideSize: { type: String, default: "", trim: true },
+          nameNumber: { type: String, default: "", trim: true },
+          extraPrinting: { type: String, default: "", trim: true },
+          sizeFormat: { type: String, default: "", trim: true },
+          sideSlit: { type: String, default: "", trim: true }
+        },
         unitPrice: { type: Number, default: 0 },
         sizeBreakdown: [
           {
@@ -416,6 +430,20 @@ const bulkOrderSchema = new mongoose.Schema(
       {
         productName: { type: String, required: true, trim: true },
         school: { type: String, required: true, trim: true },
+        specification: {
+          fabric: { type: String, default: "", trim: true },
+          collarPattern: { type: String, default: "", trim: true },
+          greepOption: { type: String, default: "", trim: true },
+          extraPattern: { type: String, default: "", trim: true },
+          logoType: { type: String, default: "", trim: true },
+          frontSideSize: { type: String, default: "", trim: true },
+          backSideSize: { type: String, default: "", trim: true },
+          sleeveSideSize: { type: String, default: "", trim: true },
+          nameNumber: { type: String, default: "", trim: true },
+          extraPrinting: { type: String, default: "", trim: true },
+          sizeFormat: { type: String, default: "", trim: true },
+          sideSlit: { type: String, default: "", trim: true }
+        },
         unitPrice: { type: Number, default: 0 },
         frontLogoCost: { type: Number, default: 0 },
         backLogoCost: { type: Number, default: 0 },
@@ -1841,6 +1869,20 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
       cleanProducts.push({
         productName,
         school,
+        specification: {
+          fabric: String((p.specification && p.specification.fabric) || '').trim(),
+          collarPattern: String((p.specification && p.specification.collarPattern) || '').trim(),
+          greepOption: String((p.specification && p.specification.greepOption) || '').trim(),
+          extraPattern: String((p.specification && p.specification.extraPattern) || '').trim(),
+          logoType: String((p.specification && p.specification.logoType) || '').trim(),
+          frontSideSize: String((p.specification && p.specification.frontSideSize) || '').trim(),
+          backSideSize: String((p.specification && p.specification.backSideSize) || '').trim(),
+          sleeveSideSize: String((p.specification && p.specification.sleeveSideSize) || '').trim(),
+          nameNumber: String((p.specification && p.specification.nameNumber) || '').trim(),
+          extraPrinting: String((p.specification && p.specification.extraPrinting) || '').trim(),
+          sizeFormat: String((p.specification && p.specification.sizeFormat) || '').trim(),
+          sideSlit: String((p.specification && p.specification.sideSlit) || '').trim()
+        },
         sizeBreakdown: formattedBreakdown
       });
     }
@@ -1919,6 +1961,20 @@ app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
           cleanProducts.push({
             productName,
             school,
+            specification: {
+              fabric: String((p.specification && p.specification.fabric) || '').trim(),
+              collarPattern: String((p.specification && p.specification.collarPattern) || '').trim(),
+              greepOption: String((p.specification && p.specification.greepOption) || '').trim(),
+              extraPattern: String((p.specification && p.specification.extraPattern) || '').trim(),
+              logoType: String((p.specification && p.specification.logoType) || '').trim(),
+              frontSideSize: String((p.specification && p.specification.frontSideSize) || '').trim(),
+              backSideSize: String((p.specification && p.specification.backSideSize) || '').trim(),
+              sleeveSideSize: String((p.specification && p.specification.sleeveSideSize) || '').trim(),
+              nameNumber: String((p.specification && p.specification.nameNumber) || '').trim(),
+              extraPrinting: String((p.specification && p.specification.extraPrinting) || '').trim(),
+              sizeFormat: String((p.specification && p.specification.sizeFormat) || '').trim(),
+              sideSlit: String((p.specification && p.specification.sideSlit) || '').trim()
+            },
             sizeBreakdown: updatedBreakdown
           });
         }
@@ -2211,6 +2267,20 @@ app.post("/api/bulk-orders", authenticateJWT, async (req, res) => {
       cleanProducts.push({
         productName,
         school,
+        specification: {
+          fabric: String((p.specification && p.specification.fabric) || '').trim(),
+          collarPattern: String((p.specification && p.specification.collarPattern) || '').trim(),
+          greepOption: String((p.specification && p.specification.greepOption) || '').trim(),
+          extraPattern: String((p.specification && p.specification.extraPattern) || '').trim(),
+          logoType: String((p.specification && p.specification.logoType) || '').trim(),
+          frontSideSize: String((p.specification && p.specification.frontSideSize) || '').trim(),
+          backSideSize: String((p.specification && p.specification.backSideSize) || '').trim(),
+          sleeveSideSize: String((p.specification && p.specification.sleeveSideSize) || '').trim(),
+          nameNumber: String((p.specification && p.specification.nameNumber) || '').trim(),
+          extraPrinting: String((p.specification && p.specification.extraPrinting) || '').trim(),
+          sizeFormat: String((p.specification && p.specification.sizeFormat) || '').trim(),
+          sideSlit: String((p.specification && p.specification.sideSlit) || '').trim()
+        },
         unitPrice: Math.max(0, Number(p.unitPrice || 0)),
         frontLogoCost: Math.max(0, Number(p.frontLogoCost || 0)),
         backLogoCost: Math.max(0, Number(p.backLogoCost || 0)),
@@ -2296,6 +2366,20 @@ app.patch("/api/bulk-orders/:id", authenticateJWT, async (req, res) => {
           cleanProducts.push({
             productName,
             school,
+            specification: {
+              fabric: String((p.specification && p.specification.fabric) || '').trim(),
+              collarPattern: String((p.specification && p.specification.collarPattern) || '').trim(),
+              greepOption: String((p.specification && p.specification.greepOption) || '').trim(),
+              extraPattern: String((p.specification && p.specification.extraPattern) || '').trim(),
+              logoType: String((p.specification && p.specification.logoType) || '').trim(),
+              frontSideSize: String((p.specification && p.specification.frontSideSize) || '').trim(),
+              backSideSize: String((p.specification && p.specification.backSideSize) || '').trim(),
+              sleeveSideSize: String((p.specification && p.specification.sleeveSideSize) || '').trim(),
+              nameNumber: String((p.specification && p.specification.nameNumber) || '').trim(),
+              extraPrinting: String((p.specification && p.specification.extraPrinting) || '').trim(),
+              sizeFormat: String((p.specification && p.specification.sizeFormat) || '').trim(),
+              sideSlit: String((p.specification && p.specification.sideSlit) || '').trim()
+            },
             unitPrice: Math.max(0, Number(p.unitPrice || 0)),
             frontLogoCost: Math.max(0, Number(p.frontLogoCost || 0)),
             backLogoCost: Math.max(0, Number(p.backLogoCost || 0)),
