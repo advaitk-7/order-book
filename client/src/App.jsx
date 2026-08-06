@@ -723,6 +723,11 @@ function App() {
   const [editingInstallment, setEditingInstallment] = useState(null)
   const [selectedOldCycleOrder, setSelectedOldCycleOrder] = useState(null)
 
+  // Specification Editor & Drag-and-Drop State
+  const [editingSpecProductIndex, setEditingSpecProductIndex] = useState(null)
+  const [editingSpecType, setEditingSpecType] = useState(null) // 'vendor' or 'bulk'
+  const [draggedSpecIndex, setDraggedSpecIndex] = useState(null)
+
   // Bulk Client Orders State
   const [clients, setClients] = useState([])
   const [loadingClients, setLoadingClients] = useState(false)
@@ -10253,118 +10258,185 @@ function App() {
                       </div>
                     </div>
 
-                    <div style={{ marginTop: '12px', padding: '12px', borderRadius: '8px', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', border: '1px solid var(--border-color, #E2E8F0)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: '800', color: theme === 'dark' ? '#60A5FA' : '#2563EB' }}>
-                          Product Specification Categories
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const curSpecs = getNormalizedSpecifications(prod)
-                            const updated = [...curSpecs, { label: '', value: '' }]
-                            setVendorOrderFormData(prev => ({
-                              ...prev,
-                              products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
-                            }))
-                          }}
-                          style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', background: '#059669', color: '#FFFFFF', border: 'none', cursor: 'pointer', fontWeight: '700' }}
-                        >
-                          + Add Category
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {getNormalizedSpecifications(prod).map((spec, sIdx, allSpecs) => (
-                          <div key={sIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', gap: '2px' }}>
-                              <button
-                                type="button"
-                                disabled={sIdx === 0}
-                                onClick={() => {
-                                  if (sIdx === 0) return
-                                  const updated = [...allSpecs]
-                                  const temp = updated[sIdx]
-                                  updated[sIdx] = updated[sIdx - 1]
-                                  updated[sIdx - 1] = temp
-                                  setVendorOrderFormData(prev => ({
-                                    ...prev,
-                                    products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
-                                  }))
-                                }}
-                                title="Move Up"
-                                style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '4px', cursor: sIdx === 0 ? 'not-allowed' : 'pointer', opacity: sIdx === 0 ? 0.3 : 1 }}
-                              >
-                                ⬆️
-                              </button>
-                              <button
-                                type="button"
-                                disabled={sIdx === allSpecs.length - 1}
-                                onClick={() => {
-                                  if (sIdx === allSpecs.length - 1) return
-                                  const updated = [...allSpecs]
-                                  const temp = updated[sIdx]
-                                  updated[sIdx] = updated[sIdx + 1]
-                                  updated[sIdx + 1] = temp
-                                  setVendorOrderFormData(prev => ({
-                                    ...prev,
-                                    products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
-                                  }))
-                                }}
-                                title="Move Down"
-                                style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '4px', cursor: sIdx === allSpecs.length - 1 ? 'not-allowed' : 'pointer', opacity: sIdx === allSpecs.length - 1 ? 0.3 : 1 }}
-                              >
-                                ⬇️
-                              </button>
+                    <div style={{ marginTop: '12px', padding: '12px', borderRadius: '10px', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                      {editingSpecProductIndex === pIdx && editingSpecType === 'vendor' ? (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '800', color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              ✏️ Edit Specifications (Drag <span style={{ color: '#94A3B8' }}>⋮⋮</span> to reorder)
                             </div>
-
-                            <input
-                              type="text"
-                              value={spec.label}
-                              onChange={(e) => {
-                                const updated = [...allSpecs]
-                                updated[sIdx] = { ...updated[sIdx], label: e.target.value }
-                                setVendorOrderFormData(prev => ({
-                                  ...prev,
-                                  products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
-                                }))
-                              }}
-                              placeholder="Category Name"
-                              style={{ width: '150px', fontSize: '12px', padding: '4px 6px', fontWeight: '700' }}
-                            />
-
-                            <input
-                              type="text"
-                              value={spec.value}
-                              onChange={(e) => {
-                                const updated = [...allSpecs]
-                                updated[sIdx] = { ...updated[sIdx], value: e.target.value }
-                                setVendorOrderFormData(prev => ({
-                                  ...prev,
-                                  products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
-                                }))
-                              }}
-                              placeholder="Enter details / value (leave blank if none)"
-                              style={{ flex: 1, minWidth: '150px', fontSize: '12px', padding: '4px 6px' }}
-                            />
-
                             <button
                               type="button"
                               onClick={() => {
-                                const updated = allSpecs.filter((_, idx) => idx !== sIdx)
+                                setEditingSpecProductIndex(null)
+                                setEditingSpecType(null)
+                              }}
+                              style={{ fontSize: '11px', padding: '5px 14px', borderRadius: '6px', background: '#059669', color: '#FFFFFF', border: 'none', cursor: 'pointer', fontWeight: '700' }}
+                            >
+                              ✓ Done
+                            </button>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {getNormalizedSpecifications(prod).map((spec, sIdx, allSpecs) => {
+                              const isDragging = draggedSpecIndex === sIdx
+                              return (
+                                <div
+                                  key={sIdx}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    setDraggedSpecIndex(sIdx)
+                                    e.dataTransfer.effectAllowed = 'move'
+                                  }}
+                                  onDragOver={(e) => {
+                                    e.preventDefault()
+                                    e.dataTransfer.dropEffect = 'move'
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault()
+                                    if (draggedSpecIndex === null || draggedSpecIndex === sIdx) return
+                                    const updated = [...allSpecs]
+                                    const [draggedItem] = updated.splice(draggedSpecIndex, 1)
+                                    updated.splice(sIdx, 0, draggedItem)
+                                    setVendorOrderFormData(prev => ({
+                                      ...prev,
+                                      products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
+                                    }))
+                                    setDraggedSpecIndex(null)
+                                  }}
+                                  onDragEnd={() => setDraggedSpecIndex(null)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    background: isDragging ? (theme === 'dark' ? '#334155' : '#EFF6FF') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
+                                    padding: '8px 10px',
+                                    borderRadius: '8px',
+                                    border: isDragging ? '2px dashed #2563EB' : '1px solid var(--border-color, #CBD5E1)',
+                                    boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+                                    transition: 'all 0.15s ease',
+                                    cursor: 'grab'
+                                  }}
+                                >
+                                  <div
+                                    title="Click and drag to reorder position"
+                                    style={{ fontSize: '14px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', paddingRight: '2px' }}
+                                  >
+                                    ⋮⋮
+                                  </div>
+
+                                  <input
+                                    type="text"
+                                    value={spec.label}
+                                    onChange={(e) => {
+                                      const updated = [...allSpecs]
+                                      updated[sIdx] = { ...updated[sIdx], label: e.target.value }
+                                      setVendorOrderFormData(prev => ({
+                                        ...prev,
+                                        products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
+                                      }))
+                                    }}
+                                    placeholder="Category Name"
+                                    style={{ width: '150px', fontSize: '12px', padding: '5px 8px', fontWeight: '700', borderRadius: '6px', border: '1px solid #CBD5E1' }}
+                                  />
+
+                                  <input
+                                    type="text"
+                                    value={spec.value}
+                                    onChange={(e) => {
+                                      const updated = [...allSpecs]
+                                      updated[sIdx] = { ...updated[sIdx], value: e.target.value }
+                                      setVendorOrderFormData(prev => ({
+                                        ...prev,
+                                        products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
+                                      }))
+                                    }}
+                                    placeholder="Enter detail / value (leave blank if none)"
+                                    style={{ flex: 1, minWidth: '140px', fontSize: '12px', padding: '5px 8px', borderRadius: '6px', border: '1px solid #CBD5E1' }}
+                                  />
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = allSpecs.filter((_, idx) => idx !== sIdx)
+                                      setVendorOrderFormData(prev => ({
+                                        ...prev,
+                                        products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
+                                      }))
+                                    }}
+                                    title="Delete Category"
+                                    style={{ fontSize: '11px', padding: '5px 8px', borderRadius: '6px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700' }}
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-start' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const curSpecs = getNormalizedSpecifications(prod)
+                                const updated = [...curSpecs, { label: '', value: '' }]
                                 setVendorOrderFormData(prev => ({
                                   ...prev,
                                   products: (prev.products || []).map((item, idx) => idx === pIdx ? { ...item, specifications: updated } : item)
                                 }))
                               }}
-                              title="Delete Category"
-                              style={{ fontSize: '11px', padding: '4px 6px', borderRadius: '4px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700' }}
+                              style={{ fontSize: '11px', padding: '6px 12px', borderRadius: '6px', background: '#2563EB', color: '#FFFFFF', border: 'none', cursor: 'pointer', fontWeight: '700' }}
                             >
-                              🗑️
+                              ➕ Add New Category
                             </button>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '800', color: theme === 'dark' ? '#60A5FA' : '#2563EB' }}>
+                              📋 Product Specifications ({getSpecificationEntries(prod).length} set)
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSpecProductIndex(pIdx)
+                                setEditingSpecType('vendor')
+                              }}
+                              style={{
+                                fontSize: '11px',
+                                padding: '5px 12px',
+                                borderRadius: '6px',
+                                background: theme === 'dark' ? '#1E293B' : '#EFF6FF',
+                                color: '#2563EB',
+                                border: '1px solid #93C5FD',
+                                cursor: 'pointer',
+                                fontWeight: '700',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              ✏️ Edit Specifications
+                            </button>
+                          </div>
+
+                          {getSpecificationEntries(prod).length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '6px' }}>
+                              {getSpecificationEntries(prod).map(([lbl, val], idx) => (
+                                <div key={idx} style={{ fontSize: '11px', padding: '5px 8px', borderRadius: '6px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                                  <span style={{ color: '#64748B', fontWeight: '700' }}>{lbl}: </span>
+                                  <span style={{ fontWeight: '700', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{val}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '11px', color: '#64748B', fontStyle: 'italic', padding: '4px 0' }}>
+                              No specifications filled yet. Click <strong>"✏️ Edit Specifications"</strong> to set fabric, collar pattern, size farma, side slit, etc.
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Size Breakdown per Product */}
@@ -11319,112 +11391,180 @@ function App() {
                       </div>
                     </div>
 
-                    <div style={{ marginTop: '12px', padding: '12px', borderRadius: '8px', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', border: '1px solid var(--border-color, #E2E8F0)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: '800', color: theme === 'dark' ? '#34D399' : '#059669' }}>
-                          Product Specification Categories
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const curSpecs = getNormalizedSpecifications(p)
-                            const updated = [...curSpecs, { label: '', value: '' }]
-                            const newProds = [...bulkOrderFormData.products]
-                            newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
-                            setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                          }}
-                          style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', background: '#059669', color: '#FFFFFF', border: 'none', cursor: 'pointer', fontWeight: '700' }}
-                        >
-                          + Add Category
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {getNormalizedSpecifications(p).map((spec, sIdx, allSpecs) => (
-                          <div key={sIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color, #CBD5E1)', flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', gap: '2px' }}>
-                              <button
-                                type="button"
-                                disabled={sIdx === 0}
-                                onClick={() => {
-                                  if (sIdx === 0) return
-                                  const updated = [...allSpecs]
-                                  const temp = updated[sIdx]
-                                  updated[sIdx] = updated[sIdx - 1]
-                                  updated[sIdx - 1] = temp
-                                  const newProds = [...bulkOrderFormData.products]
-                                  newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
-                                  setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                                }}
-                                title="Move Up"
-                                style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '4px', cursor: sIdx === 0 ? 'not-allowed' : 'pointer', opacity: sIdx === 0 ? 0.3 : 1 }}
-                              >
-                                ⬆️
-                              </button>
-                              <button
-                                type="button"
-                                disabled={sIdx === allSpecs.length - 1}
-                                onClick={() => {
-                                  if (sIdx === allSpecs.length - 1) return
-                                  const updated = [...allSpecs]
-                                  const temp = updated[sIdx]
-                                  updated[sIdx] = updated[sIdx + 1]
-                                  updated[sIdx + 1] = temp
-                                  const newProds = [...bulkOrderFormData.products]
-                                  newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
-                                  setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                                }}
-                                title="Move Down"
-                                style={{ fontSize: '10px', padding: '2px 5px', borderRadius: '4px', cursor: sIdx === allSpecs.length - 1 ? 'not-allowed' : 'pointer', opacity: sIdx === allSpecs.length - 1 ? 0.3 : 1 }}
-                              >
-                                ⬇️
-                              </button>
+                    <div style={{ marginTop: '12px', padding: '12px', borderRadius: '10px', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                      {editingSpecProductIndex === pIdx && editingSpecType === 'bulk' ? (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '800', color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              ✏️ Edit Specifications (Drag <span style={{ color: '#94A3B8' }}>⋮⋮</span> to reorder)
                             </div>
-
-                            <input
-                              type="text"
-                              value={spec.label}
-                              onChange={(e) => {
-                                const updated = [...allSpecs]
-                                updated[sIdx] = { ...updated[sIdx], label: e.target.value }
-                                const newProds = [...bulkOrderFormData.products]
-                                newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
-                                setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                              }}
-                              placeholder="Category Name"
-                              style={{ width: '150px', fontSize: '12px', padding: '4px 6px', fontWeight: '700' }}
-                            />
-
-                            <input
-                              type="text"
-                              value={spec.value}
-                              onChange={(e) => {
-                                const updated = [...allSpecs]
-                                updated[sIdx] = { ...updated[sIdx], value: e.target.value }
-                                const newProds = [...bulkOrderFormData.products]
-                                newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
-                                setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                              }}
-                              placeholder="Enter details / value (leave blank if none)"
-                              style={{ flex: 1, minWidth: '150px', fontSize: '12px', padding: '4px 6px' }}
-                            />
-
                             <button
                               type="button"
                               onClick={() => {
-                                const updated = allSpecs.filter((_, idx) => idx !== sIdx)
+                                setEditingSpecProductIndex(null)
+                                setEditingSpecType(null)
+                              }}
+                              style={{ fontSize: '11px', padding: '5px 14px', borderRadius: '6px', background: '#059669', color: '#FFFFFF', border: 'none', cursor: 'pointer', fontWeight: '700' }}
+                            >
+                              ✓ Done
+                            </button>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {getNormalizedSpecifications(p).map((spec, sIdx, allSpecs) => {
+                              const isDragging = draggedSpecIndex === sIdx
+                              return (
+                                <div
+                                  key={sIdx}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    setDraggedSpecIndex(sIdx)
+                                    e.dataTransfer.effectAllowed = 'move'
+                                  }}
+                                  onDragOver={(e) => {
+                                    e.preventDefault()
+                                    e.dataTransfer.dropEffect = 'move'
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault()
+                                    if (draggedSpecIndex === null || draggedSpecIndex === sIdx) return
+                                    const updated = [...allSpecs]
+                                    const [draggedItem] = updated.splice(draggedSpecIndex, 1)
+                                    updated.splice(sIdx, 0, draggedItem)
+                                    const newProds = [...bulkOrderFormData.products]
+                                    newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
+                                    setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                                    setDraggedSpecIndex(null)
+                                  }}
+                                  onDragEnd={() => setDraggedSpecIndex(null)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    background: isDragging ? (theme === 'dark' ? '#334155' : '#EFF6FF') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
+                                    padding: '8px 10px',
+                                    borderRadius: '8px',
+                                    border: isDragging ? '2px dashed #2563EB' : '1px solid var(--border-color, #CBD5E1)',
+                                    boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+                                    transition: 'all 0.15s ease',
+                                    cursor: 'grab'
+                                  }}
+                                >
+                                  <div
+                                    title="Click and drag to reorder position"
+                                    style={{ fontSize: '14px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', paddingRight: '2px' }}
+                                  >
+                                    ⋮⋮
+                                  </div>
+
+                                  <input
+                                    type="text"
+                                    value={spec.label}
+                                    onChange={(e) => {
+                                      const updated = [...allSpecs]
+                                      updated[sIdx] = { ...updated[sIdx], label: e.target.value }
+                                      const newProds = [...bulkOrderFormData.products]
+                                      newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
+                                      setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                                    }}
+                                    placeholder="Category Name"
+                                    style={{ width: '150px', fontSize: '12px', padding: '5px 8px', fontWeight: '700', borderRadius: '6px', border: '1px solid #CBD5E1' }}
+                                  />
+
+                                  <input
+                                    type="text"
+                                    value={spec.value}
+                                    onChange={(e) => {
+                                      const updated = [...allSpecs]
+                                      updated[sIdx] = { ...updated[sIdx], value: e.target.value }
+                                      const newProds = [...bulkOrderFormData.products]
+                                      newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
+                                      setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                                    }}
+                                    placeholder="Enter detail / value (leave blank if none)"
+                                    style={{ flex: 1, minWidth: '140px', fontSize: '12px', padding: '5px 8px', borderRadius: '6px', border: '1px solid #CBD5E1' }}
+                                  />
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = allSpecs.filter((_, idx) => idx !== sIdx)
+                                      const newProds = [...bulkOrderFormData.products]
+                                      newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
+                                      setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                                    }}
+                                    title="Delete Category"
+                                    style={{ fontSize: '11px', padding: '5px 8px', borderRadius: '6px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700' }}
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-start' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const curSpecs = getNormalizedSpecifications(p)
+                                const updated = [...curSpecs, { label: '', value: '' }]
                                 const newProds = [...bulkOrderFormData.products]
                                 newProds[pIdx] = { ...newProds[pIdx], specifications: updated }
                                 setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                               }}
-                              title="Delete Category"
-                              style={{ fontSize: '11px', padding: '4px 6px', borderRadius: '4px', background: '#FEE2E2', color: '#EF4444', border: '1px solid #FCA5A5', cursor: 'pointer', fontWeight: '700' }}
+                              style={{ fontSize: '11px', padding: '6px 12px', borderRadius: '6px', background: '#2563EB', color: '#FFFFFF', border: 'none', cursor: 'pointer', fontWeight: '700' }}
                             >
-                              🗑️
+                              ➕ Add New Category
                             </button>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '800', color: theme === 'dark' ? '#34D399' : '#059669' }}>
+                              📋 Product Specifications ({getSpecificationEntries(p).length} set)
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSpecProductIndex(pIdx)
+                                setEditingSpecType('bulk')
+                              }}
+                              style={{
+                                fontSize: '11px',
+                                padding: '5px 12px',
+                                borderRadius: '6px',
+                                background: theme === 'dark' ? '#1E293B' : '#ECFDF5',
+                                color: '#059669',
+                                border: '1px solid #6EE7B7',
+                                cursor: 'pointer',
+                                fontWeight: '700',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              ✏️ Edit Specifications
+                            </button>
+                          </div>
+
+                          {getSpecificationEntries(p).length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '6px' }}>
+                              {getSpecificationEntries(p).map(([lbl, val], idx) => (
+                                <div key={idx} style={{ fontSize: '11px', padding: '5px 8px', borderRadius: '6px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', border: '1px solid var(--border-color, #E2E8F0)' }}>
+                                  <span style={{ color: '#64748B', fontWeight: '700' }}>{lbl}: </span>
+                                  <span style={{ fontWeight: '700', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{val}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '11px', color: '#64748B', fontStyle: 'italic', padding: '4px 0' }}>
+                              No specifications filled yet. Click <strong>"✏️ Edit Specifications"</strong> to set fabric, collar pattern, size farma, side slit, etc.
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Optional Front & Back Logo Costs Row */}
