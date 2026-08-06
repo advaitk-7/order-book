@@ -6840,7 +6840,7 @@ function App() {
                         transition: 'all 0.25s ease',
                         display: 'flex',
                         flexDirection: 'column',
-                        justify: 'space-between',
+                        justifyContent: 'space-between',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
                       }}
                       onMouseEnter={(e) => {
@@ -6854,7 +6854,7 @@ function App() {
                         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'
                       }}
                     >
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                           <div style={{ width: '56px', height: '56px', borderRadius: '12px', background: 'rgba(37,99,235,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>
                             {getSafeEmoji('🏬')}
@@ -6895,7 +6895,7 @@ function App() {
                         transition: 'all 0.25s ease',
                         display: 'flex',
                         flexDirection: 'column',
-                        justify: 'space-between',
+                        justifyContent: 'space-between',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
                       }}
                       onMouseEnter={(e) => {
@@ -6909,7 +6909,7 @@ function App() {
                         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'
                       }}
                     >
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                           <div style={{ width: '56px', height: '56px', borderRadius: '12px', background: 'rgba(5,150,105,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>
                             {getSafeEmoji('🏢')}
