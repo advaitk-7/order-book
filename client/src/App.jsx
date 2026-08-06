@@ -2107,7 +2107,7 @@ function App() {
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
     const today = new Date().toISOString().split('T')[0]
-    link.setAttribute('download', `Supplier_Restock_Orders_${today}.csv`)
+    link.setAttribute('download', `Purchase_Orders_${today}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -2515,7 +2515,7 @@ function App() {
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
     const today = new Date().toISOString().split('T')[0]
-    link.setAttribute('download', `Bulk_Client_Orders_${today}.csv`)
+    link.setAttribute('download', `Client_Orders_${today}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -2525,7 +2525,7 @@ function App() {
     if (!order) return
     const prods = getNormalizedProducts(order)
     const partyClean = (order.partyName || 'Supplier').replace(/[^a-zA-Z0-9_-]/g, '_')
-    const fileName = `${order.poNumber || 'PO'}_${partyClean}.csv`
+    const fileName = `Purchase_Order_${order.poNumber || 'PO'}_${partyClean}.csv`
 
     const rows = []
     rows.push([`RESTOCK PURCHASE ORDER — ${order.poNumber}`])
@@ -2669,7 +2669,7 @@ function App() {
     const prods = getNormalizedProducts(order)
     const clientClean = (order.clientName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_')
     const coNum = getDisplayCoNumber(order)
-    const fileName = `${coNum || 'CO'}_${clientClean}.csv`
+    const fileName = `Client_Order_${coNum || 'CO'}_${clientClean}.csv`
 
     const rows = []
     rows.push([`CLIENT SALES ORDER (CO) — ${coNum}`])
@@ -2825,7 +2825,7 @@ function App() {
     setSelectedBOForPDF(order)
     const clientClean = (order.clientName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_')
     const coNum = getDisplayCoNumber(order)
-    setBoPdfFileName(`CO_${coNum || '0001'}_${clientClean}`)
+    setBoPdfFileName(`Client_Order_${coNum || 'CO-0001'}_${clientClean}`)
     setShowBOPDFModal(true)
   }
 
@@ -2833,7 +2833,7 @@ function App() {
     if (!order) return
     setSelectedPOForPDF(order)
     const partyClean = (order.partyName || 'Supplier').replace(/[^a-zA-Z0-9_-]/g, '_')
-    setPoPdfFileName(`PO_${order.poNumber || '0001'}_${partyClean}`)
+    setPoPdfFileName(`Purchase_Order_${order.poNumber || 'PO-0001'}_${partyClean}`)
     setShowPOPDFModal(true)
   }
 
