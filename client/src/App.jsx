@@ -2484,6 +2484,14 @@ function App() {
           pending > 0 ? `${pending} pcs` : 'Done',
           rowCost > 0 ? `Rs. ${rowCost}` : '-'
         ])
+
+        // Add specifications after the first size row
+        if (idx === 0) {
+          const specs = getNormalizedSpecifications(p).filter(s => s.label || s.value)
+          specs.forEach(spec => {
+            rows.push(['', `  ${spec.label}${spec.value ? ': ' + spec.value : ''}`, '', '', '', '', '', ''])
+          })
+        }
       })
 
       const pSurplus = pReceived > pOrdered ? pReceived - pOrdered : 0
@@ -2636,6 +2644,14 @@ function App() {
           pending > 0 ? `${pending} pcs` : 'Done',
           rowCost > 0 ? `Rs. ${rowCost}` : '-'
         ])
+
+        // Add specifications after the first size row
+        if (idx === 0) {
+          const specs = getNormalizedSpecifications(p).filter(s => s.label || s.value)
+          specs.forEach(spec => {
+            rows.push(['', `  ${spec.label}${spec.value ? ': ' + spec.value : ''}`, '', '', '', '', '', '', ''])
+          })
+        }
       })
 
       const pSurplus = pDelivered > pOrdered ? pDelivered - pOrdered : 0
@@ -2827,6 +2843,17 @@ function App() {
         const logoStr = logoText.length > 0 ? `  [${logoText.join(' | ')}]` : ''
         doc.text(`Product ${pIdx + 1}: ${prod.productName}${logoStr}`, 14, startY)
         startY += 5
+
+        // Specifications
+        const coSpecs = getNormalizedSpecifications(prod).filter(s => s.label || s.value)
+        if (coSpecs.length > 0) {
+          doc.setFontSize(8.5)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(71, 85, 105)
+          const specText = coSpecs.map(s => `${s.label}${s.value ? ': ' + s.value : ''}`).join('   |   ')
+          doc.text(`Specifications: ${specText}`, 14, startY)
+          startY += 5
+        }
 
         let pTotalCost = 0
         let pDelivered = 0
@@ -3068,6 +3095,17 @@ function App() {
         doc.setFont('helvetica', 'bold')
         doc.text(`Product ${pIdx + 1}: ${prod.productName} (${prod.school || 'N/A'})`, 14, startY)
         startY += 5
+
+        // Specifications
+        const poSpecs = getNormalizedSpecifications(prod).filter(s => s.label || s.value)
+        if (poSpecs.length > 0) {
+          doc.setFontSize(8.5)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(71, 85, 105)
+          const specText = poSpecs.map(s => `${s.label}${s.value ? ': ' + s.value : ''}`).join('   |   ')
+          doc.text(`Specifications: ${specText}`, 14, startY)
+          startY += 5
+        }
 
         // Size rows — Price/Unit per row, no Fulfillment%
         let pTotalCost = 0
@@ -7681,6 +7719,16 @@ function App() {
                                                   School / Firm: <strong style={{ color: theme === 'dark' ? '#F1F5F9' : '#0F172A', fontWeight: '700' }}>{prod.school}</strong>
                                                 </div>
                                               )}
+                                              {/* Specifications */}
+                                              {getNormalizedSpecifications(prod).filter(s => s.label || s.value).length > 0 && (
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                                                  {getNormalizedSpecifications(prod).filter(s => s.label || s.value).map((spec, si) => (
+                                                    <span key={si} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: theme === 'dark' ? '#1E3A5F' : '#EFF6FF', color: theme === 'dark' ? '#93C5FD' : '#1D4ED8', border: '1px solid #BFDBFE', fontWeight: '600' }}>
+                                                      {spec.label}{spec.value ? `: ${spec.value}` : ''}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              )}
                                             </div>
 
                                             {totalProdCost > 0 && (
@@ -8013,7 +8061,7 @@ function App() {
                           }}
                           style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
                         >
-                          <span>{getSafeEmoji('➕')}</span> + Create Bulk Order
+                          + Create Bulk Order
                         </button>
                       </div>
                     </div>
@@ -8443,6 +8491,16 @@ function App() {
                                                 <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '12px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
                                                   🏷️ Logos: {frontLogo > 0 ? `Front ₹${frontLogo}` : ''}{frontLogo > 0 && backLogo > 0 ? ' | ' : ''}{backLogo > 0 ? `Back ₹${backLogo}` : ''} (Total ₹{logoPerPc}/pc)
                                                 </span>
+                                              )}
+                                              {/* Specifications */}
+                                              {getNormalizedSpecifications(prod).filter(s => s.label || s.value).length > 0 && (
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px', width: '100%' }}>
+                                                  {getNormalizedSpecifications(prod).filter(s => s.label || s.value).map((spec, si) => (
+                                                    <span key={si} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: theme === 'dark' ? '#064E3B' : '#ECFDF5', color: theme === 'dark' ? '#34D399' : '#065F46', border: '1px solid #6EE7B7', fontWeight: '600' }}>
+                                                      {spec.label}{spec.value ? `: ${spec.value}` : ''}
+                                                    </span>
+                                                  ))}
+                                                </div>
                                               )}
                                             </div>
 
@@ -10193,10 +10251,18 @@ function App() {
                           return (
                             <div
                               key={sIdx}
-                              draggable
-                              onDragStart={(e) => {
-                                setDraggedSpecIndex(sIdx)
-                                e.dataTransfer.effectAllowed = 'move'
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: isDragging ? (theme === 'dark' ? '#334155' : '#EFF6FF') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
+                                padding: '6px 8px',
+                                borderRadius: '8px',
+                                border: isDragging ? '2px dashed #2563EB' : '1px solid var(--border-color, #CBD5E1)',
+                                boxSizing: 'border-box',
+                                width: '100%',
+                                boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+                                transition: 'all 0.15s ease'
                               }}
                               onDragOver={(e) => {
                                 e.preventDefault()
@@ -10215,23 +10281,16 @@ function App() {
                                 setDraggedSpecIndex(null)
                               }}
                               onDragEnd={() => setDraggedSpecIndex(null)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: isDragging ? (theme === 'dark' ? '#334155' : '#EFF6FF') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
-                                padding: '6px 8px',
-                                borderRadius: '8px',
-                                border: isDragging ? '2px dashed #2563EB' : '1px solid var(--border-color, #CBD5E1)',
-                                boxSizing: 'border-box',
-                                width: '100%',
-                                boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
-                                transition: 'all 0.15s ease'
-                              }}
                             >
                               {/* Drag Handle */}
                               <div
                                 title="Click and drag to reorder position"
+                                draggable
+                                onDragStart={(e) => {
+                                  e.stopPropagation()
+                                  setDraggedSpecIndex(sIdx)
+                                  e.dataTransfer.effectAllowed = 'move'
+                                }}
                                 style={{ fontSize: '13px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', flexShrink: 0, paddingRight: '2px' }}
                               >
                                 ⋮⋮
@@ -11303,10 +11362,18 @@ function App() {
                           return (
                             <div
                               key={sIdx}
-                              draggable
-                              onDragStart={(e) => {
-                                setDraggedSpecIndex(sIdx)
-                                e.dataTransfer.effectAllowed = 'move'
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: isDragging ? (theme === 'dark' ? '#334155' : '#ECFDF5') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
+                                padding: '6px 8px',
+                                borderRadius: '8px',
+                                border: isDragging ? '2px dashed #059669' : '1px solid var(--border-color, #CBD5E1)',
+                                boxSizing: 'border-box',
+                                width: '100%',
+                                boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+                                transition: 'all 0.15s ease'
                               }}
                               onDragOver={(e) => {
                                 e.preventDefault()
@@ -11324,23 +11391,16 @@ function App() {
                                 setDraggedSpecIndex(null)
                               }}
                               onDragEnd={() => setDraggedSpecIndex(null)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: isDragging ? (theme === 'dark' ? '#334155' : '#EFF6FF') : (theme === 'dark' ? '#1E293B' : '#FFFFFF'),
-                                padding: '6px 8px',
-                                borderRadius: '8px',
-                                border: isDragging ? '2px dashed #059669' : '1px solid var(--border-color, #CBD5E1)',
-                                boxSizing: 'border-box',
-                                width: '100%',
-                                boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
-                                transition: 'all 0.15s ease'
-                              }}
                             >
                               {/* Drag Handle */}
                               <div
                                 title="Click and drag to reorder position"
+                                draggable
+                                onDragStart={(e) => {
+                                  e.stopPropagation()
+                                  setDraggedSpecIndex(sIdx)
+                                  e.dataTransfer.effectAllowed = 'move'
+                                }}
                                 style={{ fontSize: '13px', color: '#94A3B8', cursor: 'grab', userSelect: 'none', flexShrink: 0, paddingRight: '2px' }}
                               >
                                 ⋮⋮

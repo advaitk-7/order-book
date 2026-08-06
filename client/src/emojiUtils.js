@@ -73,9 +73,11 @@ export const EMOJI_REGISTRY = {
   '📋': ['📝', '☰'],          // Orders
   '🧵': ['✂️', '⚙️'],         // Production Queue
   '🔔': ['📢', '!'],           // Stock Waitlist
-  '🏬': ['🏭', 'B'],          // Supplier Restock
+  '🏬': ['🏭', '🏢', 'B'],   // Supplier Restock (store/factory/building)
+  '🏢': ['🏬', '🏛', 'C'],   // Corporate / Bulk Orders
   '🏭': ['🏬', 'F'],          // Supplier Factory
   '⚙️': ['☰', '*'],           // Settings
+  '🏷️': ['🔖', '#'],          // Tag / Label (logos)
 
   // ── Login page ──────────────────────────────────────────────────
   '👁️': ['👁', '●'],          // Show password
