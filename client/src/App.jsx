@@ -5162,10 +5162,6 @@ function App() {
           </div>
         </div>
 
-        <div className="sidebar-credit">
-          <p>Created by Advait Karia</p>
-        </div>
-
         <nav className="sidebar-nav">
           {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Restock & Bulk Orders', 'Settings'].map((page) => {
             const emojis = {
