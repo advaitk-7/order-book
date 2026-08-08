@@ -19,23 +19,25 @@ const measurementFields = {
   frock: ['sizeFarma', 'length', 'waist', 'torsoLength'],
 }
 
-const createItem = () => ({
-  itemType: 'shirt',
+const STANDARD_FIELDS = [
+  'sizeFarma', 'length', 'chest', 'shoulder', 'sleeve', 'neck',
+  'waist', 'seat', 'thighs', 'bottom', 'torsoLength'
+]
+const isStandardField = (field) => STANDARD_FIELDS.includes(field)
+
+const getDefaultMeasurementsForType = (type = 'shirt') => {
+  const fields = measurementFields[type] || measurementFields.shirt || []
+  const initial = {}
+  fields.forEach((f) => { initial[f] = '' })
+  return initial
+}
+
+const createItem = (type = 'shirt') => ({
+  itemType: type,
   sizeFarma: '',
   quantity: 1,
   productionCategory: '',
-  measurements: {
-    length: '',
-    chest: '',
-    shoulder: '',
-    sleeve: '',
-    neck: '',
-    waist: '',
-    seat: '',
-    thighs: '',
-    bottom: '',
-    torsoLength: '',
-  },
+  measurements: getDefaultMeasurementsForType(type),
 })
 
 const getDefaultSpecifications = () => [
@@ -3553,17 +3555,24 @@ function App() {
       status: order.status || 'Pending',
       contactStatus: order.contactStatus || 'Not contacted',
       items:
-        order.items?.map((item) => ({
-          itemType: item.itemType || 'shirt',
-          sizeFarma: item.sizeFarma || item.measurements?.sizeFarma || '',
-          quantity: item.quantity || 1,
-          productionCategory: item.productionCategory || '',
-          measurements: {
-            ...createItem().measurements,
-            ...item.measurements,
-            sizeFarma: item.measurements?.sizeFarma || item.sizeFarma || '',
-          },
-        })) || [createItem()],
+        order.items?.map((item) => {
+          const itemType = item.itemType || 'shirt'
+          const defaultMeasurements = getDefaultMeasurementsForType(itemType)
+          const mergedMeasurements = {
+            ...defaultMeasurements,
+            ...(item.measurements || {}),
+          }
+          if (item.sizeFarma || item.measurements?.sizeFarma) {
+            mergedMeasurements.sizeFarma = item.measurements?.sizeFarma || item.sizeFarma || ''
+          }
+          return {
+            itemType,
+            sizeFarma: item.sizeFarma || item.measurements?.sizeFarma || '',
+            quantity: item.quantity || 1,
+            productionCategory: item.productionCategory || '',
+            measurements: mergedMeasurements,
+          }
+        }) || [createItem()],
       notes: order.notes || '',
     }
     setFormData(initialForm)
@@ -3632,16 +3641,23 @@ function App() {
     setFormData((prev) => {
       const updatedItems = prev.items.map((item, itemIndex) => {
         if (itemIndex !== index) return item
-        return name === 'itemType' ? { ...item, itemType: value } : { ...item, [name]: value }
+        if (name === 'itemType') {
+          const defaultFields = measurementFields[value] || measurementFields.shirt || []
+          const updatedMeasurements = { ...item.measurements }
+          defaultFields.forEach((field) => {
+            if (updatedMeasurements[field] === undefined) {
+              updatedMeasurements[field] = ''
+            }
+          })
+          return { ...item, itemType: value, measurements: updatedMeasurements }
+        }
+        return { ...item, [name]: value }
       })
 
       if (selectedOrder && selectedOrder._id === editingOrderId) {
         setSelectedOrder((prevSelected) => ({
           ...prevSelected,
-          items: prevSelected.items.map((item, itemIndex) => {
-            if (itemIndex !== index) return item
-            return name === 'itemType' ? { ...item, itemType: value } : { ...item, [name]: value }
-          })
+          items: updatedItems,
         }))
       }
 
@@ -3669,20 +3685,101 @@ function App() {
       if (selectedOrder && selectedOrder._id === editingOrderId) {
         setSelectedOrder((prevSelected) => ({
           ...prevSelected,
-          items: prevSelected.items.map((item, itemIndex) => {
-            if (itemIndex !== index) return item
-            const updatedItem = {
-              ...item,
-              measurements: {
-                ...item.measurements,
-                [field]: value,
-              },
-            }
-            if (field === 'sizeFarma') {
-              updatedItem.sizeFarma = value
-            }
-            return updatedItem
-          })
+          items: updatedItems,
+        }))
+      }
+
+      return { ...prev, items: updatedItems }
+    })
+  }
+
+  const handleAddMeasurementField = (itemIndex) => {
+    setFormData((prev) => {
+      const updatedItems = prev.items.map((item, idx) => {
+        if (idx !== itemIndex) return item
+        const existingKeys = Object.keys(item.measurements || {})
+        let count = 1
+        let newKey = `Custom Component ${count}`
+        while (existingKeys.includes(newKey)) {
+          count++
+          newKey = `Custom Component ${count}`
+        }
+        return {
+          ...item,
+          measurements: {
+            ...item.measurements,
+            [newKey]: '',
+          },
+        }
+      })
+
+      if (selectedOrder && selectedOrder._id === editingOrderId) {
+        setSelectedOrder((prevSelected) => ({
+          ...prevSelected,
+          items: updatedItems,
+        }))
+      }
+
+      return { ...prev, items: updatedItems }
+    })
+  }
+
+  const handleRemoveMeasurement = (itemIndex, fieldKey) => {
+    setFormData((prev) => {
+      const updatedItems = prev.items.map((item, idx) => {
+        if (idx !== itemIndex) return item
+        const updatedMeasurements = { ...item.measurements }
+        delete updatedMeasurements[fieldKey]
+        const updatedItem = {
+          ...item,
+          measurements: updatedMeasurements,
+        }
+        if (fieldKey === 'sizeFarma') {
+          updatedItem.sizeFarma = ''
+        }
+        return updatedItem
+      })
+
+      if (selectedOrder && selectedOrder._id === editingOrderId) {
+        setSelectedOrder((prevSelected) => ({
+          ...prevSelected,
+          items: updatedItems,
+        }))
+      }
+
+      return { ...prev, items: updatedItems }
+    })
+  }
+
+  const handleRenameMeasurementKey = (itemIndex, oldKey, newKey) => {
+    setFormData((prev) => {
+      const updatedItems = prev.items.map((item, idx) => {
+        if (idx !== itemIndex) return item
+        const updatedMeasurements = {}
+        Object.keys(item.measurements || {}).forEach((k) => {
+          if (k === oldKey) {
+            updatedMeasurements[newKey] = item.measurements[oldKey]
+          } else {
+            updatedMeasurements[k] = item.measurements[k]
+          }
+        })
+        const updatedItem = {
+          ...item,
+          measurements: updatedMeasurements,
+        }
+        if (oldKey === 'sizeFarma') {
+          updatedItem.sizeFarma = ''
+        }
+        if (newKey === 'sizeFarma') {
+          updatedItem.sizeFarma = item.measurements[oldKey] || ''
+        }
+        return updatedItem
+      })
+
+      if (selectedOrder && selectedOrder._id === editingOrderId) {
+        setSelectedOrder((prevSelected) => ({
+          ...prevSelected,
+          items: updatedItems,
         }))
       }
 
@@ -4431,24 +4528,14 @@ function App() {
       const prod = row.product.toLowerCase()
       const m = row.measurements || {}
 
-      if (m.sizeFarma || row.sizeFarma) items.push(`Size Farma: ${m.sizeFarma || row.sizeFarma}`)
-      if (['shirt', 'kurta', 'top', 'blazer'].includes(prod)) {
-        if (m.length) items.push(`Length: ${m.length}`)
-        if (m.chest) items.push(`Chest: ${m.chest}`)
-        if (m.shoulder) items.push(`Shoulder: ${m.shoulder}`)
-        if (m.sleeve) items.push(`Sleeve: ${m.sleeve}`)
-        if (m.neck) items.push(`Neck: ${m.neck}`)
-      } else if (['pant', 'trouser', 'pajama', 'shorts'].includes(prod)) {
-        if (m.length) items.push(`Length: ${m.length}`)
-        if (m.waist) items.push(`Waist: ${m.waist}`)
-        if (m.seat) items.push(`Seat: ${m.seat}`)
-        if (m.thighs) items.push(`Thigh: ${m.thighs}`)
-        if (m.bottom) items.push(`Bottom: ${m.bottom}`)
-      } else if (['pina', 'skirt', 'frock'].includes(prod)) {
-        if (m.length) items.push(`Length: ${m.length}`)
-        if (m.waist) items.push(`Waist: ${m.waist}`)
-        if (m.torsoLength) items.push(`Torso: ${m.torsoLength}`)
-      }
+      Object.entries(m).forEach(([fieldKey, val]) => {
+        if (val !== undefined && val !== null && String(val).trim() !== '') {
+          const label = fieldKey === 'sizeFarma'
+            ? 'Size Farma'
+            : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase())
+          items.push(`${label}: ${String(val).trim()}`)
+        }
+      })
 
       const measurementsStr = items.length > 0 ? items.join(' | ') : '-'
 
@@ -4835,32 +4922,17 @@ function App() {
 
 
   const renderTailorMeasurements = (product, measurements) => {
-    if (!measurements) return '-'
+    if (!measurements || Object.keys(measurements).length === 0) return '-'
     const items = []
-    const prod = (product || '').toLowerCase()
-    const SHIRT_LIKE = ['shirt', 'kurta', 'top', 'blazer']
-    const PANT_LIKE = ['pant', 'trouser', 'pajama', 'shorts']
-    const PINA_LIKE = ['pina', 'skirt', 'frock']
 
-    if (measurements.sizeFarma) items.push({ label: 'Size Farma', val: measurements.sizeFarma })
-
-    if (SHIRT_LIKE.includes(prod)) {
-      if (measurements.length) items.push({ label: 'Length', val: measurements.length })
-      if (measurements.chest) items.push({ label: 'Chest', val: measurements.chest })
-      if (measurements.shoulder) items.push({ label: 'Shoulder', val: measurements.shoulder })
-      if (measurements.sleeve) items.push({ label: 'Sleeve', val: measurements.sleeve })
-      if (measurements.neck) items.push({ label: 'Neck', val: measurements.neck })
-    } else if (PANT_LIKE.includes(prod)) {
-      if (measurements.length) items.push({ label: 'Length', val: measurements.length })
-      if (measurements.waist) items.push({ label: 'Waist', val: measurements.waist })
-      if (measurements.seat) items.push({ label: 'Seat', val: measurements.seat })
-      if (measurements.thighs) items.push({ label: 'Thigh', val: measurements.thighs })
-      if (measurements.bottom) items.push({ label: 'Bottom', val: measurements.bottom })
-    } else if (PINA_LIKE.includes(prod)) {
-      if (measurements.length) items.push({ label: 'Length', val: measurements.length })
-      if (measurements.waist) items.push({ label: 'Waist', val: measurements.waist })
-      if (measurements.torsoLength) items.push({ label: 'Torso', val: measurements.torsoLength })
-    }
+    Object.entries(measurements).forEach(([fieldKey, val]) => {
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        const label = fieldKey === 'sizeFarma'
+          ? 'Size Farma'
+          : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase())
+        items.push({ label, val: String(val).trim() })
+      }
+    })
 
     if (items.length === 0) return '-'
 
@@ -4877,7 +4949,7 @@ function App() {
           {items.map((it, idx) => (
             <span key={it.label} style={{ display: 'inline-block', whiteSpace: 'nowrap', marginRight: '6px', fontSize: '8px' }}>
               <strong>{it.label}:</strong> {it.val}
-              {idx === 2 ? <br /> : null}
+              {idx > 0 && idx % 3 === 0 ? <br /> : null}
             </span>
           ))}
         </div>
@@ -4887,32 +4959,18 @@ function App() {
 
   // PDF measurement renderer — full labels (Length, Waist, Chest, etc.), clear formatting, no clipping
   const renderPDFMeasurements = (product, measurements) => {
-    if (!measurements) return '-'
+    if (!measurements || Object.keys(measurements).length === 0) return '-'
     const parts = []
-    const prod = (product || '').toLowerCase()
-    const SHIRT_LIKE = ['shirt', 'kurta', 'top', 'blazer']
-    const PANT_LIKE = ['pant', 'trouser', 'pajama', 'shorts']
-    const PINA_LIKE = ['pina', 'skirt', 'frock']
 
-    if (measurements.sizeFarma) parts.push(`Size Farma: ${measurements.sizeFarma}`)
+    Object.entries(measurements).forEach(([fieldKey, val]) => {
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        const label = fieldKey === 'sizeFarma'
+          ? 'Size Farma'
+          : fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase())
+        parts.push(`${label}: ${String(val).trim()}`)
+      }
+    })
 
-    if (SHIRT_LIKE.includes(prod)) {
-      if (measurements.length) parts.push(`Length: ${measurements.length}`)
-      if (measurements.chest) parts.push(`Chest: ${measurements.chest}`)
-      if (measurements.shoulder) parts.push(`Shoulder: ${measurements.shoulder}`)
-      if (measurements.sleeve) parts.push(`Sleeve: ${measurements.sleeve}`)
-      if (measurements.neck) parts.push(`Neck: ${measurements.neck}`)
-    } else if (PANT_LIKE.includes(prod)) {
-      if (measurements.length) parts.push(`Length: ${measurements.length}`)
-      if (measurements.waist) parts.push(`Waist: ${measurements.waist}`)
-      if (measurements.seat) parts.push(`Seat: ${measurements.seat}`)
-      if (measurements.thighs) parts.push(`Thigh: ${measurements.thighs}`)
-      if (measurements.bottom) parts.push(`Bottom: ${measurements.bottom}`)
-    } else if (PINA_LIKE.includes(prod)) {
-      if (measurements.length) parts.push(`Length: ${measurements.length}`)
-      if (measurements.waist) parts.push(`Waist: ${measurements.waist}`)
-      if (measurements.torsoLength) parts.push(`Torso: ${measurements.torsoLength}`)
-    }
     return parts.length === 0 ? '-' : parts.join('  ')
   }
 
@@ -5483,27 +5541,86 @@ function App() {
                               </label>
                             </div>
 
-                            <div className="measurement-grid">
-                              {(measurementFields[item.itemType] || measurementFields.shirt).map((field) => {
-                                const showTag = ['shirt', 'kurta', 'top', 'blazer'].includes(item.itemType) && field === 'sleeve' && getSleeveTag(item.itemType, item.measurements);
-                                return (
-                                  <label key={field}>
-                                    <span>
-                                      {field === 'sizeFarma' ? 'Size Farma' : field.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase())}
-                                      {showTag && (
-                                        <span style={{ marginLeft: '6px', fontSize: '12px', color: '#2563EB', fontWeight: 'bold' }}>
-                                          ({showTag})
-                                        </span>
-                                      )}
-                                    </span>
-                                    <input
-                                      value={item.measurements[field] || (field === 'sizeFarma' ? item.sizeFarma : '') || ''}
-                                      onChange={(event) => handleMeasurementChange(index, field, event.target.value)}
-                                      placeholder={field === 'sizeFarma' ? 'e.g. Farma 32, Regular' : ''}
-                                    />
-                                  </label>
-                                );
-                              })}
+                            <div className="measurement-section" style={{ marginTop: '12px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#cbd5e1' : '#475569' }}>
+                                  Measurement Components
+                                </span>
+                                <button
+                                  type="button"
+                                  className="ghost-btn"
+                                  onClick={() => handleAddMeasurementField(index)}
+                                  style={{ fontSize: '12px', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  + Add Measurement Component
+                                </button>
+                              </div>
+
+                              <div className="measurement-grid">
+                                {Object.keys(item.measurements || {}).map((field) => {
+                                  const isStandard = isStandardField(field);
+                                  const displayLabel = field === 'sizeFarma'
+                                    ? 'Size Farma'
+                                    : field.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase());
+                                  const showTag = ['shirt', 'kurta', 'top', 'blazer'].includes(item.itemType) && field === 'sleeve' && getSleeveTag(item.itemType, item.measurements);
+
+                                  return (
+                                    <label key={field} style={{ position: 'relative' }}>
+                                      <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                                        {isStandard ? (
+                                          <span>
+                                            {displayLabel}
+                                            {showTag && (
+                                              <span style={{ marginLeft: '6px', fontSize: '12px', color: '#2563EB', fontWeight: 'bold' }}>
+                                                ({showTag})
+                                              </span>
+                                            )}
+                                          </span>
+                                        ) : (
+                                          <input
+                                            type="text"
+                                            value={field}
+                                            onChange={(e) => handleRenameMeasurementKey(index, field, e.target.value)}
+                                            placeholder="Field Name"
+                                            style={{
+                                              fontSize: '11px',
+                                              fontWeight: '600',
+                                              padding: '1px 4px',
+                                              border: '1px dashed #cbd5e1',
+                                              borderRadius: '4px',
+                                              width: '80%',
+                                              background: 'transparent',
+                                              color: 'inherit'
+                                            }}
+                                          />
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveMeasurement(index, field)}
+                                          title="Remove component"
+                                          style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#ef4444',
+                                            cursor: 'pointer',
+                                            fontSize: '14px',
+                                            fontWeight: 'bold',
+                                            padding: '0 2px',
+                                            lineHeight: '1'
+                                          }}
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
+                                      <input
+                                        value={item.measurements[field] || (field === 'sizeFarma' ? item.sizeFarma : '') || ''}
+                                        onChange={(event) => handleMeasurementChange(index, field, event.target.value)}
+                                        placeholder={field === 'sizeFarma' ? 'e.g. Farma 32, Regular' : ''}
+                                      />
+                                    </label>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
                         ))
