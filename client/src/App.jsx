@@ -6129,7 +6129,7 @@ function App() {
                               )}
                               <div>
                                 <p className="item-title">Item {index + 1}</p>
-                                <p className="item-meta">Quantity: {item.quantity || 0}{item.sizeFarma ? ` | Size Farma: ${item.sizeFarma}` : ''}</p>
+                                <p className="item-meta">Quantity: {item.quantity || 0}</p>
                               </div>
                             </div>
                             <div className="order-item-measurements">
@@ -6742,7 +6742,7 @@ function App() {
                               )}
                               <div>
                                 <p className="item-title">Item {index + 1}</p>
-                                <p className="item-meta">Quantity: {item.quantity || 0}{item.sizeFarma ? ` | Size Farma: ${item.sizeFarma}` : ''}</p>
+                                <p className="item-meta">Quantity: {item.quantity || 0}</p>
                               </div>
                             </div>
                             <div className="order-item-measurements">
