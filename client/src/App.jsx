@@ -5,17 +5,18 @@ import { getSafeEmoji } from './emojiUtils.js'
 const API_BASE = import.meta.env.VITE_API_BASE || (window.location.origin.includes('localhost') ? 'http://localhost:5001' : window.location.origin)
 
 const measurementFields = {
-  shirt: ['length', 'chest', 'shoulder', 'sleeve', 'neck'],
-  kurta: ['length', 'chest', 'shoulder', 'sleeve', 'neck'],
-  top: ['length', 'chest', 'shoulder', 'sleeve', 'neck'],
-  blazer: ['length', 'chest', 'shoulder', 'sleeve', 'neck'],
+  shirt: ['sizeFarma', 'length', 'chest', 'shoulder', 'sleeve', 'neck'],
+  kurta: ['sizeFarma', 'length', 'chest', 'shoulder', 'sleeve', 'neck'],
+  top: ['sizeFarma', 'length', 'chest', 'shoulder', 'sleeve', 'neck'],
+  blazer: ['sizeFarma', 'length', 'chest', 'shoulder', 'sleeve', 'neck'],
 
-  pant: ['length', 'waist', 'seat', 'thighs', 'bottom'],
-  pajama: ['length', 'waist', 'seat', 'thighs', 'bottom'],
+  pant: ['sizeFarma', 'length', 'waist', 'seat', 'thighs', 'bottom'],
+  shorts: ['sizeFarma', 'length', 'waist', 'seat', 'thighs', 'bottom'],
+  pajama: ['sizeFarma', 'length', 'waist', 'seat', 'thighs', 'bottom'],
 
-  pina: ['length', 'waist', 'torsoLength'],
-  skirt: ['length', 'waist', 'torsoLength'],
-  frock: ['length', 'waist', 'torsoLength'],
+  pina: ['sizeFarma', 'length', 'waist', 'torsoLength'],
+  skirt: ['sizeFarma', 'length', 'waist', 'torsoLength'],
+  frock: ['sizeFarma', 'length', 'waist', 'torsoLength'],
 }
 
 const createItem = () => ({
@@ -198,7 +199,7 @@ const guessProductionCategory = (item) => {
     }
   }
 
-  if (['pant', 'trouser', 'pajama'].some(p => prodType.includes(p))) {
+  if (['pant', 'trouser', 'pajama', 'shorts'].some(p => prodType.includes(p))) {
     if (numVal >= 32) return 'trousers_elastic_32_40'
     return 'trousers_elastic_20_30'
   }
@@ -3554,12 +3555,13 @@ function App() {
       items:
         order.items?.map((item) => ({
           itemType: item.itemType || 'shirt',
-          sizeFarma: item.sizeFarma || '',
+          sizeFarma: item.sizeFarma || item.measurements?.sizeFarma || '',
           quantity: item.quantity || 1,
           productionCategory: item.productionCategory || '',
           measurements: {
             ...createItem().measurements,
             ...item.measurements,
+            sizeFarma: item.measurements?.sizeFarma || item.sizeFarma || '',
           },
         })) || [createItem()],
       notes: order.notes || '',
@@ -3651,13 +3653,17 @@ function App() {
     setFormData((prev) => {
       const updatedItems = prev.items.map((item, itemIndex) => {
         if (itemIndex !== index) return item
-        return {
+        const updatedItem = {
           ...item,
           measurements: {
             ...item.measurements,
             [field]: value,
           },
         }
+        if (field === 'sizeFarma') {
+          updatedItem.sizeFarma = value
+        }
+        return updatedItem
       })
 
       if (selectedOrder && selectedOrder._id === editingOrderId) {
@@ -3665,13 +3671,17 @@ function App() {
           ...prevSelected,
           items: prevSelected.items.map((item, itemIndex) => {
             if (itemIndex !== index) return item
-            return {
+            const updatedItem = {
               ...item,
               measurements: {
                 ...item.measurements,
                 [field]: value,
               },
             }
+            if (field === 'sizeFarma') {
+              updatedItem.sizeFarma = value
+            }
+            return updatedItem
           })
         }))
       }
@@ -3749,6 +3759,12 @@ function App() {
     setMessage('')
     setFormError('')
 
+    if (!formData.deliveryDate || !formData.deliveryDate.trim()) {
+      setFormError('Delivery Date is required.')
+      setLoading(false)
+      return
+    }
+
     const payload = {
       ...formData,
       amount: formData.amount === '' ? 0 : Number(formData.amount),
@@ -3756,6 +3772,7 @@ function App() {
       contactStatus: formData.contactStatus || 'Not contacted',
       items: formData.items.map((item) => ({
         ...item,
+        sizeFarma: item.measurements?.sizeFarma || item.sizeFarma || '',
         quantity: Number(item.quantity || 0),
       })),
     }
@@ -4414,19 +4431,20 @@ function App() {
       const prod = row.product.toLowerCase()
       const m = row.measurements || {}
 
-      if (prod === 'shirt') {
+      if (m.sizeFarma || row.sizeFarma) items.push(`Size Farma: ${m.sizeFarma || row.sizeFarma}`)
+      if (['shirt', 'kurta', 'top', 'blazer'].includes(prod)) {
         if (m.length) items.push(`Length: ${m.length}`)
         if (m.chest) items.push(`Chest: ${m.chest}`)
         if (m.shoulder) items.push(`Shoulder: ${m.shoulder}`)
         if (m.sleeve) items.push(`Sleeve: ${m.sleeve}`)
         if (m.neck) items.push(`Neck: ${m.neck}`)
-      } else if (prod === 'pant') {
+      } else if (['pant', 'trouser', 'pajama', 'shorts'].includes(prod)) {
         if (m.length) items.push(`Length: ${m.length}`)
         if (m.waist) items.push(`Waist: ${m.waist}`)
         if (m.seat) items.push(`Seat: ${m.seat}`)
         if (m.thighs) items.push(`Thigh: ${m.thighs}`)
         if (m.bottom) items.push(`Bottom: ${m.bottom}`)
-      } else if (prod === 'pina') {
+      } else if (['pina', 'skirt', 'frock'].includes(prod)) {
         if (m.length) items.push(`Length: ${m.length}`)
         if (m.waist) items.push(`Waist: ${m.waist}`)
         if (m.torsoLength) items.push(`Torso: ${m.torsoLength}`)
@@ -4651,7 +4669,7 @@ function App() {
           if (data.section === 'body' && data.column.index === 1) {
             const val = String(data.cell.raw).toLowerCase()
             if (val === 'shirt') data.cell.styles.textColor = [29, 78, 216]
-            else if (val === 'pant') data.cell.styles.textColor = [124, 58, 237]
+            else if (val === 'pant' || val === 'shorts') data.cell.styles.textColor = [124, 58, 237]
             else data.cell.styles.textColor = [225, 29, 72]
           }
           // Transparent text if cell has emoji to avoid drawing broken box glyphs
@@ -4821,8 +4839,10 @@ function App() {
     const items = []
     const prod = (product || '').toLowerCase()
     const SHIRT_LIKE = ['shirt', 'kurta', 'top', 'blazer']
-    const PANT_LIKE = ['pant', 'trouser', 'pajama']
+    const PANT_LIKE = ['pant', 'trouser', 'pajama', 'shorts']
     const PINA_LIKE = ['pina', 'skirt', 'frock']
+
+    if (measurements.sizeFarma) items.push({ label: 'Size Farma', val: measurements.sizeFarma })
 
     if (SHIRT_LIKE.includes(prod)) {
       if (measurements.length) items.push({ label: 'Length', val: measurements.length })
@@ -4871,8 +4891,10 @@ function App() {
     const parts = []
     const prod = (product || '').toLowerCase()
     const SHIRT_LIKE = ['shirt', 'kurta', 'top', 'blazer']
-    const PANT_LIKE = ['pant', 'trouser', 'pajama']
+    const PANT_LIKE = ['pant', 'trouser', 'pajama', 'shorts']
     const PINA_LIKE = ['pina', 'skirt', 'frock']
+
+    if (measurements.sizeFarma) parts.push(`Size Farma: ${measurements.sizeFarma}`)
 
     if (SHIRT_LIKE.includes(prod)) {
       if (measurements.length) parts.push(`Length: ${measurements.length}`)
@@ -5355,8 +5377,8 @@ function App() {
                       </div>
                       <div className="form-grid">
                         <label>
-                          Delivery Date
-                          <input type="date" name="deliveryDate" value={formData.deliveryDate} onChange={handleChange} />
+                          Delivery Date <span className="required-star" style={{ color: '#ef4444' }}>*</span>
+                          <input type="date" name="deliveryDate" value={formData.deliveryDate} onChange={handleChange} required />
                         </label>
                         <label>
                           Amount
@@ -5448,6 +5470,7 @@ function App() {
                                   <option value="top">Top</option>
                                   <option value="blazer">Blazer</option>
                                   <option value="pant">Pant</option>
+                                  <option value="shorts">Shorts</option>
                                   <option value="pajama">Pajama</option>
                                   <option value="pina">Pina</option>
                                   <option value="skirt">Skirt</option>
@@ -5458,16 +5481,6 @@ function App() {
                                 Quantity
                                 <input type="number" name="quantity" value={item.quantity} onChange={(event) => handleItemChange(index, event)} min="1" required />
                               </label>
-                              <label>
-                                Size Farma
-                                <input
-                                  type="text"
-                                  name="sizeFarma"
-                                  value={item.sizeFarma || ''}
-                                  onChange={(event) => handleItemChange(index, event)}
-                                  placeholder="e.g. Farma 32, Regular"
-                                />
-                              </label>
                             </div>
 
                             <div className="measurement-grid">
@@ -5476,7 +5489,7 @@ function App() {
                                 return (
                                   <label key={field}>
                                     <span>
-                                      {field.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase())}
+                                      {field === 'sizeFarma' ? 'Size Farma' : field.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase())}
                                       {showTag && (
                                         <span style={{ marginLeft: '6px', fontSize: '12px', color: '#2563EB', fontWeight: 'bold' }}>
                                           ({showTag})
@@ -5484,8 +5497,9 @@ function App() {
                                       )}
                                     </span>
                                     <input
-                                      value={item.measurements[field] || ''}
+                                      value={item.measurements[field] || (field === 'sizeFarma' ? item.sizeFarma : '') || ''}
                                       onChange={(event) => handleMeasurementChange(index, field, event.target.value)}
+                                      placeholder={field === 'sizeFarma' ? 'e.g. Farma 32, Regular' : ''}
                                     />
                                   </label>
                                 );
@@ -6035,6 +6049,7 @@ function App() {
                       <option value="Top">Top</option>
                       <option value="Blazer">Blazer</option>
                       <option value="Pant">Pant</option>
+                      <option value="Shorts">Shorts</option>
                       <option value="Pajama">Pajama</option>
                       <option value="Pina">Pina</option>
                       <option value="Skirt">Skirt</option>
@@ -9548,8 +9563,8 @@ function App() {
                                   fontSize: '9px',
                                   fontWeight: '700',
                                   textTransform: 'uppercase',
-                                  background: row.product.toLowerCase() === 'shirt' ? '#EFF6FF' : row.product.toLowerCase() === 'pant' ? '#FAF5FF' : '#FFF1F2',
-                                  color: row.product.toLowerCase() === 'shirt' ? '#1D4ED8' : row.product.toLowerCase() === 'pant' ? '#7C3AED' : '#E11D48',
+                                  background: row.product.toLowerCase() === 'shirt' ? '#EFF6FF' : ['pant', 'shorts'].includes(row.product.toLowerCase()) ? '#FAF5FF' : '#FFF1F2',
+                                  color: row.product.toLowerCase() === 'shirt' ? '#1D4ED8' : ['pant', 'shorts'].includes(row.product.toLowerCase()) ? '#7C3AED' : '#E11D48',
                                 }}>{row.product}</span>
                               </td>
                               <td style={{ padding: '5px', overflow: 'hidden', wordBreak: 'break-word', fontSize: '9.5px' }}>

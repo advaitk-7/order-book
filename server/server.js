@@ -1131,9 +1131,15 @@ app.patch("/api/orders/:id", async (req, res) => {
       updates.school = payload.school;
       changeLogs.push(`School changed from '${oldOrder.school}' to '${payload.school}'`);
     }
-    if (payload.deliveryDate !== undefined && payload.deliveryDate !== oldOrder.deliveryDate) {
-      updates.deliveryDate = payload.deliveryDate;
-      changeLogs.push(`Delivery Date changed from '${oldOrder.deliveryDate}' to '${payload.deliveryDate}'`);
+    if (payload.deliveryDate !== undefined) {
+      const trimmedDate = String(payload.deliveryDate).trim();
+      if (!trimmedDate) {
+        return res.status(400).json({ message: "Delivery date is required." });
+      }
+      if (trimmedDate !== oldOrder.deliveryDate) {
+        updates.deliveryDate = trimmedDate;
+        changeLogs.push(`Delivery Date changed from '${oldOrder.deliveryDate}' to '${trimmedDate}'`);
+      }
     }
     if (payload.amount !== undefined && Number(payload.amount || 0) !== oldOrder.amount) {
       updates.amount = Number(payload.amount || 0);
