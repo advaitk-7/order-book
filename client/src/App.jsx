@@ -3603,14 +3603,25 @@ function App() {
     setOrderCustomStartDate('')
     setOrderCustomEndDate('')
 
-    if (page === 'New Order') {
-      resetForm()
+    // When navigating TO New Order for the first time (no ongoing draft), initialize a fresh form
+    // Do NOT reset if we already have a draft in progress (user navigated away and came back)
+    if (page === 'New Order' && !editingOrderId) {
+      // Only init if the form is completely empty (no customer name typed yet)
+      if (!formData.customerName && !formData.orderNumber && !formData.contactNumber) {
+        setFormData(createEmptyForm(getNextOrderNumber(orders)))
+      }
       setSelectedOrder(null)
     }
     if (page === 'Orders') {
       setEditingOrderId(null)
     }
     setActivePage(page)
+  }
+
+  const cancelNewOrder = () => {
+    resetForm()
+    setSelectedOrder(null)
+    setActivePage('Orders')
   }
 
   const handleItemChange = (index, event) => {
@@ -3751,25 +3762,24 @@ function App() {
 
     const isEditing = Boolean(editingOrderId)
 
-    // Check if new order creation triggers a 100-block cleanup warning
+    // Run cleanup-preview check in background (non-blocking) — save proceeds immediately
+    // If cleanup is needed, show a modal AFTER save completes
     if (!isEditing && formData.orderNumber) {
-      try {
-        const checkRes = await fetch(`${API_BASE}/api/orders/cleanup-preview?orderNumber=${encodeURIComponent(formData.orderNumber.trim())}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+      // Fire cleanup check async without awaiting — don't block the save
+      fetch(`${API_BASE}/api/orders/cleanup-preview?orderNumber=${encodeURIComponent(formData.orderNumber.trim())}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).then(async (checkRes) => {
         if (checkRes.ok) {
           const previewData = await checkRes.json()
           if (previewData.shouldTrigger && previewData.deliveredCount > 0) {
             setCleanupPreviewData(previewData)
             setPendingOrderPayload(payload)
             setShowCleanupConfirmModal(true)
-            setLoading(false)
-            return
           }
         }
-      } catch (err) {
+      }).catch((err) => {
         console.error('Cleanup preview check failed:', err)
-      }
+      })
     }
 
     await executeSubmitOrder(payload)
@@ -5488,9 +5498,13 @@ function App() {
                   </div>
 
                   <div className="form-actions form-actions-end">
-                    {editingOrderId && (
+                    {editingOrderId ? (
                       <button type="button" className="ghost-btn" onClick={resetForm}>
                         Cancel Edit
+                      </button>
+                    ) : (
+                      <button type="button" className="ghost-btn" onClick={cancelNewOrder}>
+                        Cancel
                       </button>
                     )}
                     <button
