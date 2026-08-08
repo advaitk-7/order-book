@@ -243,7 +243,7 @@ const orderSchema = new mongoose.Schema(
     gender: { type: String, enum: ['Male', 'Female'], required: true },
     school: { type: String, required: true, trim: true },
     grade: { type: String, default: "", trim: true },
-    deliveryDate: { type: String, required: true },
+    deliveryDate: { type: String, default: "" },
     amount: { type: Number, required: true },
       paymentStatus: { type: String, enum: ["Paid", "Unpaid"], default: "Unpaid" },
       status: { type: String, enum: ["Pending", "Ready", "Delivered"], default: "Pending" },

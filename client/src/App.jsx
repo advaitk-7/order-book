@@ -5346,7 +5346,7 @@ function App() {
                       <div className="form-grid">
                         <label>
                           Delivery Date
-                          <input type="date" name="deliveryDate" value={formData.deliveryDate} onChange={handleChange} required />
+                          <input type="date" name="deliveryDate" value={formData.deliveryDate} onChange={handleChange} />
                         </label>
                         <label>
                           Amount
