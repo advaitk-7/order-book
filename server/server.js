@@ -989,7 +989,7 @@ app.post("/api/orders", async (req, res) => {
     });
 
     await newOrder.save();
-    await logAudit(newOrder._id, newOrder.orderNumber, "Create", `Order created for customer '${newOrder.customerName}'`);
+    logAudit(newOrder._id, newOrder.orderNumber, "Create", `Order created for customer '${newOrder.customerName}'`).catch(err => console.error("Audit log error:", err));
     res.status(201).json({
       message: "Order saved successfully",
       order: newOrder
@@ -1166,7 +1166,7 @@ app.patch("/api/orders/:id", async (req, res) => {
     const order = await Order.findByIdAndUpdate(req.params.id, updates, { new: true });
 
     if (changeLogs.length > 0) {
-      await logAudit(order._id, order.orderNumber, "Update", changeLogs.join(", "));
+      logAudit(order._id, order.orderNumber, "Update", changeLogs.join(", ")).catch(err => console.error("Audit log error:", err));
     }
 
     res.json({ message: "Order updated successfully", order });

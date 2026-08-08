@@ -3846,6 +3846,12 @@ function App() {
           : `Order ${data.order.orderNumber} ${actionText} successfully.`
         setMessage(msgText)
         setFormError('')
+        setOrders((prev) => {
+          if (isEditing) {
+            return prev.map((order) => (order._id === data.order._id ? data.order : order))
+          }
+          return [data.order, ...prev.filter((o) => o._id !== data.order._id)]
+        })
         if (isEditing) {
           setHighlightedOrderId(data.order._id)
         }
@@ -5649,7 +5655,7 @@ function App() {
 
                   <div className="form-actions form-actions-end">
                     {editingOrderId ? (
-                      <button type="button" className="ghost-btn" onClick={resetForm}>
+                      <button type="button" className="ghost-btn" onClick={cancelNewOrder}>
                         Cancel Edit
                       </button>
                     ) : (
