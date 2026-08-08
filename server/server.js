@@ -242,6 +242,7 @@ const orderSchema = new mongoose.Schema(
     contactNumber: { type: String, required: true, trim: true },
     gender: { type: String, enum: ['Male', 'Female'], required: true },
     school: { type: String, required: true, trim: true },
+    grade: { type: String, default: "", trim: true },
     deliveryDate: { type: String, required: true },
     amount: { type: Number, required: true },
       paymentStatus: { type: String, enum: ["Paid", "Unpaid"], default: "Unpaid" },

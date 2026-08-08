@@ -98,6 +98,7 @@ const createEmptyForm = (orderNumber = '') => ({
   contactNumber: '',
   gender: 'Male',
   school: '',
+  grade: '',
   deliveryDate: '',
   amount: '',
   paymentStatus: 'Unpaid',
@@ -3544,6 +3545,7 @@ function App() {
       contactNumber: order.contactNumber || '',
       gender: order.gender || 'Male',
       school: order.school || '',
+      grade: order.grade || '',
       deliveryDate: order.deliveryDate || '',
       amount: order.amount?.toString() || '',
       paymentStatus: order.paymentStatus || 'Unpaid',
@@ -5327,6 +5329,10 @@ function App() {
                           School
                           <input name="school" value={formData.school} onChange={handleChange} required />
                         </label>
+                        <label>
+                          Grade
+                          <input name="grade" value={formData.grade || ''} onChange={handleChange} placeholder="e.g. 5th, Std 10, Grade A" />
+                        </label>
                       </div>
                     </div>
 
@@ -5893,7 +5899,7 @@ function App() {
                     </div>
                     <div>
                       <p className="details-label">School</p>
-                      <p>{selectedOrder.school}</p>
+                      <p>{selectedOrder.school}{selectedOrder.grade ? ` (Grade: ${selectedOrder.grade})` : ''}</p>
                     </div>
                     <div>
                       <p className="details-label">Delivery Date</p>
@@ -6505,7 +6511,7 @@ function App() {
                     </div>
                     <div>
                       <p className="details-label">School</p>
-                      <p>{selectedOrder.school}</p>
+                      <p>{selectedOrder.school}{selectedOrder.grade ? ` (Grade: ${selectedOrder.grade})` : ''}</p>
                     </div>
                     <div>
                       <p className="details-label">Delivery Date</p>
