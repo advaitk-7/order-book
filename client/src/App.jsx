@@ -32,6 +32,25 @@ const getDefaultMeasurementsForType = (type = 'shirt') => {
   return initial
 }
 
+const getItemFields = (item) => {
+  const type = (item?.itemType || 'shirt').toLowerCase()
+  const defaultFields = measurementFields[type] || measurementFields.shirt || []
+  const itemMeasurements = item?.measurements || {}
+
+  const fields = defaultFields.filter((k) => itemMeasurements[k] !== undefined || Object.keys(itemMeasurements).length === 0)
+
+  const allKeys = Object.keys(itemMeasurements)
+  const extraKeys = allKeys.filter((k) => {
+    if (fields.includes(k)) return false
+    if (STANDARD_FIELDS.includes(k)) {
+      return Boolean(itemMeasurements[k] && String(itemMeasurements[k]).trim())
+    }
+    return true
+  })
+
+  return [...fields, ...extraKeys]
+}
+
 const createItem = (type = 'shirt') => ({
   itemType: type,
   sizeFarma: '',
@@ -5557,7 +5576,7 @@ function App() {
                               </div>
 
                               <div className="measurement-grid">
-                                {Object.keys(item.measurements || {}).map((field) => {
+                                {getItemFields(item).map((field) => {
                                   const isStandard = isStandardField(field);
                                   const displayLabel = field === 'sizeFarma'
                                     ? 'Size Farma'
