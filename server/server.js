@@ -244,7 +244,7 @@ const orderSchema = new mongoose.Schema(
     school: { type: String, required: true, trim: true },
     grade: { type: String, default: "", trim: true },
     deliveryDate: { type: String, default: "" },
-    amount: { type: Number, required: true },
+    amount: { type: Number, default: 0 },
       paymentStatus: { type: String, enum: ["Paid", "Unpaid"], default: "Unpaid" },
       status: { type: String, enum: ["Pending", "Ready", "Delivered"], default: "Pending" },
       deliveredAt: { type: Date },

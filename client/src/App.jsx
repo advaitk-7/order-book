@@ -5350,7 +5350,7 @@ function App() {
                         </label>
                         <label>
                           Amount
-                          <input type="number" name="amount" value={formData.amount} onChange={handleChange} required />
+                          <input type="number" name="amount" value={formData.amount} onChange={handleChange} placeholder="Optional" />
                         </label>
                         <label>
                           Payment Status
