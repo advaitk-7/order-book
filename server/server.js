@@ -250,7 +250,8 @@ const orderSchema = new mongoose.Schema(
     contactStatus: { type: String, enum: ["Not contacted", "Contacted", "Unable to contact"], default: "Not contacted" },
     items: [
       {
-        itemType: { type: String, enum: ["shirt", "pant", "pina"], required: true },
+        itemType: { type: String, required: true },
+        sizeFarma: { type: String, default: "" },
         quantity: { type: Number, required: true },
         productionCategory: { type: String, default: "" },
         measurements: {

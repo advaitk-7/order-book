@@ -6,12 +6,21 @@ const API_BASE = import.meta.env.VITE_API_BASE || (window.location.origin.includ
 
 const measurementFields = {
   shirt: ['length', 'chest', 'shoulder', 'sleeve', 'neck'],
+  kurta: ['length', 'chest', 'shoulder', 'sleeve', 'neck'],
+  top: ['length', 'chest', 'shoulder', 'sleeve', 'neck'],
+  blazer: ['length', 'chest', 'shoulder', 'sleeve', 'neck'],
+
   pant: ['length', 'waist', 'seat', 'thighs', 'bottom'],
+  pajama: ['length', 'waist', 'seat', 'thighs', 'bottom'],
+
   pina: ['length', 'waist', 'torsoLength'],
+  skirt: ['length', 'waist', 'torsoLength'],
+  frock: ['length', 'waist', 'torsoLength'],
 }
 
 const createItem = () => ({
   itemType: 'shirt',
+  sizeFarma: '',
   quantity: 1,
   productionCategory: '',
   measurements: {
@@ -178,7 +187,9 @@ const guessProductionCategory = (item) => {
 
   const numVal = parseFloat(m.chest) || parseFloat(m.waist) || parseFloat(m.length) || parseFloat(m.size) || 0
 
-  if (prodType.includes('shirt')) {
+  if (['shirt', 'kurta', 'top', 'blazer'].some(p => prodType.includes(p))) {
+    if (prodType.includes('kurta')) return 'kurta_regular'
+    if (prodType.includes('top')) return 'ni_top_reg'
     if (isFS) {
       return (numVal >= 32 || numVal === 0) ? 'fs_shirt_32_44' : 'fs_shirt_20_30'
     } else {
@@ -186,12 +197,14 @@ const guessProductionCategory = (item) => {
     }
   }
 
-  if (prodType.includes('pant') || prodType.includes('trouser')) {
+  if (['pant', 'trouser', 'pajama'].some(p => prodType.includes(p))) {
     if (numVal >= 32) return 'trousers_elastic_32_40'
     return 'trousers_elastic_20_30'
   }
 
-  if (prodType.includes('pina')) {
+  if (['pina', 'skirt', 'frock'].some(p => prodType.includes(p))) {
+    if (prodType.includes('skirt')) return 'skirt_div_regular'
+    if (prodType.includes('frock')) return 'nirmala_sns_frock'
     return 'pinafore'
   }
 
@@ -210,7 +223,7 @@ const formatDateToDMY = (dateStr) => {
 }
 
 const getSleeveTag = (itemType, measurements) => {
-  if (!itemType || itemType.toLowerCase() !== 'shirt') return ''
+  if (!itemType || !['shirt', 'kurta', 'top', 'blazer'].includes(itemType.toLowerCase())) return ''
   const sleeveVal = parseFloat(measurements?.sleeve)
   if (isNaN(sleeveVal)) return ''
   return sleeveVal >= 14 ? 'FS' : 'HS'
@@ -3539,7 +3552,9 @@ function App() {
       items:
         order.items?.map((item) => ({
           itemType: item.itemType || 'shirt',
+          sizeFarma: item.sizeFarma || '',
           quantity: item.quantity || 1,
+          productionCategory: item.productionCategory || '',
           measurements: {
             ...createItem().measurements,
             ...item.measurements,
@@ -4792,21 +4807,24 @@ function App() {
   const renderTailorMeasurements = (product, measurements) => {
     if (!measurements) return '-'
     const items = []
-    const prod = product.toLowerCase()
+    const prod = (product || '').toLowerCase()
+    const SHIRT_LIKE = ['shirt', 'kurta', 'top', 'blazer']
+    const PANT_LIKE = ['pant', 'trouser', 'pajama']
+    const PINA_LIKE = ['pina', 'skirt', 'frock']
 
-    if (prod === 'shirt') {
+    if (SHIRT_LIKE.includes(prod)) {
       if (measurements.length) items.push({ label: 'Length', val: measurements.length })
       if (measurements.chest) items.push({ label: 'Chest', val: measurements.chest })
       if (measurements.shoulder) items.push({ label: 'Shoulder', val: measurements.shoulder })
       if (measurements.sleeve) items.push({ label: 'Sleeve', val: measurements.sleeve })
       if (measurements.neck) items.push({ label: 'Neck', val: measurements.neck })
-    } else if (prod === 'pant') {
+    } else if (PANT_LIKE.includes(prod)) {
       if (measurements.length) items.push({ label: 'Length', val: measurements.length })
       if (measurements.waist) items.push({ label: 'Waist', val: measurements.waist })
       if (measurements.seat) items.push({ label: 'Seat', val: measurements.seat })
       if (measurements.thighs) items.push({ label: 'Thigh', val: measurements.thighs })
       if (measurements.bottom) items.push({ label: 'Bottom', val: measurements.bottom })
-    } else if (prod === 'pina') {
+    } else if (PINA_LIKE.includes(prod)) {
       if (measurements.length) items.push({ label: 'Length', val: measurements.length })
       if (measurements.waist) items.push({ label: 'Waist', val: measurements.waist })
       if (measurements.torsoLength) items.push({ label: 'Torso', val: measurements.torsoLength })
@@ -4840,19 +4858,23 @@ function App() {
     if (!measurements) return '-'
     const parts = []
     const prod = (product || '').toLowerCase()
-    if (prod === 'shirt') {
+    const SHIRT_LIKE = ['shirt', 'kurta', 'top', 'blazer']
+    const PANT_LIKE = ['pant', 'trouser', 'pajama']
+    const PINA_LIKE = ['pina', 'skirt', 'frock']
+
+    if (SHIRT_LIKE.includes(prod)) {
       if (measurements.length) parts.push(`Length: ${measurements.length}`)
       if (measurements.chest) parts.push(`Chest: ${measurements.chest}`)
       if (measurements.shoulder) parts.push(`Shoulder: ${measurements.shoulder}`)
       if (measurements.sleeve) parts.push(`Sleeve: ${measurements.sleeve}`)
       if (measurements.neck) parts.push(`Neck: ${measurements.neck}`)
-    } else if (prod === 'pant') {
+    } else if (PANT_LIKE.includes(prod)) {
       if (measurements.length) parts.push(`Length: ${measurements.length}`)
       if (measurements.waist) parts.push(`Waist: ${measurements.waist}`)
       if (measurements.seat) parts.push(`Seat: ${measurements.seat}`)
       if (measurements.thighs) parts.push(`Thigh: ${measurements.thighs}`)
       if (measurements.bottom) parts.push(`Bottom: ${measurements.bottom}`)
-    } else if (prod === 'pina') {
+    } else if (PINA_LIKE.includes(prod)) {
       if (measurements.length) parts.push(`Length: ${measurements.length}`)
       if (measurements.waist) parts.push(`Waist: ${measurements.waist}`)
       if (measurements.torsoLength) parts.push(`Torso: ${measurements.torsoLength}`)
@@ -5162,6 +5184,10 @@ function App() {
           </div>
         </div>
 
+        <div className="sidebar-credit">
+          <p>Created by Advait Karia</p>
+        </div>
+
         <nav className="sidebar-nav">
           {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Restock & Bulk Orders', 'Settings'].map((page) => {
             const emojis = {
@@ -5402,19 +5428,35 @@ function App() {
                                 Type
                                 <select name="itemType" value={item.itemType} onChange={(event) => handleItemChange(index, event)}>
                                   <option value="shirt">Shirt</option>
+                                  <option value="kurta">Kurta</option>
+                                  <option value="top">Top</option>
+                                  <option value="blazer">Blazer</option>
                                   <option value="pant">Pant</option>
+                                  <option value="pajama">Pajama</option>
                                   <option value="pina">Pina</option>
+                                  <option value="skirt">Skirt</option>
+                                  <option value="frock">Frock</option>
                                 </select>
                               </label>
                               <label>
                                 Quantity
                                 <input type="number" name="quantity" value={item.quantity} onChange={(event) => handleItemChange(index, event)} min="1" required />
                               </label>
+                              <label>
+                                Size Farma
+                                <input
+                                  type="text"
+                                  name="sizeFarma"
+                                  value={item.sizeFarma || ''}
+                                  onChange={(event) => handleItemChange(index, event)}
+                                  placeholder="e.g. Farma 32, Regular"
+                                />
+                              </label>
                             </div>
 
                             <div className="measurement-grid">
-                              {measurementFields[item.itemType].map((field) => {
-                                const showTag = item.itemType === 'shirt' && field === 'sleeve' && getSleeveTag(item.itemType, item.measurements);
+                              {(measurementFields[item.itemType] || measurementFields.shirt).map((field) => {
+                                const showTag = ['shirt', 'kurta', 'top', 'blazer'].includes(item.itemType) && field === 'sleeve' && getSleeveTag(item.itemType, item.measurements);
                                 return (
                                   <label key={field}>
                                     <span>
@@ -5911,7 +5953,7 @@ function App() {
                               )}
                               <div>
                                 <p className="item-title">Item {index + 1}</p>
-                                <p className="item-meta">Quantity: {item.quantity || 0}</p>
+                                <p className="item-meta">Quantity: {item.quantity || 0}{item.sizeFarma ? ` | Size Farma: ${item.sizeFarma}` : ''}</p>
                               </div>
                             </div>
                             <div className="order-item-measurements">
@@ -5969,8 +6011,14 @@ function App() {
                     <select value={tailorProductFilter} onChange={(e) => setTailorProductFilter(e.target.value)}>
                       <option value="All">All Products</option>
                       <option value="Shirt">Shirt</option>
+                      <option value="Kurta">Kurta</option>
+                      <option value="Top">Top</option>
+                      <option value="Blazer">Blazer</option>
                       <option value="Pant">Pant</option>
+                      <option value="Pajama">Pajama</option>
                       <option value="Pina">Pina</option>
+                      <option value="Skirt">Skirt</option>
+                      <option value="Frock">Frock</option>
                     </select>
                   </label>
 
@@ -6517,7 +6565,7 @@ function App() {
                               )}
                               <div>
                                 <p className="item-title">Item {index + 1}</p>
-                                <p className="item-meta">Quantity: {item.quantity || 0}</p>
+                                <p className="item-meta">Quantity: {item.quantity || 0}{item.sizeFarma ? ` | Size Farma: ${item.sizeFarma}` : ''}</p>
                               </div>
                             </div>
                             <div className="order-item-measurements">
