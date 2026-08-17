@@ -3258,3 +3258,258 @@ tr.clickable-row.highlighted-row td {
   }
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TABLET BREAKPOINT — iPad, iPad Mini, iPad Air, iPad Pro 11"
+   Targets portrait (769px–1024px).
+   Sits between the existing mobile (≤780px) and desktop (≥1100px) ranges.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) and (max-width: 1024px) {
+
+  /* Overflow guard: nothing bleeds past the viewport */
+  html, body {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+  .app-shell {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+  .content-area {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+  .main-section {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    padding: 20px 20px 32px !important;
+    gap: 20px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Sidebar: slim down so content area gets more room */
+  .sidebar {
+    width: 180px !important;
+    min-width: 180px !important;
+    padding: 20px 14px !important;
+  }
+  .nav-link {
+    font-size: 13px !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+  }
+  .brand-title {
+    font-size: 14px !important;
+  }
+  .brand-logo {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  /* Topbar: reduce padding, allow wrapping */
+  .topbar {
+    padding: 18px 20px 0 !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
+  .topbar-search {
+    min-width: clamp(140px, 18vw, 220px) !important;
+  }
+  .page-title {
+    font-size: 20px !important;
+  }
+
+  /* Dashboard grids: collapse 3-col to 2-col */
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 16px !important;
+  }
+  .dashboard-overview-grid,
+  .placeholder-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  /* Order form: collapse side-by-side columns to single column */
+  .form-columns {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+  .top-form-row {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  .top-form-row .card {
+    min-height: auto !important;
+  }
+  .form-grid-section {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  /* Measurement grid: 3-col to 2-col */
+  .measurement-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Tables: scroll horizontally, never overflow viewport */
+  .table-panel {
+    padding: 16px !important;
+    overflow: hidden !important;
+  }
+  .table-panel .table-wrap,
+  .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Orders toolbar: wrap without overflowing */
+  .orders-toolbar {
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
+  .orders-search-bar {
+    min-width: 0 !important;
+    flex: 1 1 240px !important;
+  }
+  .orders-toolbar-actions {
+    flex-wrap: wrap !important;
+    min-width: 0 !important;
+    gap: 10px !important;
+  }
+  .orders-filter-select select {
+    min-width: 100px !important;
+    max-width: 140px !important;
+  }
+
+  /* Card padding reduction */
+  .card {
+    padding: 20px !important;
+  }
+  .card-panel {
+    gap: 16px !important;
+  }
+  .dashboard-card {
+    padding: 18px !important;
+  }
+  .stat-card {
+    padding: 14px !important;
+  }
+
+  /* Details panel grid */
+  .details-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px !important;
+  }
+  .details-full {
+    grid-column: span 2 !important;
+  }
+
+  /* Production cost panel */
+  .production-cost-panel {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Settings layout */
+  .settings-layout {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Restock / Bulk hub grid */
+  .restock-hub-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Tailor export actions */
+  .tailor-export-actions {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Modal: comfortable centered card on tablet */
+  .manage-modal-card {
+    max-width: calc(100vw - 60px) !important;
+    width: 600px !important;
+    margin: 20px auto !important;
+    border-radius: 20px !important;
+  }
+
+  /* Touch-friendly button heights */
+  button,
+  .ghost-btn,
+  .secondary-btn,
+  .primary-btn,
+  .danger-btn {
+    min-height: 42px !important;
+  }
+
+  /* iOS zoom prevention on form fields */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Restock modal size row */
+  .restock-modal-size-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .restock-modal-size-row > div {
+    flex: 1 1 calc(50% - 6px) !important;
+    min-width: 90px !important;
+  }
+
+  /* Restock scroll container */
+  .restock-table-scroll-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* iPad landscape / large tablet (1025px–1100px): sidebar trim + grid fixes */
+@media (min-width: 1025px) and (max-width: 1100px) {
+  .sidebar {
+    width: 200px !important;
+    min-width: 200px !important;
+    padding: 22px 16px !important;
+  }
+  .main-section {
+    padding: 22px 24px 28px !important;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .form-columns {
+    grid-template-columns: 1fr !important;
+  }
+  .top-form-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .table-panel .table-wrap,
+  .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .content-area,
+  .main-section {
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+}
