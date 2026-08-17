@@ -779,16 +779,29 @@ button:hover {
   border: 1px solid rgba(15, 23, 42, 0.05);
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.07);
   padding: 24px;
+  overflow: hidden;
 }
 
 .table-panel .table-wrap {
   max-height: 520px;
   overflow: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-radius: 18px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .table-panel table {
   min-width: 980px;
+}
+
+/* Universal: all table-wrap elements scroll horizontally on any device */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 100%;
 }
 
 .item-card {
@@ -1011,8 +1024,12 @@ tbody tr:hover {
   background: white;
   border-radius: 12px;
   cursor: pointer;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
   transition: background 0.2s ease, transform 0.2s ease;
 }
 

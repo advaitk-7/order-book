@@ -8734,16 +8734,17 @@ function App() {
                                             )}
                                           </div>
 
+                                          <div className="restock-table-scroll-container">
                                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                             <thead>
                                               <tr style={{ borderBottom: '1px solid var(--border-color, #E5E7EB)', color: '#64748B', textAlign: 'left' }}>
-                                                <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '120px' }}>Size</th>
-                                                <th style={{ padding: '8px 32px 8px 8px', whiteSpace: 'nowrap', minWidth: '140px' }}>Cost / Unit</th>
-                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Ordered</th>
-                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Dispatched</th>
-                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Pending Balance</th>
-                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>Row Cost</th>
-                                                <th style={{ padding: '8px', whiteSpace: 'nowrap' }}>Fulfillment</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap', minWidth: '100px' }}>Size</th>
+                                                <th style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap', minWidth: '120px' }}>Cost / Unit</th>
+                                                <th style={{ padding: '8px 12px 8px 8px', whiteSpace: 'nowrap' }}>Ordered</th>
+                                                <th style={{ padding: '8px 12px 8px 8px', whiteSpace: 'nowrap' }}>Dispatched</th>
+                                                <th style={{ padding: '8px 12px 8px 8px', whiteSpace: 'nowrap' }}>Pending</th>
+                                                <th style={{ padding: '8px 12px 8px 8px', whiteSpace: 'nowrap' }}>Row Cost</th>
+                                                <th style={{ padding: '8px 8px 8px 8px', whiteSpace: 'nowrap', minWidth: '100px' }}>Fulfillment</th>
                                               </tr>
                                             </thead>
                                             <tbody>
@@ -8758,8 +8759,8 @@ function App() {
 
                                                 return (
                                                   <tr key={sbIdx} style={{ borderBottom: '1px dashed var(--border-color, #F1F5F9)' }}>
-                                                    <td style={{ padding: '8px 32px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '120px' }}>{sb.size}</td>
-                                                    <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '140px' }}>
+                                                    <td style={{ padding: '8px 16px 8px 8px', fontWeight: '700', whiteSpace: 'nowrap', minWidth: '100px' }}>{sb.size}</td>
+                                                    <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '600', whiteSpace: 'nowrap', minWidth: '120px' }}>
                                                       {effectiveUnitPrice > 0 ? (
                                                         <div>
                                                           <span>₹{effectiveUnitPrice.toLocaleString('en-IN')}</span>
@@ -8771,17 +8772,17 @@ function App() {
                                                         </div>
                                                       ) : '-'}
                                                     </td>
-                                                    <td style={{ padding: '8px 16px 8px 8px', whiteSpace: 'nowrap' }}>{ord} pcs</td>
-                                                    <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '8px 12px 8px 8px', whiteSpace: 'nowrap' }}>{ord} pcs</td>
+                                                    <td style={{ padding: '8px 12px 8px 8px', color: '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                                       {del} pcs
                                                     </td>
-                                                    <td style={{ padding: '8px 16px 8px 8px', color: pend > 0 ? '#EAB308' : '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '8px 12px 8px 8px', color: pend > 0 ? '#EAB308' : '#10B981', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                                       {pend > 0 ? `${pend} pcs` : 'Done'}
                                                     </td>
-                                                    <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                                                    <td style={{ padding: '8px 12px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', fontWeight: '700', whiteSpace: 'nowrap' }}>
                                                       {rowCost > 0 ? `₹${rowCost.toLocaleString('en-IN')}` : '-'}
                                                     </td>
-                                                    <td style={{ padding: '6px 8px' }}>
+                                                    <td style={{ padding: '6px 8px', minWidth: '100px' }}>
                                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
                                                           <div style={{ height: '100%', width: `${sizePct}%`, background: sizePct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
@@ -8795,10 +8796,10 @@ function App() {
                                             </tbody>
                                             <tfoot style={{ borderTop: '2px solid var(--border-color, #CBD5E1)', fontWeight: '800', background: theme === 'dark' ? '#1E293B' : '#F8FAFC' }}>
                                               <tr>
-                                                <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap', minWidth: '120px' }}>Total</td>
-                                                <td style={{ padding: '8px 32px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap', minWidth: '140px' }}>-</td>
-                                                <td style={{ padding: '8px 16px 8px 8px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrd} pcs</td>
-                                                <td style={{ padding: '8px 16px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', whiteSpace: 'nowrap', minWidth: '100px' }}>Total</td>
+                                                <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#94A3B8' : '#64748B', whiteSpace: 'nowrap', minWidth: '120px' }}>-</td>
+                                                <td style={{ padding: '8px 12px 8px 8px', color: '#2563EB', whiteSpace: 'nowrap' }}>{totalProdOrd} pcs</td>
+                                                <td style={{ padding: '8px 12px 8px 8px', color: '#10B981', whiteSpace: 'nowrap' }}>
                                                   {totalProdDel} pcs
                                                   {totalProdDel > totalProdOrd && (
                                                     <span style={{ marginLeft: '4px', fontSize: '11px', color: theme === 'dark' ? '#34D399' : '#047857', fontWeight: '700' }}>
@@ -8806,13 +8807,13 @@ function App() {
                                                     </span>
                                                   )}
                                                 </td>
-                                                <td style={{ padding: '8px 16px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
+                                                <td style={{ padding: '8px 12px 8px 8px', color: totalProdPending > 0 ? '#EAB308' : '#10B981', whiteSpace: 'nowrap' }}>
                                                   {totalProdPending > 0 ? `${totalProdPending} pcs` : 'Done'}
                                                 </td>
-                                                <td style={{ padding: '8px 16px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', whiteSpace: 'nowrap' }}>
+                                                <td style={{ padding: '8px 12px 8px 8px', color: theme === 'dark' ? '#34D399' : '#059669', whiteSpace: 'nowrap' }}>
                                                   {totalProdCost > 0 ? `₹${totalProdCost.toLocaleString('en-IN')}` : '-'}
                                                 </td>
-                                                <td style={{ padding: '6px 8px' }}>
+                                                <td style={{ padding: '6px 8px', minWidth: '100px' }}>
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <div style={{ flex: 1, height: '6px', background: theme === 'dark' ? '#334155' : '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
                                                       <div style={{ height: '100%', width: `${totalProdPct}%`, background: totalProdPct === 100 ? '#10B981' : '#3B82F6', borderRadius: '3px' }} />
@@ -8823,6 +8824,7 @@ function App() {
                                               </tr>
                                             </tfoot>
                                           </table>
+                                          </div>
                                         </div>
                                       )
                                     })}
