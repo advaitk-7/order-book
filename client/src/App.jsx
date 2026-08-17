@@ -62,7 +62,7 @@ const createItem = (type = 'shirt') => ({
 const getDefaultSpecifications = () => [
   { label: 'Fabric', value: '' },
   { label: 'Collar colour & pattern', value: '' },
-  { label: 'Greep colour / without greep', value: '' },
+  { label: 'Grip colour / without grip', value: '' },
   { label: 'Extra pattern', value: '' },
   { label: 'Logo printing / embroidery', value: '' },
   { label: 'Front side size', value: '' },
@@ -77,7 +77,7 @@ const getDefaultSpecifications = () => [
 const getNormalizedSpecifications = (product = {}) => {
   if (Array.isArray(product?.specifications) && product.specifications.length > 0) {
     return product.specifications.map(s => ({
-      label: s?.label !== undefined ? String(s.label) : '',
+      label: s?.label !== undefined ? String(s.label).replace(/^Greep/i, 'Grip').replace(/greep/gi, 'grip') : '',
       value: s?.value !== undefined ? String(s.value) : ''
     }))
   }
@@ -86,7 +86,7 @@ const getNormalizedSpecifications = (product = {}) => {
   const list = [
     { label: 'Fabric', value: String(spec.fabric || '').trim() },
     { label: 'Collar colour & pattern', value: String(spec.collarPattern || '').trim() },
-    { label: 'Greep colour / without greep', value: String(spec.greepOption || '').trim() },
+    { label: 'Grip colour / without grip', value: String(spec.gripOption || spec.greepOption || '').trim() },
     { label: 'Extra pattern', value: String(spec.extraPattern || '').trim() },
     { label: 'Logo printing / embroidery', value: String(spec.logoType || '').trim() },
     { label: 'Front side size', value: String(spec.frontSideSize || '').trim() },
@@ -99,7 +99,7 @@ const getNormalizedSpecifications = (product = {}) => {
   ]
 
   Object.keys(spec).forEach(k => {
-    if (!['fabric', 'collarPattern', 'greepOption', 'extraPattern', 'logoType', 'frontSideSize', 'backSideSize', 'sleeveSideSize', 'nameNumber', 'extraPrinting', 'sizeFormat', 'sizeFarma', '_id'].includes(k)) {
+    if (!['fabric', 'collarPattern', 'greepOption', 'gripOption', 'extraPattern', 'logoType', 'frontSideSize', 'backSideSize', 'sleeveSideSize', 'nameNumber', 'extraPrinting', 'sizeFormat', 'sizeFarma', '_id'].includes(k)) {
       if (spec[k] && String(spec[k]).trim()) {
         list.push({ label: k, value: String(spec[k]).trim() })
       }
@@ -6377,7 +6377,7 @@ function App() {
                   </div>
                 ) : (
                   <>
-                    <div className="table-wrap" ref={tailorTableWrapRef} style={{ maxHeight: '560px', overflow: 'auto' }}>
+<div className="table-wrap" ref={tailorTableWrapRef} style={{ maxHeight: '560px', overflow: 'auto' }}>
                       <table>
                         <thead>
                           <tr>
@@ -6388,7 +6388,7 @@ function App() {
                             <th className="sortable-header" onClick={() => handleTailorSort('product')} style={{ cursor: 'pointer' }}>
                               Product {tailorSortKey === 'product' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
-                            <th style={{ width: '130px' }}>Category</th>
+                            <th style={{ minWidth: '170px' }}>Category</th>
                             <th className="sortable-header" onClick={() => handleTailorSort('customerName')} style={{ cursor: 'pointer' }}>
                               Customer {tailorSortKey === 'customerName' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
@@ -6444,15 +6444,6 @@ function App() {
                                     value={row.productionCategory || ''}
                                     onChange={(e) => handleInlineCategoryChange(row, e.target.value)}
                                     style={{
-                                      fontSize: '11px',
-                                      fontWeight: '600',
-                                      padding: '4px 8px',
-                                      borderRadius: '6px',
-                                      border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #CBD5E1',
-                                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                                      color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
-                                      cursor: 'pointer',
-                                      width: '100%',
                                       maxWidth: '130px'
                                     }}
                                   >
