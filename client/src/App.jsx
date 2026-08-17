@@ -109,11 +109,6 @@ const getNormalizedSpecifications = (product = {}) => {
   return list
 }
 
-const getSpecificationEntries = (product = {}) => {
-  const specs = getNormalizedSpecifications(product)
-  return specs.filter(s => s.label && String(s.label).trim() && s.value && String(s.value).trim()).map(s => [s.label, s.value])
-}
-
 const createEmptyForm = (orderNumber = '') => ({
   orderNumber,
   customerName: '',
@@ -757,11 +752,6 @@ function App() {
   // Edit Installment Modal State
   const [showEditInstallmentModal, setShowEditInstallmentModal] = useState(false)
   const [editingInstallment, setEditingInstallment] = useState(null)
-  const [selectedOldCycleOrder, setSelectedOldCycleOrder] = useState(null)
-
-  // Specification Editor & Drag-and-Drop State
-  const [editingSpecProductIndex, setEditingSpecProductIndex] = useState(null)
-  const [editingSpecType, setEditingSpecType] = useState(null) // 'vendor' or 'bulk'
 
   const [editingLabelKey, setEditingLabelKey] = useState(null)
 
@@ -835,7 +825,6 @@ function App() {
   const [tailorCustomStartDate, setTailorCustomStartDate] = useState('')
   const [tailorCustomEndDate, setTailorCustomEndDate] = useState('')
   const [tailorSearchTerm, setTailorSearchTerm] = useState('')
-  const [tailorVisibleCount, setTailorVisibleCount] = useState(30)
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
   const deferredTailorSearchTerm = useDeferredValue(tailorSearchTerm)

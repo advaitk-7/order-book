@@ -67,55 +67,6 @@ const DEFAULT_PRICING_RATES = DEFAULT_PRODUCTION_CATEGORIES.reduce((acc, cat) =>
   return acc;
 }, {});
 
-// Levenshtein Distance Helper
-function getLevenshteinDistance(a, b) {
-  const matrix = [];
-
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
-
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0][j] = j;
-  }
-
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          Math.min(
-            matrix[i][j - 1] + 1, // insertion
-            matrix[i - 1][j] + 1  // deletion
-          )
-        );
-      }
-    }
-  }
-
-  return matrix[b.length][a.length];
-}
-
-// Check if a single target word matches a query token fuzzily
-function isFuzzyWordMatch(queryToken, targetWord) {
-  const q = queryToken.toLowerCase();
-  const t = targetWord.toLowerCase();
-  
-  if (t.includes(q) || q.includes(t)) {
-    return true;
-  }
-  
-  const maxDistance = q.length <= 4 ? 1 : 2;
-  const dist = getLevenshteinDistance(q, t);
-  if (dist <= maxDistance) {
-    return true;
-  }
-  
-  return false;
-}
-
 // High-Precision Gold Standard Matcher for Search Bar
 function checkFuzzyMatch(searchQuery, order) {
   if (!searchQuery || searchQuery.trim() === "") return true;
