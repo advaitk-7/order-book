@@ -2512,7 +2512,7 @@ function App() {
 
         // Add specifications after the first size row
         if (idx === 0) {
-          const specs = getNormalizedSpecifications(p).filter(s => s.label || s.value)
+          const specs = getNormalizedSpecifications(p).filter(s => s.value && String(s.value).trim())
           specs.forEach(spec => {
             rows.push(['', `  ${spec.label}${spec.value ? ': ' + spec.value : ''}`, '', '', '', '', '', ''])
           })
@@ -2672,7 +2672,7 @@ function App() {
 
         // Add specifications after the first size row
         if (idx === 0) {
-          const specs = getNormalizedSpecifications(p).filter(s => s.label || s.value)
+          const specs = getNormalizedSpecifications(p).filter(s => s.value && String(s.value).trim())
           specs.forEach(spec => {
             rows.push(['', `  ${spec.label}${spec.value ? ': ' + spec.value : ''}`, '', '', '', '', '', '', ''])
           })
@@ -2870,7 +2870,7 @@ function App() {
         startY += 5
 
         // Specifications
-        const coSpecs = getNormalizedSpecifications(prod).filter(s => s.label || s.value)
+        const coSpecs = getNormalizedSpecifications(prod).filter(s => s.value && String(s.value).trim())
         if (coSpecs.length > 0) {
           doc.setFontSize(8.5)
           doc.setFont('helvetica', 'normal')
@@ -3122,7 +3122,7 @@ function App() {
         startY += 5
 
         // Specifications
-        const poSpecs = getNormalizedSpecifications(prod).filter(s => s.label || s.value)
+        const poSpecs = getNormalizedSpecifications(prod).filter(s => s.value && String(s.value).trim())
         if (poSpecs.length > 0) {
           doc.setFontSize(8.5)
           doc.setFont('helvetica', 'normal')
@@ -6388,7 +6388,7 @@ function App() {
                             <th className="sortable-header" onClick={() => handleTailorSort('product')} style={{ cursor: 'pointer' }}>
                               Product {tailorSortKey === 'product' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
-                            <th style={{ minWidth: '170px' }}>Category</th>
+                            <th style={{ width: '130px' }}>Category</th>
                             <th className="sortable-header" onClick={() => handleTailorSort('customerName')} style={{ cursor: 'pointer' }}>
                               Customer {tailorSortKey === 'customerName' ? (tailorSortOrder === 'asc' ? '▲' : '▼') : ''}
                             </th>
@@ -7921,11 +7921,11 @@ function App() {
                                                 </div>
                                               )}
                                               {/* Specifications */}
-                                              {getNormalizedSpecifications(prod).filter(s => s.label || s.value).length > 0 && (
+                                              {getNormalizedSpecifications(prod).filter(s => s.value && String(s.value).trim()).length > 0 && (
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                                                  {getNormalizedSpecifications(prod).filter(s => s.label || s.value).map((spec, si) => (
-                                                    <span key={si} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: theme === 'dark' ? '#1E3A5F' : '#EFF6FF', color: theme === 'dark' ? '#93C5FD' : '#1D4ED8', border: '1px solid #BFDBFE', fontWeight: '600' }}>
-                                                      {spec.label}{spec.value ? `: ${spec.value}` : ''}
+                                                  {getNormalizedSpecifications(prod).filter(s => s.value && String(s.value).trim()).map((spec, si) => (
+                                                    <span key={si} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', background: theme === 'dark' ? '#1E3A5F' : '#EFF6FF', color: theme === 'dark' ? '#93C5FD' : '#1D4ED8', border: '1px solid #BFDBFE', fontWeight: '600' }}>
+                                                      <strong>{spec.label}:</strong> {spec.value}
                                                     </span>
                                                   ))}
                                                 </div>
@@ -8696,11 +8696,11 @@ function App() {
                                                 </span>
                                               )}
                                               {/* Specifications */}
-                                              {getNormalizedSpecifications(prod).filter(s => s.label || s.value).length > 0 && (
+                                              {getNormalizedSpecifications(prod).filter(s => s.value && String(s.value).trim()).length > 0 && (
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px', width: '100%' }}>
-                                                  {getNormalizedSpecifications(prod).filter(s => s.label || s.value).map((spec, si) => (
-                                                    <span key={si} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', background: theme === 'dark' ? '#064E3B' : '#ECFDF5', color: theme === 'dark' ? '#34D399' : '#065F46', border: '1px solid #6EE7B7', fontWeight: '600' }}>
-                                                      {spec.label}{spec.value ? `: ${spec.value}` : ''}
+                                                  {getNormalizedSpecifications(prod).filter(s => s.value && String(s.value).trim()).map((spec, si) => (
+                                                    <span key={si} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', background: theme === 'dark' ? '#064E3B' : '#ECFDF5', color: theme === 'dark' ? '#34D399' : '#065F46', border: '1px solid #6EE7B7', fontWeight: '600' }}>
+                                                      <strong>{spec.label}:</strong> {spec.value}
                                                     </span>
                                                   ))}
                                                 </div>
