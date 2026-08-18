@@ -7562,10 +7562,7 @@ return sortedOrders.slice(0, visibleCount)
                                   school: '',
                                   specifications: getDefaultSpecifications(),
                                   sizeBreakdown: [
-                                    { size: '30', orderedQty: '' },
-                                    { size: '32', orderedQty: '' },
-                                    { size: '34', orderedQty: '' },
-                                    { size: '36', orderedQty: '' }
+                                    { size: '28', orderedQty: '' }
                                   ]
                                 }
                               ]
