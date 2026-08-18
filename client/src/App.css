@@ -3530,3 +3530,92 @@ tr.clickable-row.highlighted-row td {
     overflow-x: hidden !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE PATCH — Size Breakdown Mini-Table (PO / CO modals)
+   Targets tablet (769–1024px) and mobile (≤780px).
+   The column header row (SIZE | ORDERED QTY | COST / UNIT) is hidden and
+   each data row is styled as labeled cards so inputs stay usable.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Hide the column header text row on tablet and mobile — the inputs already have
+   clear placeholder text so the header row is redundant and overflows */
+@media (max-width: 1024px) {
+  .size-breakdown-header {
+    display: none !important;
+  }
+}
+
+/* On tablet: each size row wraps into a 2-column card grid */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .restock-modal-size-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    background: rgba(241, 245, 249, 0.4) !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Each flex child (Size, Ordered Qty, Cost/Unit divs) wraps to fill ~half width */
+  .restock-modal-size-row > div {
+    flex: 1 1 calc(50% - 8px) !important;
+    min-width: 90px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Input within each child: full width, no overflow */
+  .restock-modal-size-row > div > input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+  }
+
+  /* Delete button stays on its own, doesn't stretch */
+  .restock-modal-size-row > button {
+    flex: 0 0 auto !important;
+    align-self: center !important;
+    min-height: 36px !important;
+    min-width: 36px !important;
+  }
+
+  /* Manage modal: always scrollable on tablet for long PO/CO content */
+  .manage-modal-card {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Filter chip grid: allow chips to wrap earlier on narrow tablet */
+  .orders-filter-buttons {
+    grid-template-columns: repeat(auto-fit, minmax(100px, auto)) !important;
+  }
+}
+
+/* On mobile: same row-card treatment */
+@media (max-width: 780px) {
+  .restock-modal-size-row > div {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .restock-modal-size-row > div > input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+  }
+
+  /* Filter chip grid: allow chips to wrap earlier on narrow mobile */
+  .orders-filter-buttons {
+    grid-template-columns: repeat(auto-fit, minmax(100px, auto)) !important;
+  }
+
+  /* Spec rows in PO/CO modals: the 165px label shrinks on very narrow screens */
+  .spec-label-col {
+    width: clamp(100px, 35vw, 165px) !important;
+    min-width: 80px !important;
+    flex-shrink: 1 !important;
+  }
+}
+

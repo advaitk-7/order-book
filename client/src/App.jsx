@@ -10726,7 +10726,7 @@ return sortedOrders.slice(0, visibleCount)
                             >
 
                               {/* Category Label Section */}
-                              <div style={{ width: '165px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <div className="spec-label-col" style={{ width: '165px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 {isEditingLabel ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%' }}>
                                     <input
@@ -10835,7 +10835,7 @@ return sortedOrders.slice(0, visibleCount)
                       </div>
 
                       {/* Mini Table Column Headers */}
-                      <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', fontSize: '10px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px' }}>
+                      <div className="size-breakdown-header" style={{ display: 'flex', gap: '8px', marginBottom: '6px', fontSize: '10px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px' }}>
                         <div style={{ flex: 1.2 }}>Size</div>
                         <div style={{ flex: 1 }}>Ordered Qty</div>
                         <div style={{ flex: 1 }}>Cost / Unit (₹)</div>
@@ -11813,7 +11813,7 @@ return sortedOrders.slice(0, visibleCount)
                             >
 
                               {/* Category Label Section */}
-                              <div style={{ width: '165px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <div className="spec-label-col" style={{ width: '165px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 {isEditingLabel ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%' }}>
                                     <input
@@ -11953,7 +11953,7 @@ return sortedOrders.slice(0, visibleCount)
                       </div>
 
                       {/* Mini Table Column Headers */}
-                      <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', fontSize: '10px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px' }}>
+                      <div className="size-breakdown-header" style={{ display: 'flex', gap: '8px', marginBottom: '6px', fontSize: '10px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px' }}>
                         <div style={{ flex: 1.2 }}>Size</div>
                         <div style={{ flex: 1 }}>Ordered Qty</div>
                         <div style={{ flex: 1 }}>Cost / Unit (₹)</div>
