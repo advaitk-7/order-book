@@ -1362,6 +1362,7 @@ function App() {
         setNewSchoolNameInput('')
         fetchWaitlistSchools()
         setWaitlistFormData(prev => ({ ...prev, schools: [...(prev.schools || []), data.name] }))
+        setFormData(prev => ({ ...prev, school: data.name }))
       } else {
         alert(data.message || 'Failed to create school')
       }
@@ -1372,6 +1373,8 @@ function App() {
 
   const handleRenameWaitlistSchool = async (id, newName) => {
     if (!token || !newName.trim()) return
+    const schoolObj = waitlistSchools.find(s => s._id === id)
+    const oldName = schoolObj?.name
     try {
       const response = await fetch(`${API_BASE}/api/waitlist/schools/${id}`, {
         method: 'PATCH',
@@ -1387,6 +1390,10 @@ function App() {
         setEditingSchoolNameInput('')
         fetchWaitlistSchools()
         fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
+        fetchOrders(searchTerm)
+        if (oldName && formData.school === oldName) {
+          setFormData(prev => ({ ...prev, school: newName.trim() }))
+        }
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to rename school')
@@ -1412,6 +1419,9 @@ function App() {
           ...prev,
           schools: (prev.schools || []).filter(s => s !== name)
         }))
+        if (formData.school === name) {
+          setFormData(prev => ({ ...prev, school: '' }))
+        }
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to delete school')
@@ -5479,10 +5489,140 @@ function App() {
                             <option value="Female">Female</option>
                           </select>
                         </label>
-                        <label>
-                          School
-                          <input name="school" value={formData.school} onChange={handleChange} required />
+                        <label style={{ position: 'relative' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span>School / Firm</span>
+                            <button
+                              type="button"
+                              className="ghost-btn"
+                              onClick={() => setShowSchoolManager(!showSchoolManager)}
+                              style={{ fontSize: '11px', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                            >
+                              {showSchoolManager ? `${getSafeEmoji('✕')} Hide Directory` : `${getSafeEmoji('⚙️')} Manage Directory`}
+                            </button>
+                          </div>
+                          <select
+                            name="school"
+                            value={formData.school}
+                            onChange={handleChange}
+                            required
+                          >
+                            <option value="">-- Select School / Firm --</option>
+                            {tailorAvailableSchools.map((schoolName) => (
+                              <option key={schoolName} value={schoolName}>
+                                {schoolName}
+                              </option>
+                            ))}
+                            {formData.school && !tailorAvailableSchools.includes(formData.school) && (
+                              <option value={formData.school}>{formData.school}</option>
+                            )}
+                          </select>
                         </label>
+                        {showSchoolManager && (
+                          <div style={{
+                            gridColumn: '1 / -1',
+                            background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
+                            border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E2E8F0',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            marginBottom: '10px'
+                          }}>
+                            <div style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#93C5FD' : '#1D4ED8', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>School Directory Manager</span>
+                              <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 'normal' }}>Add, rename or remove registered schools</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                              <input
+                                type="text"
+                                placeholder="Type new school name..."
+                                value={newSchoolNameInput}
+                                onChange={(e) => setNewSchoolNameInput(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveWaitlistSchool(e) }}
+                                style={{
+                                  flex: 1,
+                                  padding: '6px 10px',
+                                  fontSize: '12px',
+                                  borderRadius: '6px',
+                                  border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1',
+                                  background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                                  color: 'inherit'
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={handleSaveWaitlistSchool}
+                                className="primary-btn"
+                                style={{ padding: '0 12px', fontSize: '11px', height: '28px', minWidth: 'auto', display: 'flex', alignItems: 'center' }}
+                              >
+                                Add
+                              </button>
+                            </div>
+                            <div style={{ maxHeight: '140px', overflowY: 'auto', paddingRight: '4px' }}>
+                              {waitlistSchools.length === 0 ? (
+                                <p style={{ fontSize: '11px', color: '#64748B', textAlign: 'center', margin: '8px 0' }}>No registered schools yet in directory.</p>
+                              ) : (
+                                waitlistSchools.map((s) => (
+                                  <div key={s._id} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '6px 0',
+                                    borderBottom: '1px solid var(--border-color, #E5E7EB)'
+                                  }}>
+                                    {editingSchoolId === s._id ? (
+                                      <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+                                        <input
+                                          type="text"
+                                          value={editingSchoolNameInput}
+                                          onChange={(e) => setEditingSchoolNameInput(e.target.value)}
+                                          style={{ flex: 1, padding: '4px 6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #2563EB', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRenameWaitlistSchool(s._id, editingSchoolNameInput)}
+                                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                                          title="Save Rename"
+                                        >
+                                          {getSafeEmoji('💾')}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => { setEditingSchoolId(null); setEditingSchoolNameInput(''); }}
+                                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                                          title="Cancel"
+                                        >
+                                          {getSafeEmoji('❌')}
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <span style={{ fontSize: '12px', fontWeight: '500' }}>{s.name}</span>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                          <button
+                                            type="button"
+                                            onClick={() => { setEditingSchoolId(s._id); setEditingSchoolNameInput(s.name); }}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                                            title="Rename School"
+                                          >
+                                            {getSafeEmoji('✏️')}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteWaitlistSchool(s._id, s.name)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                                            title="Delete School"
+                                          >
+                                            {getSafeEmoji('🗑️')}
+                                          </button>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <label>
                           Grade
                           <input name="grade" value={formData.grade || ''} onChange={handleChange} placeholder="e.g. 5th, Std 10, Grade A" />
@@ -5815,7 +5955,18 @@ function App() {
                     </select>
                   </label>
                   <label className="orders-filter-select">
-                    <span>School</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>School</span>
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        onClick={() => setShowSchoolManager(!showSchoolManager)}
+                        style={{ fontSize: '10px', padding: '0 4px', marginLeft: '6px', lineHeight: 1 }}
+                        title="Manage School Directory"
+                      >
+                        {getSafeEmoji('⚙️')}
+                      </button>
+                    </div>
                     <select value={orderSchoolFilter} onChange={(event) => applyOrderSchoolFilter(event.target.value)}>
                       <option value="All">All Schools</option>
                       {tailorAvailableSchools.map((s) => (
