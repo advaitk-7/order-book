@@ -621,6 +621,7 @@ function App() {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [shouldScrollToDetails, setShouldScrollToDetails] = useState(false)
   const [editingOrderId, setEditingOrderId] = useState(null)
+  const [pendingCustomField, setPendingCustomField] = useState(null) // { itemIndex, name }
   const [orderFilter, setOrderFilter] = useState('All')
   const [orderPaymentFilter, setOrderPaymentFilter] = useState('All')
   const [orderContactFilter, setOrderContactFilter] = useState('All')
@@ -3721,33 +3722,34 @@ function App() {
   }
 
   const handleAddMeasurementField = (itemIndex) => {
+    setPendingCustomField({ itemIndex, name: '' })
+  }
+
+  const commitPendingCustomField = () => {
+    if (!pendingCustomField) return
+    const { itemIndex, name } = pendingCustomField
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setPendingCustomField(null)
+      return
+    }
     setFormData((prev) => {
       const updatedItems = prev.items.map((item, idx) => {
         if (idx !== itemIndex) return item
-        let newKey = ''
-        let count = 1
-        while (Object.prototype.hasOwnProperty.call(item.measurements || {}, newKey)) {
-          newKey = ' '.repeat(count)
-          count++
+        let finalName = trimmedName
+        let counter = 2
+        while (Object.prototype.hasOwnProperty.call(item.measurements || {}, finalName)) {
+          finalName = `${trimmedName} (${counter})`
+          counter++
         }
-        return {
-          ...item,
-          measurements: {
-            ...item.measurements,
-            [newKey]: '',
-          },
-        }
+        return { ...item, measurements: { ...item.measurements, [finalName]: '' } }
       })
-
       if (selectedOrder && selectedOrder._id === editingOrderId) {
-        setSelectedOrder((prevSelected) => ({
-          ...prevSelected,
-          items: updatedItems,
-        }))
+        setSelectedOrder((prevSelected) => ({ ...prevSelected, items: updatedItems }))
       }
-
       return { ...prev, items: updatedItems }
     })
+    setPendingCustomField(null)
   }
 
   const handleRemoveMeasurement = (itemIndex, fieldKey) => {
@@ -5609,15 +5611,49 @@ function App() {
                                 <span style={{ fontSize: '13px', fontWeight: '600', color: theme === 'dark' ? '#cbd5e1' : '#475569' }}>
                                   Measurement Components
                                 </span>
-                                <button
-                                  type="button"
-                                  className="ghost-btn"
-                                  onClick={() => handleAddMeasurementField(index)}
-                                  style={{ fontSize: '12px', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                >
-                                  + Add Measurement Component
-                                </button>
+                                {pendingCustomField?.itemIndex === index ? null : (
+                                  <button
+                                    type="button"
+                                    className="ghost-btn"
+                                    onClick={() => handleAddMeasurementField(index)}
+                                    style={{ fontSize: '12px', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    + Add Measurement Component
+                                  </button>
+                                )}
                               </div>
+
+                              {/* Inline add form */}
+                              {pendingCustomField?.itemIndex === index && (
+                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '10px', padding: '8px 10px', borderRadius: '8px', background: theme === 'dark' ? '#1E293B' : '#F0F9FF', border: `1px solid ${theme === 'dark' ? '#334155' : '#BAE6FD'}` }}>
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    value={pendingCustomField.name}
+                                    onChange={(e) => setPendingCustomField({ ...pendingCustomField, name: e.target.value })}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') { e.preventDefault(); commitPendingCustomField() }
+                                      if (e.key === 'Escape') setPendingCustomField(null)
+                                    }}
+                                    placeholder="Component name (e.g. Pocket, Logo, Embroidery)"
+                                    style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid #7DD3FC', fontSize: '13px', background: theme === 'dark' ? '#0F172A' : '#FFFFFF', color: 'inherit' }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={commitPendingCustomField}
+                                    style={{ padding: '6px 14px', borderRadius: '6px', background: '#2563EB', color: '#fff', border: 'none', fontWeight: '700', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                  >
+                                    Add
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPendingCustomField(null)}
+                                    style={{ padding: '6px 10px', borderRadius: '6px', background: 'none', border: '1px solid #94A3B8', color: '#94A3B8', fontWeight: '600', fontSize: '12px', cursor: 'pointer' }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              )}
 
                               <div className="measurement-grid">
                                 {getItemFields(item).map((field, fieldIdx) => {
@@ -5642,10 +5678,19 @@ function App() {
                                           </span>
                                         ) : (
                                           <input
+                                            key={`name-${field}`}
                                             type="text"
-                                            value={field}
-                                            onChange={(e) => handleRenameMeasurementKey(index, field, e.target.value)}
-                                            placeholder="Component Name (e.g. Pocket, Logo)"
+                                            defaultValue={field}
+                                            onBlur={(e) => {
+                                              const newName = e.target.value.trim()
+                                              if (newName && newName !== field) handleRenameMeasurementKey(index, field, newName)
+                                              else if (!newName) e.target.value = field
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') e.target.blur()
+                                              if (e.key === 'Escape') { e.target.value = field; e.target.blur() }
+                                            }}
+                                            placeholder="Component name"
                                             style={{
                                               fontSize: '11px',
                                               fontWeight: '600',
