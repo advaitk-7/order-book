@@ -1041,82 +1041,72 @@ app.patch("/api/orders/:id", async (req, res) => {
       return res.status(400).json({ message: validationError });
     }
 
-    const updates = {};
-    const changeLogs = [];
-
     if (payload.orderNumber !== undefined) {
-      const trimmedOrderNumber = payload.orderNumber.trim();
+      const trimmedOrderNumber = String(payload.orderNumber).trim();
       if (trimmedOrderNumber !== oldOrder.orderNumber) {
         const duplicateOrder = await Order.findOne({ orderNumber: trimmedOrderNumber, cycle: oldOrder.cycle || 1, _id: { $ne: req.params.id } });
         if (duplicateOrder) {
           return res.status(409).json({ message: `Order #${trimmedOrderNumber} already exists in Cycle ${oldOrder.cycle || 1}.` });
         }
-        updates.orderNumber = trimmedOrderNumber;
-        changeLogs.push(`Order Number changed from '${oldOrder.orderNumber}' to '${trimmedOrderNumber}'`);
       }
     }
-    if (payload.customerName !== undefined && payload.customerName !== oldOrder.customerName) {
-      updates.customerName = payload.customerName;
-      changeLogs.push(`Customer Name changed from '${oldOrder.customerName}' to '${payload.customerName}'`);
-    }
-    if (payload.contactNumber !== undefined && payload.contactNumber !== oldOrder.contactNumber) {
-      updates.contactNumber = payload.contactNumber;
-      changeLogs.push(`Contact Number changed from '${oldOrder.contactNumber}' to '${payload.contactNumber}'`);
-    }
-    if (payload.gender !== undefined && payload.gender !== oldOrder.gender) {
-      updates.gender = payload.gender;
-      changeLogs.push(`Gender changed from '${oldOrder.gender}' to '${payload.gender}'`);
-    }
-    if (payload.school !== undefined && payload.school !== oldOrder.school) {
-      updates.school = payload.school;
-      changeLogs.push(`School changed from '${oldOrder.school}' to '${payload.school}'`);
-    }
-    if (payload.grade !== undefined && payload.grade !== oldOrder.grade) {
-      updates.grade = payload.grade;
-      changeLogs.push(`Grade changed from '${oldOrder.grade || ''}' to '${payload.grade}'`);
-    }
-    if (payload.deliveryDate !== undefined) {
-      const trimmedDate = String(payload.deliveryDate).trim();
-      if (!trimmedDate) {
-        return res.status(400).json({ message: "Delivery date is required." });
+
+    const updates = {};
+    const changeLogs = [];
+
+    const ALLOWED_ORDER_FIELDS = [
+      'orderNumber', 'customerName', 'contactNumber', 'gender', 'school',
+      'grade', 'deliveryDate', 'amount', 'paymentStatus', 'status',
+      'contactStatus', 'items', 'notes', 'productionCategory'
+    ];
+
+    ALLOWED_ORDER_FIELDS.forEach((field) => {
+      if (payload[field] !== undefined) {
+        if (field === 'orderNumber') {
+          const trimmedOrderNumber = String(payload.orderNumber).trim();
+          if (trimmedOrderNumber !== oldOrder.orderNumber) {
+            updates.orderNumber = trimmedOrderNumber;
+            changeLogs.push(`Order Number changed from '${oldOrder.orderNumber}' to '${trimmedOrderNumber}'`);
+          }
+        } else if (field === 'deliveryDate') {
+          const trimmedDate = String(payload.deliveryDate).trim();
+          if (!trimmedDate) {
+            throw new Error("Delivery date is required.");
+          }
+          if (trimmedDate !== oldOrder.deliveryDate) {
+            updates.deliveryDate = trimmedDate;
+            changeLogs.push(`Delivery Date changed from '${oldOrder.deliveryDate}' to '${trimmedDate}'`);
+          }
+        } else if (field === 'amount') {
+          const numAmt = Number(payload.amount || 0);
+          if (numAmt !== oldOrder.amount) {
+            updates.amount = numAmt;
+            changeLogs.push(`Amount changed from '₹${oldOrder.amount}' to '₹${numAmt}'`);
+          }
+        } else if (field === 'status') {
+          if (payload.status !== oldOrder.status) {
+            updates.status = payload.status;
+            updates.deliveredAt = payload.status === 'Delivered' ? new Date() : null;
+            changeLogs.push(`Status changed from '${oldOrder.status}' to '${payload.status}'`);
+          }
+        } else if (field === 'items') {
+          updates.items = (payload.items || []).map((item) => ({
+            ...item,
+            quantity: Number(item.quantity || 0),
+          }));
+          changeLogs.push(`Order items and measurements updated`);
+        } else {
+          // Handles grade, customerName, contactNumber, gender, school, contactStatus, notes, etc.
+          const newVal = String(payload[field] ?? '').trim();
+          const oldVal = String(oldOrder[field] ?? '').trim();
+          if (newVal !== oldVal) {
+            updates[field] = payload[field];
+            const titleCaseField = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+            changeLogs.push(`${titleCaseField} changed from '${oldVal}' to '${newVal}'`);
+          }
+        }
       }
-      if (trimmedDate !== oldOrder.deliveryDate) {
-        updates.deliveryDate = trimmedDate;
-        changeLogs.push(`Delivery Date changed from '${oldOrder.deliveryDate}' to '${trimmedDate}'`);
-      }
-    }
-    if (payload.amount !== undefined && Number(payload.amount || 0) !== oldOrder.amount) {
-      updates.amount = Number(payload.amount || 0);
-      changeLogs.push(`Amount changed from '₹${oldOrder.amount}' to '₹${payload.amount}'`);
-    }
-    if (payload.paymentStatus !== undefined && payload.paymentStatus !== oldOrder.paymentStatus) {
-      updates.paymentStatus = payload.paymentStatus;
-      changeLogs.push(`Payment Status changed from '${oldOrder.paymentStatus}' to '${payload.paymentStatus}'`);
-    }
-    if (payload.status !== undefined && payload.status !== oldOrder.status) {
-      updates.status = payload.status;
-      if (payload.status === 'Delivered') {
-        updates.deliveredAt = new Date();
-      } else {
-        updates.deliveredAt = null;
-      }
-      changeLogs.push(`Status changed from '${oldOrder.status}' to '${payload.status}'`);
-    }
-    if (payload.contactStatus !== undefined && payload.contactStatus !== oldOrder.contactStatus) {
-      updates.contactStatus = payload.contactStatus;
-      changeLogs.push(`Contact Status changed from '${oldOrder.contactStatus}' to '${payload.contactStatus}'`);
-    }
-    if (payload.items !== undefined) {
-      updates.items = (payload.items || []).map((item) => ({
-        ...item,
-        quantity: Number(item.quantity || 0),
-      }));
-      changeLogs.push(`Order items and measurements updated`);
-    }
-    if (payload.notes !== undefined && payload.notes !== oldOrder.notes) {
-      updates.notes = payload.notes;
-      changeLogs.push(`Notes updated`);
-    }
+    });
 
     const order = await Order.findByIdAndUpdate(req.params.id, updates, { new: true });
 
@@ -1127,7 +1117,7 @@ app.patch("/api/orders/:id", async (req, res) => {
     res.json({ message: "Order updated successfully", order });
   } catch (error) {
     console.error("Error updating order:", error.message);
-    res.status(500).json({ message: "Failed to update order", error: error.message });
+    res.status(500).json({ message: error.message || "Failed to update order", error: error.message });
   }
 });
 
