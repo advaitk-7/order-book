@@ -10813,8 +10813,8 @@ return sortedOrders.slice(0, visibleCount)
                     </div>
 
                     {/* Size Breakdown per Product */}
-                    <div style={{ background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', marginTop: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <label style={{ fontWeight: '700', fontSize: '12px', margin: 0 }}>
                           Size-wise Ordered Quantity *
                         </label>
@@ -10828,10 +10828,18 @@ return sortedOrders.slice(0, visibleCount)
                             updatedProds[pIdx] = { ...updatedProds[pIdx], sizeBreakdown: currentBreakdown }
                             setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                           }}
-                          style={{ fontSize: '10px', padding: '2px 8px' }}
+                          style={{ fontSize: '10px', padding: '3px 10px', fontWeight: '600' }}
                         >
                           + Add Size Row
                         </button>
+                      </div>
+
+                      {/* Mini Table Column Headers */}
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', fontSize: '10px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px' }}>
+                        <div style={{ flex: 1.2 }}>Size</div>
+                        <div style={{ flex: 1 }}>Ordered Qty</div>
+                        <div style={{ flex: 1 }}>Cost / Unit (₹)</div>
+                        <div style={{ width: '28px', textAlign: 'center' }}></div>
                       </div>
 
                       {(prod.sizeBreakdown || []).map((sb, sIdx) => (
@@ -10839,7 +10847,7 @@ return sortedOrders.slice(0, visibleCount)
                           <div style={{ flex: 1.2 }}>
                             <input
                               type="text"
-                              placeholder="Size (e.g. 28, 30, M, L)"
+                              placeholder="e.g. 28, M"
                               value={sb.size}
                               onChange={(e) => {
                                 const updatedProds = [...(vendorOrderFormData.products || [])]
@@ -10849,14 +10857,14 @@ return sortedOrders.slice(0, visibleCount)
                                 setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                               }}
                               required
-                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                              style={{ padding: '5px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                           <div style={{ flex: 1 }}>
                             <input
                               type="number"
                               min="1"
-                              placeholder="Ordered Qty"
+                              placeholder="0"
                               value={sb.orderedQty}
                               onChange={(e) => {
                                 const updatedProds = [...(vendorOrderFormData.products || [])]
@@ -10866,7 +10874,7 @@ return sortedOrders.slice(0, visibleCount)
                                 setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                               }}
                               required
-                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                              style={{ padding: '5px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                           <div style={{ flex: 1 }}>
@@ -10874,7 +10882,7 @@ return sortedOrders.slice(0, visibleCount)
                               type="number"
                               min="0"
                               step="any"
-                              placeholder="Cost/Unit (₹)"
+                              placeholder="₹0"
                               value={sb.unitPrice !== undefined ? sb.unitPrice : ''}
                               onChange={(e) => {
                                 const updatedProds = [...(vendorOrderFormData.products || [])]
@@ -10883,7 +10891,7 @@ return sortedOrders.slice(0, visibleCount)
                                 updatedProds[pIdx] = { ...updatedProds[pIdx], sizeBreakdown: updatedBreakdown }
                                 setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                               }}
-                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                              style={{ padding: '5px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                           <button
@@ -10896,7 +10904,7 @@ return sortedOrders.slice(0, visibleCount)
                               setVendorOrderFormData({ ...vendorOrderFormData, products: updatedProds })
                             }}
                             disabled={(prod.sizeBreakdown || []).length <= 1}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', opacity: (prod.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', width: '28px', display: 'flex', justifyContent: 'center', opacity: (prod.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
                             title="Remove Row"
                           >
                             {getSafeEmoji('🗑️')}
@@ -11925,8 +11933,8 @@ return sortedOrders.slice(0, visibleCount)
                     </div>
 
                     {/* Size Breakdown Rows */}
-                    <div style={{ background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', marginTop: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', marginTop: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <label style={{ fontWeight: '700', fontSize: '12px', margin: 0 }}>
                           Size-wise Ordered Quantity *
                         </label>
@@ -11938,10 +11946,18 @@ return sortedOrders.slice(0, visibleCount)
                             newProds[pIdx].sizeBreakdown.push({ size: '', orderedQty: '', unitPrice: '' })
                             setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                           }}
-                          style={{ fontSize: '10px', padding: '2px 8px' }}
+                          style={{ fontSize: '10px', padding: '3px 10px', fontWeight: '600' }}
                         >
                           + Add Size Row
                         </button>
+                      </div>
+
+                      {/* Mini Table Column Headers */}
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', fontSize: '10px', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px' }}>
+                        <div style={{ flex: 1.2 }}>Size</div>
+                        <div style={{ flex: 1 }}>Ordered Qty</div>
+                        <div style={{ flex: 1 }}>Cost / Unit (₹)</div>
+                        <div style={{ width: '28px', textAlign: 'center' }}></div>
                       </div>
 
                       {(p.sizeBreakdown || []).map((sb, sbIdx) => (
@@ -11955,9 +11971,9 @@ return sortedOrders.slice(0, visibleCount)
                                 newProds[pIdx].sizeBreakdown[sbIdx].size = e.target.value
                                 setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                               }}
-                              placeholder="Size (e.g. 28, 30, M, L)"
+                              placeholder="e.g. 28, M"
                               required
-                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                              style={{ padding: '5px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                           <div style={{ flex: 1 }}>
@@ -11970,9 +11986,9 @@ return sortedOrders.slice(0, visibleCount)
                                 newProds[pIdx].sizeBreakdown[sbIdx].orderedQty = e.target.value
                                 setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                               }}
-                              placeholder="Ordered Qty"
+                              placeholder="0"
                               required
-                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                              style={{ padding: '5px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                           <div style={{ flex: 1 }}>
@@ -11986,8 +12002,8 @@ return sortedOrders.slice(0, visibleCount)
                                 newProds[pIdx].sizeBreakdown[sbIdx].unitPrice = e.target.value
                                 setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                               }}
-                              placeholder="Cost/Unit (₹)"
-                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                              placeholder="₹0"
+                              style={{ padding: '5px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                           <button
@@ -11998,7 +12014,7 @@ return sortedOrders.slice(0, visibleCount)
                               setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                             }}
                             disabled={(p.sizeBreakdown || []).length <= 1}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', opacity: (p.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', width: '28px', display: 'flex', justifyContent: 'center', opacity: (p.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
                             title="Remove Row"
                           >
                             {getSafeEmoji('🗑️')}
