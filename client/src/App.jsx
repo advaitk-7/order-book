@@ -2875,9 +2875,12 @@ function App() {
           doc.setFontSize(8.5)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(71, 85, 105)
-          const specText = coSpecs.map(s => `${s.label}${s.value ? ': ' + s.value : ''}`).join('   |   ')
-          doc.text(`Specifications: ${specText}`, 14, startY)
-          startY += 5
+          const specText = coSpecs.map(s => `${s.label}: ${s.value}`).join('  |  ')
+          const pageWidth = doc.internal.pageSize.getWidth()
+          const maxWidth = pageWidth - 28
+          const splitSpec = doc.splitTextToSize(`Specifications: ${specText}`, maxWidth)
+          doc.text(splitSpec, 14, startY)
+          startY += splitSpec.length * 4.5 + 1
         }
 
         let pTotalCost = 0
@@ -3127,9 +3130,12 @@ function App() {
           doc.setFontSize(8.5)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(71, 85, 105)
-          const specText = poSpecs.map(s => `${s.label}${s.value ? ': ' + s.value : ''}`).join('   |   ')
-          doc.text(`Specifications: ${specText}`, 14, startY)
-          startY += 5
+          const specText = poSpecs.map(s => `${s.label}: ${s.value}`).join('  |  ')
+          const pageWidth = doc.internal.pageSize.getWidth()
+          const maxWidth = pageWidth - 28
+          const splitSpec = doc.splitTextToSize(`Specifications: ${specText}`, maxWidth)
+          doc.text(splitSpec, 14, startY)
+          startY += splitSpec.length * 4.5 + 1
         }
 
         // Size rows — Price/Unit per row, no Fulfillment%
