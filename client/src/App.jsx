@@ -7562,7 +7562,6 @@ return sortedOrders.slice(0, visibleCount)
                                   school: '',
                                   specifications: getDefaultSpecifications(),
                                   sizeBreakdown: [
-                                    { size: '28', orderedQty: '' },
                                     { size: '30', orderedQty: '' },
                                     { size: '32', orderedQty: '' },
                                     { size: '34', orderedQty: '' },
@@ -10608,9 +10607,7 @@ return sortedOrders.slice(0, visibleCount)
                             productName: '',
                             school: '',
                             sizeBreakdown: [
-                              { size: '28', orderedQty: '' },
-                              { size: '30', orderedQty: '' },
-                              { size: '32', orderedQty: '' }
+                              { size: '28', orderedQty: '' }
                             ]
                           }
                         ]
