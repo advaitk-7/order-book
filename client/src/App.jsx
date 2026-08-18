@@ -11925,73 +11925,86 @@ return sortedOrders.slice(0, visibleCount)
                     </div>
 
                     {/* Size Breakdown Rows */}
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748B', marginBottom: '6px' }}>Sizes, Quantities & Costs:</div>
+                    <div style={{ background: theme === 'dark' ? '#1E293B' : '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color, #CBD5E1)', marginTop: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <label style={{ fontWeight: '700', fontSize: '12px', margin: 0 }}>
+                          Size-wise Ordered Quantity *
+                        </label>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => {
+                            const newProds = [...bulkOrderFormData.products]
+                            newProds[pIdx].sizeBreakdown.push({ size: '', orderedQty: '', unitPrice: '' })
+                            setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                          }}
+                          style={{ fontSize: '10px', padding: '2px 8px' }}
+                        >
+                          + Add Size Row
+                        </button>
+                      </div>
+
                       {(p.sizeBreakdown || []).map((sb, sbIdx) => (
                         <div key={sbIdx} className="restock-modal-size-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                          <input
-                            type="text"
-                            value={sb.size}
-                            onChange={(e) => {
-                              const newProds = [...bulkOrderFormData.products]
-                              newProds[pIdx].sizeBreakdown[sbIdx].size = e.target.value
-                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                            }}
-                            placeholder="Size e.g. 28"
-                            style={{ width: '80px', padding: '6px', fontSize: '12px' }}
-                          />
-                          <input
-                            type="number"
-                            min="0"
-                            value={sb.orderedQty}
-                            onChange={(e) => {
-                              const newProds = [...bulkOrderFormData.products]
-                              newProds[pIdx].sizeBreakdown[sbIdx].orderedQty = e.target.value
-                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                            }}
-                            placeholder="Qty"
-                            style={{ width: '90px', padding: '6px', fontSize: '12px' }}
-                          />
-                          <input
-                            type="number"
-                            min="0"
-                            step="any"
-                            value={sb.unitPrice || ''}
-                            onChange={(e) => {
-                              const newProds = [...bulkOrderFormData.products]
-                              newProds[pIdx].sizeBreakdown[sbIdx].unitPrice = e.target.value
-                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                            }}
-                            placeholder="Cost/Unit ₹"
-                            style={{ width: '100px', padding: '6px', fontSize: '12px' }}
-                          />
-                          {p.sizeBreakdown.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => {
+                          <div style={{ flex: 1.2 }}>
+                            <input
+                              type="text"
+                              value={sb.size}
+                              onChange={(e) => {
                                 const newProds = [...bulkOrderFormData.products]
-                                newProds[pIdx].sizeBreakdown = newProds[pIdx].sizeBreakdown.filter((_, idx) => idx !== sbIdx)
+                                newProds[pIdx].sizeBreakdown[sbIdx].size = e.target.value
                                 setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
                               }}
-                              style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '12px', cursor: 'pointer' }}
-                            >
-                              {getSafeEmoji('✕')}
-                            </button>
-                          )}
+                              placeholder="Size (e.g. 28, 30, M, L)"
+                              required
+                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <input
+                              type="number"
+                              min="1"
+                              value={sb.orderedQty}
+                              onChange={(e) => {
+                                const newProds = [...bulkOrderFormData.products]
+                                newProds[pIdx].sizeBreakdown[sbIdx].orderedQty = e.target.value
+                                setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                              }}
+                              placeholder="Ordered Qty"
+                              required
+                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={sb.unitPrice || ''}
+                              onChange={(e) => {
+                                const newProds = [...bulkOrderFormData.products]
+                                newProds[pIdx].sizeBreakdown[sbIdx].unitPrice = e.target.value
+                                setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                              }}
+                              placeholder="Cost/Unit (₹)"
+                              style={{ padding: '4px 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newProds = [...bulkOrderFormData.products]
+                              newProds[pIdx].sizeBreakdown = newProds[pIdx].sizeBreakdown.filter((_, idx) => idx !== sbIdx)
+                              setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
+                            }}
+                            disabled={(p.sizeBreakdown || []).length <= 1}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', opacity: (p.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
+                            title="Remove Row"
+                          >
+                            {getSafeEmoji('🗑️')}
+                          </button>
                         </div>
                       ))}
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newProds = [...bulkOrderFormData.products]
-                          newProds[pIdx].sizeBreakdown.push({ size: '', orderedQty: '', unitPrice: '' })
-                          setBulkOrderFormData({ ...bulkOrderFormData, products: newProds })
-                        }}
-                        style={{ fontSize: '11px', background: 'none', border: 'none', color: '#059669', cursor: 'pointer', fontWeight: '700', marginTop: '4px' }}
-                      >
-                        + Add Size Row
-                      </button>
                     </div>
                   </div>
                 ))}
