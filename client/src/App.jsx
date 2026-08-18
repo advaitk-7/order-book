@@ -5627,15 +5627,16 @@ function App() {
                               </div>
 
                               <div className="measurement-grid">
-                                {getItemFields(item).map((field) => {
+                                {getItemFields(item).map((field, fieldIdx) => {
                                   const isStandard = isStandardField(field);
                                   const displayLabel = field === 'sizeFarma'
                                     ? 'Size Farma'
                                     : field.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase());
                                   const showTag = ['shirt', 'kurta'].includes(item.itemType) && field === 'sleeve' && getSleeveTag(item.itemType, item.measurements);
+                                  const itemKey = isStandard ? field : `custom-field-${index}-${fieldIdx}`;
 
                                   return (
-                                    <label key={field} style={{ position: 'relative' }}>
+                                    <label key={itemKey} style={{ position: 'relative' }}>
                                       <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                                         {isStandard ? (
                                           <span>
@@ -5651,15 +5652,15 @@ function App() {
                                             type="text"
                                             value={field}
                                             onChange={(e) => handleRenameMeasurementKey(index, field, e.target.value)}
-                                            placeholder="Field Name"
+                                            placeholder="Component Name (e.g. Pocket, Logo)"
                                             style={{
                                               fontSize: '11px',
                                               fontWeight: '600',
-                                              padding: '1px 4px',
+                                              padding: '2px 6px',
                                               border: '1px dashed #cbd5e1',
                                               borderRadius: '4px',
-                                              width: '80%',
-                                              background: 'transparent',
+                                              width: '82%',
+                                              background: theme === 'dark' ? '#1e293b' : '#ffffff',
                                               color: 'inherit'
                                             }}
                                           />
