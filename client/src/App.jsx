@@ -9,6 +9,7 @@ const measurementFields = {
   kurta: ['sizeFarma', 'length', 'chest', 'shoulder', 'sleeve', 'neck'],
   top: ['sizeFarma', 'length', 'chest', 'shoulder', 'sleeve', 'neck'],
   blazer: ['sizeFarma', 'length', 'chest', 'shoulder', 'sleeve', 'neck'],
+  coaty: ['sizeFarma', 'length', 'chest', 'shoulder', 'sleeve', 'neck'],
 
   pant: ['sizeFarma', 'length', 'waist', 'seat', 'thighs', 'bottom'],
   shorts: ['sizeFarma', 'length', 'waist', 'seat', 'thighs', 'bottom'],
@@ -205,9 +206,11 @@ const guessProductionCategory = (item) => {
 
   const numVal = parseFloat(m.chest) || parseFloat(m.waist) || parseFloat(m.length) || parseFloat(m.size) || 0
 
-  if (['shirt', 'kurta', 'top', 'blazer'].some(p => prodType.includes(p))) {
+  if (['shirt', 'kurta', 'top', 'blazer', 'coaty'].some(p => prodType.includes(p))) {
     if (prodType.includes('kurta')) return 'kurta_regular'
     if (prodType.includes('top')) return 'ni_top_reg'
+    if (prodType.includes('blazer')) return 'blazer_regular'
+    if (prodType.includes('coaty')) return 'coaty_regular'
     if (isFS) {
       return (numVal >= 32 || numVal === 0) ? 'fs_shirt_32_44' : 'fs_shirt_20_30'
     } else {
@@ -241,7 +244,9 @@ const formatDateToDMY = (dateStr) => {
 }
 
 const getSleeveTag = (itemType, measurements) => {
-  if (!itemType || !['shirt', 'kurta', 'top', 'blazer'].includes(itemType.toLowerCase())) return ''
+  if (!itemType) return ''
+  const type = itemType.toLowerCase()
+  if (!['shirt', 'kurta'].includes(type)) return ''
   const sleeveVal = parseFloat(measurements?.sleeve)
   if (isNaN(sleeveVal)) return ''
   return sleeveVal >= 14 ? 'FS' : 'HS'
@@ -904,7 +909,8 @@ function App() {
 
   const tableWrapRef = useRef(null)
   const tailorTableWrapRef = useRef(null)
-  const editScrollSaved = useRef({ scrollY: 0, visibleCount: 20, fromEdit: false })
+  const editScrollSaved = useRef({ scrollY: 0, visibleCount: 20, orderId: null, pendingRestore: false })
+
 
   const scrollTailorToTop = () => {
     if (tailorTableWrapRef.current) {
@@ -3592,11 +3598,17 @@ function App() {
     }
     setFormData(initialForm)
     setOriginalFormData(initialForm)
-    // Save scroll position so we can restore it after save
+
+    // Calculate index of this order in sortedOrders to preserve visibility
+    const orderIdx = sortedOrders.findIndex((o) => o._id === order._id)
+    const neededVisible = orderIdx >= 0 ? Math.max(visibleCount, orderIdx + 1) : visibleCount
+
+    // Save scroll position and target orderId for post-save scroll restoration
     editScrollSaved.current = {
       scrollY: window.scrollY,
-      visibleCount: visibleCount,
-      fromEdit: true,
+      visibleCount: neededVisible,
+      orderId: order._id,
+      pendingRestore: true,
     }
     setActivePage('New Order')
   }
@@ -3854,21 +3866,16 @@ function App() {
           }
           return [data.order, ...prev.filter((o) => o._id !== data.order._id)]
         })
+        if (isEditing && editScrollSaved.current.pendingRestore) {
+          const savedCount = editScrollSaved.current.visibleCount
+          setVisibleCount((prev) => Math.max(prev, savedCount))
+        }
         if (isEditing) {
           setHighlightedOrderId(data.order._id)
         }
         resetForm()
         setSelectedOrder(data.order)
         setActivePage('Orders')
-        if (isEditing && editScrollSaved.current.fromEdit) {
-          // Restore the scroll position and visible count from before the edit
-          const saved = editScrollSaved.current
-          editScrollSaved.current = { scrollY: 0, visibleCount: 20, fromEdit: false }
-          setVisibleCount(saved.visibleCount)
-          requestAnimationFrame(() => {
-            window.scrollTo({ top: saved.scrollY, behavior: 'instant' })
-          })
-        }
         fetchOrders(searchTerm)
       } else {
         setFormError(data.message || data.error || 'Unable to save order')
@@ -5037,12 +5044,27 @@ function App() {
   }, [activePage, hasMoreOrders, sortedOrders.length])
 
   useEffect(() => {
+    if (activePage === 'Orders' && editScrollSaved.current?.pendingRestore) {
+      const saved = editScrollSaved.current
+      const timer = setTimeout(() => {
+        const rowEl = document.getElementById(`order-row-${saved.orderId}`) || document.querySelector('.highlighted-row')
+        if (rowEl) {
+          rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        } else if (saved.scrollY) {
+          window.scrollTo({ top: saved.scrollY, behavior: 'instant' })
+        }
+        editScrollSaved.current.pendingRestore = false
+      }, 150)
+      return () => clearTimeout(timer)
+    }
+  }, [activePage, highlightedOrderId, orders])
+
+  useEffect(() => {
     if (activePage === 'Orders') {
-      // Don't reset visibleCount if we're coming back from an edit (handled above)
-      if (editScrollSaved.current.fromEdit) return
+      if (editScrollSaved.current?.pendingRestore) return
       setVisibleCount(loadStep)
     }
-  }, [activePage, orderFilter, orderPaymentFilter, orderContactFilter, orderSchoolFilter, searchTerm, orders])
+  }, [activePage, orderFilter, orderPaymentFilter, orderContactFilter, orderSchoolFilter, searchTerm])
 
   useEffect(() => {
     if (activePage === 'New Order' && !isEditing) {
@@ -5574,6 +5596,7 @@ function App() {
                                   <option value="kurta">Kurta</option>
                                   <option value="top">Top</option>
                                   <option value="blazer">Blazer</option>
+                                  <option value="coaty">Coaty</option>
                                   <option value="pant">Pant</option>
                                   <option value="shorts">Shorts</option>
                                   <option value="pajama">Pajama</option>
@@ -5609,7 +5632,7 @@ function App() {
                                   const displayLabel = field === 'sizeFarma'
                                     ? 'Size Farma'
                                     : field.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase());
-                                  const showTag = ['shirt', 'kurta', 'top', 'blazer'].includes(item.itemType) && field === 'sleeve' && getSleeveTag(item.itemType, item.measurements);
+                                  const showTag = ['shirt', 'kurta'].includes(item.itemType) && field === 'sleeve' && getSleeveTag(item.itemType, item.measurements);
 
                                   return (
                                     <label key={field} style={{ position: 'relative' }}>
@@ -5840,6 +5863,7 @@ function App() {
                       {visibleOrders.map((order) => (
                         <tr
                           key={order._id}
+                          id={`order-row-${order._id}`}
                           className={`clickable-row ${highlightedOrderId === order._id ? 'highlighted-row' : ''}`}
                           onClick={() => {
                             setSelectedOrder(order)
@@ -6212,6 +6236,7 @@ function App() {
                       <option value="Kurta">Kurta</option>
                       <option value="Top">Top</option>
                       <option value="Blazer">Blazer</option>
+                      <option value="Coaty">Coaty</option>
                       <option value="Pant">Pant</option>
                       <option value="Shorts">Shorts</option>
                       <option value="Pajama">Pajama</option>
