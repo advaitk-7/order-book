@@ -1347,6 +1347,8 @@ function App() {
   const handleSaveWaitlistSchool = async (e) => {
     e.preventDefault()
     if (!token || !newSchoolNameInput.trim()) return
+    const rawName = newSchoolNameInput.trim()
+    const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1)
     try {
       const response = await fetch(`${API_BASE}/api/waitlist/schools`, {
         method: 'POST',
@@ -1354,7 +1356,7 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ name: newSchoolNameInput.trim() })
+        body: JSON.stringify({ name: formattedName })
       })
 
       const data = await response.json()
@@ -4272,21 +4274,35 @@ function App() {
   }, [filteredOrders, deferredSearchTerm])
 
   const visibleOrders = useMemo(() => {
-    return sortedOrders.slice(0, visibleCount)
+return sortedOrders.slice(0, visibleCount)
   }, [sortedOrders, visibleCount])
 
   const hasMoreOrders = visibleCount < sortedOrders.length
 
   // Tailor Work - Derived Selectors and Helpers
   const tailorAvailableSchools = useMemo(() => {
-    const schoolsSet = new Set()
-    orders.forEach((o) => {
-      if (o.school && o.school.trim() !== '') {
-        schoolsSet.add(o.school.trim())
+    const map = new Map()
+    // 1. Official Directory Schools (takes precedence with exact casing, e.g. "Custom")
+    waitlistSchools.forEach((s) => {
+      if (s.name && s.name.trim() !== '') {
+        const trimmed = s.name.trim()
+        const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+        map.set(trimmed.toLowerCase(), formatted)
       }
     })
-    return Array.from(schoolsSet).sort()
-  }, [orders])
+    // 2. Schools from existing orders (auto-capitalizes first letter if stored in lowercase)
+    orders.forEach((o) => {
+      if (o.school && o.school.trim() !== '') {
+        const trimmed = o.school.trim()
+        const lower = trimmed.toLowerCase()
+        if (!map.has(lower)) {
+          const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+          map.set(lower, formatted)
+        }
+      }
+    })
+    return Array.from(map.values()).sort((a, b) => a.localeCompare(b))
+  }, [orders, waitlistSchools])
 
   const tailorAvailableCategories = useMemo(() => {
     const catsMap = new Map()
