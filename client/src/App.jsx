@@ -4119,7 +4119,7 @@ function App() {
     Orders: 'Search, filter and manage existing orders',
     'Production Queue': 'Garment-level measurements, deadlines and notes for tailors',
     'Stock Waitlist': 'Manage out-of-stock items and customer notification list',
-    'Restock & Bulk Orders': 'Manage supplier procurement restock orders and corporate/bulk client supply contracts',
+    'Restock & Bulk Orders': 'Manage supplier procurement restock orders and client supply contracts',
     'Supplier Restock': 'Track bulk manufacturing orders, supplier details, and size-wise partial stock installments',
     Reports: 'Business performance and delivery trends',
     Settings: 'System preferences and administrative settings',
@@ -7377,7 +7377,7 @@ return sortedOrders.slice(0, visibleCount)
                       </div>
                     </div>
 
-                    {/* Card 2: Corporate & Bulk Orders */}
+                    {/* Card 2: Client Orders */}
                     <div
                       onClick={() => setRestockSubSection('corporate')}
                       className="card"
@@ -7414,10 +7414,10 @@ return sortedOrders.slice(0, visibleCount)
                           </span>
                         </div>
                         <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
-                          Corporate &amp; Bulk Orders
+                          Client Orders
                         </h3>
                         <p style={{ fontSize: '13px', color: theme === 'dark' ? '#94A3B8' : '#64748B', lineHeight: '1.5', marginBottom: '20px' }}>
-                          Take and manage bulk uniform supply contracts from firms, corporates, factories, schools, and commercial clients.
+                          Take and manage client uniform supply contracts from firms, corporates, factories, schools, and commercial clients.
                         </p>
                       </div>
                       <div>
@@ -7445,7 +7445,7 @@ return sortedOrders.slice(0, visibleCount)
                       onClick={() => setRestockSubSection(null)}
                       style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '7px 14px', fontWeight: '700' }}
                     >
-                      &larr; Back to Restock &amp; Bulk Hub
+                      &larr; Back to Restock &amp; Client Hub
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
@@ -7541,7 +7541,7 @@ return sortedOrders.slice(0, visibleCount)
                     <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                       <div>
                         <h2 className="card-title" style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{getSafeEmoji('🏬')} Supplier Restock & Orders</h2>
-                        <p className="card-subtitle">Track bulk manufacturing orders, supplier details, and size-wise partial stock installments.</p>
+                        <p className="card-subtitle">Track manufacturing orders, supplier details, and size-wise partial stock installments.</p>
                       </div>
 
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -8388,12 +8388,12 @@ return sortedOrders.slice(0, visibleCount)
                       onClick={() => setRestockSubSection(null)}
                       style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '7px 14px', fontWeight: '700' }}
                     >
-                      &larr; Back to Restock &amp; Bulk Hub
+                      &larr; Back to Restock &amp; Client Hub
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
                       <span style={{ fontSize: '12px', fontWeight: '800', background: '#ECFDF5', color: '#059669', padding: '4px 12px', borderRadius: '6px' }}>
-                        {getSafeEmoji('🏢')} Bulk Client Orders
+                        {getSafeEmoji('🏢')} Client Orders
                       </span>
                     </div>
                   </div>
@@ -8409,7 +8409,7 @@ return sortedOrders.slice(0, visibleCount)
                         <div className="stat-card">
                           <span className="stat-icon">{getSafeEmoji('🏢')}</span>
                           <div className="stat-info">
-                            <p className="stat-label">Active Bulk Orders</p>
+                            <p className="stat-label">Active Client Orders</p>
                             <p className="stat-value">{ordersForStats.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
                             <p className="stat-desc">
                               {bulkOrderClientFilter === 'All' ? 'In-progress client orders' : `Active orders for ${bulkOrderClientFilter}`}
@@ -8487,7 +8487,7 @@ return sortedOrders.slice(0, visibleCount)
                   <div className="card card-panel">
                     <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <h2 className="card-title" style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{getSafeEmoji('🏢')} Bulk Client Sales Orders</h2>
+                        <h2 className="card-title" style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{getSafeEmoji('🏢')} Client Sales Orders</h2>
                         <p className="card-subtitle">Manage uniform supply contracts, commercial client orders, size-wise dispatch batches, and delivery balances.</p>
                       </div>
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -8668,7 +8668,7 @@ return sortedOrders.slice(0, visibleCount)
                         if (filteredOrders.length === 0) {
                           return (
                             <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-                              No bulk client orders found for this view. Click "+ Create Bulk Order" above to place a new order!
+                              No client orders found for this view. Click "+ Create Client Order" above to place a new order!
                             </div>
                           )
                         }
@@ -12015,7 +12015,7 @@ return sortedOrders.slice(0, visibleCount)
                   Cancel
                 </button>
                 <button type="submit" className="primary-btn" style={{ background: '#059669', borderColor: '#059669' }}>
-                  {selectedBulkOrder ? 'Save Changes' : 'Create Bulk Order'}
+                  {selectedBulkOrder ? 'Save Changes' : 'Create Client Order'}
                 </button>
               </div>
             </form>
