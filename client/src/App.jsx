@@ -10567,7 +10567,7 @@ function App() {
                             >
 
                               {/* Category Label Section */}
-                              <div style={{ width: '140px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <div style={{ width: '165px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 {isEditingLabel ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%' }}>
                                     <input
@@ -10597,10 +10597,10 @@ function App() {
                                     </button>
                                   </div>
                                 ) : (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%', overflow: 'hidden' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%' }}>
                                     <span
                                       title={spec.label}
-                                      style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}
+                                      style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#334155', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.25', flex: 1 }}
                                     >
                                       {spec.label || 'Category'}
                                     </span>
@@ -11646,7 +11646,7 @@ function App() {
                             >
 
                               {/* Category Label Section */}
-                              <div style={{ width: '140px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <div style={{ width: '165px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 {isEditingLabel ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%' }}>
                                     <input
@@ -11675,10 +11675,10 @@ function App() {
                                     </button>
                                   </div>
                                 ) : (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%', overflow: 'hidden' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%' }}>
                                     <span
                                       title={spec.label}
-                                      style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}
+                                      style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#334155', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.25', flex: 1 }}
                                     >
                                       {spec.label || 'Category'}
                                     </span>
