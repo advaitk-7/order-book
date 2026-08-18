@@ -1071,6 +1071,10 @@ app.patch("/api/orders/:id", async (req, res) => {
       updates.school = payload.school;
       changeLogs.push(`School changed from '${oldOrder.school}' to '${payload.school}'`);
     }
+    if (payload.grade !== undefined && payload.grade !== oldOrder.grade) {
+      updates.grade = payload.grade;
+      changeLogs.push(`Grade changed from '${oldOrder.grade || ''}' to '${payload.grade}'`);
+    }
     if (payload.deliveryDate !== undefined) {
       const trimmedDate = String(payload.deliveryDate).trim();
       if (!trimmedDate) {
