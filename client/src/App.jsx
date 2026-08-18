@@ -1409,7 +1409,7 @@ function App() {
 
   const handleDeleteWaitlistSchool = async (id, name) => {
     if (!token) return
-    if (!window.confirm(`Are you sure you want to delete "${name}" from the school list? This will clear this school name from active waitlist requests.`)) return
+    if (!window.confirm(`Are you sure you want to delete "${name}" from the school list?`)) return
     try {
       const response = await fetch(`${API_BASE}/api/waitlist/schools/${id}`, {
         method: 'DELETE',
@@ -1421,10 +1421,13 @@ function App() {
         fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
         setWaitlistFormData(prev => ({
           ...prev,
-          schools: (prev.schools || []).filter(s => s !== name)
+          schools: (prev.schools || []).filter(s => s.toLowerCase() !== name.toLowerCase())
         }))
-        if (formData.school === name) {
+        if (formData.school && formData.school.toLowerCase() === name.toLowerCase()) {
           setFormData(prev => ({ ...prev, school: '' }))
+        }
+        if (orderSchoolFilter && orderSchoolFilter.toLowerCase() === name.toLowerCase()) {
+          setOrderSchoolFilter('All')
         }
       } else {
         const data = await response.json()
@@ -4281,30 +4284,17 @@ return sortedOrders.slice(0, visibleCount)
 
   const hasMoreOrders = visibleCount < sortedOrders.length
 
-  // Tailor Work - Derived Selectors and Helpers
   const tailorAvailableSchools = useMemo(() => {
-    const map = new Map()
-    // 1. Official Directory Schools (takes precedence with exact casing, e.g. "Custom")
+    const set = new Set()
     waitlistSchools.forEach((s) => {
       if (s.name && s.name.trim() !== '') {
         const trimmed = s.name.trim()
         const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
-        map.set(trimmed.toLowerCase(), formatted)
+        set.add(formatted)
       }
     })
-    // 2. Schools from existing orders (auto-capitalizes first letter if stored in lowercase)
-    orders.forEach((o) => {
-      if (o.school && o.school.trim() !== '') {
-        const trimmed = o.school.trim()
-        const lower = trimmed.toLowerCase()
-        if (!map.has(lower)) {
-          const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
-          map.set(lower, formatted)
-        }
-      }
-    })
-    return Array.from(map.values()).sort((a, b) => a.localeCompare(b))
-  }, [orders, waitlistSchools])
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [waitlistSchools])
 
   const tailorAvailableCategories = useMemo(() => {
     const catsMap = new Map()
