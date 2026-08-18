@@ -1375,6 +1375,8 @@ function App() {
 
   const handleRenameWaitlistSchool = async (id, newName) => {
     if (!token || !newName.trim()) return
+    const rawName = newName.trim()
+    const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1)
     const schoolObj = waitlistSchools.find(s => s._id === id)
     const oldName = schoolObj?.name
     try {
@@ -1384,7 +1386,7 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ name: newName.trim() })
+        body: JSON.stringify({ name: formattedName })
       })
 
       if (response.ok) {
@@ -10336,7 +10338,7 @@ return sortedOrders.slice(0, visibleCount)
                               </div>
                             ) : (
                               <>
-                                <span style={{ fontSize: '12px', fontWeight: '500' }}>{s.name}</span>
+                                <span style={{ fontSize: '12px', fontWeight: '500' }}>{s.name ? (s.name.charAt(0).toUpperCase() + s.name.slice(1)) : ''}</span>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                   <button
                                     type="button"
