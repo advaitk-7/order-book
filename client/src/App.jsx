@@ -7573,9 +7573,12 @@ return sortedOrders.slice(0, visibleCount)
                             })
                             setShowVendorOrderModal(true)
                           }}
-                          style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}
                         >
-                          <span>{getSafeEmoji('➕')}</span> New Restock PO
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                            <path d="M7 1v12M1 7h12" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
+                          </svg>
+                          <span>New Restock PO</span>
                         </button>
                         <button
                           type="button"
@@ -8518,9 +8521,12 @@ return sortedOrders.slice(0, visibleCount)
                             })
                             setShowBulkOrderModal(true)
                           }}
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
+                          style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}
                         >
-                          + Create Client Order
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                            <path d="M7 1v12M1 7h12" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
+                          </svg>
+                          <span>Create Client Order</span>
                         </button>
                       </div>
                     </div>
