@@ -41,13 +41,7 @@ const getItemFields = (item) => {
   const fields = defaultFields.filter((k) => itemMeasurements[k] !== undefined || Object.keys(itemMeasurements).length === 0)
 
   const allKeys = Object.keys(itemMeasurements)
-  const extraKeys = allKeys.filter((k) => {
-    if (fields.includes(k)) return false
-    if (STANDARD_FIELDS.includes(k)) {
-      return Boolean(itemMeasurements[k] && String(itemMeasurements[k]).trim())
-    }
-    return true
-  })
+  const extraKeys = allKeys.filter((k) => !fields.includes(k))
 
   return [...fields, ...extraKeys]
 }
@@ -3730,12 +3724,11 @@ function App() {
     setFormData((prev) => {
       const updatedItems = prev.items.map((item, idx) => {
         if (idx !== itemIndex) return item
-        const existingKeys = Object.keys(item.measurements || {})
+        let newKey = ''
         let count = 1
-        let newKey = `Custom Component ${count}`
-        while (existingKeys.includes(newKey)) {
+        while (Object.prototype.hasOwnProperty.call(item.measurements || {}, newKey)) {
+          newKey = ' '.repeat(count)
           count++
-          newKey = `Custom Component ${count}`
         }
         return {
           ...item,
