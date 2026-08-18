@@ -1880,8 +1880,8 @@ app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
         const school = String(p.school || '').trim();
         if (!productName || !school) continue;
 
-        // Find existing sizeBreakdown for received quantities
-        const existingProd = (order.products || []).find(ep => ep.productName === productName);
+        // Find existing product matching both name and school
+        const existingProd = (order.products || []).find(ep => ep.productName === productName && (ep.school || '') === school);
 
         const updatedBreakdown = (p.sizeBreakdown || []).map(sb => {
           const cleanSize = String(sb.size || '').trim();
@@ -2264,7 +2264,8 @@ app.patch("/api/bulk-orders/:id", authenticateJWT, async (req, res) => {
         const school = String(p.school || '').trim();
         if (!productName) continue;
 
-        const existingProd = (order.products || []).find(ep => ep.productName === productName);
+        // Find existing product matching both name and school
+        const existingProd = (order.products || []).find(ep => ep.productName === productName && (ep.school || '') === school);
 
         const updatedBreakdown = (p.sizeBreakdown || []).map(sb => {
           const cleanSize = String(sb.size || '').trim();
