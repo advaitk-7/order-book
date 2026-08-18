@@ -904,6 +904,7 @@ function App() {
 
   const tableWrapRef = useRef(null)
   const tailorTableWrapRef = useRef(null)
+  const editScrollSaved = useRef({ scrollY: 0, visibleCount: 20, fromEdit: false })
 
   const scrollTailorToTop = () => {
     if (tailorTableWrapRef.current) {
@@ -3591,6 +3592,12 @@ function App() {
     }
     setFormData(initialForm)
     setOriginalFormData(initialForm)
+    // Save scroll position so we can restore it after save
+    editScrollSaved.current = {
+      scrollY: window.scrollY,
+      visibleCount: visibleCount,
+      fromEdit: true,
+    }
     setActivePage('New Order')
   }
 
@@ -3853,6 +3860,15 @@ function App() {
         resetForm()
         setSelectedOrder(data.order)
         setActivePage('Orders')
+        if (isEditing && editScrollSaved.current.fromEdit) {
+          // Restore the scroll position and visible count from before the edit
+          const saved = editScrollSaved.current
+          editScrollSaved.current = { scrollY: 0, visibleCount: 20, fromEdit: false }
+          setVisibleCount(saved.visibleCount)
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: saved.scrollY, behavior: 'instant' })
+          })
+        }
         fetchOrders(searchTerm)
       } else {
         setFormError(data.message || data.error || 'Unable to save order')
@@ -5002,17 +5018,28 @@ function App() {
 
     const handleScroll = () => {
       if (!hasMoreOrders) return
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 120) {
+      const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 120
+      const containerNearBottom = tableWrapRef.current
+        ? tableWrapRef.current.scrollTop + tableWrapRef.current.clientHeight >= tableWrapRef.current.scrollHeight - 80
+        : false
+      if (nearBottom || containerNearBottom) {
         setVisibleCount((prev) => Math.min(prev + loadStep, sortedOrders.length))
       }
     }
 
     window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    const container = tableWrapRef.current
+    if (container) container.addEventListener('scroll', handleScroll)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (container) container.removeEventListener('scroll', handleScroll)
+    }
   }, [activePage, hasMoreOrders, sortedOrders.length])
 
   useEffect(() => {
     if (activePage === 'Orders') {
+      // Don't reset visibleCount if we're coming back from an edit (handled above)
+      if (editScrollSaved.current.fromEdit) return
       setVisibleCount(loadStep)
     }
   }, [activePage, orderFilter, orderPaymentFilter, orderContactFilter, orderSchoolFilter, searchTerm, orders])
@@ -7485,7 +7512,7 @@ function App() {
                                 }}
                                 title="Clear search (Esc)"
                               >
-                                ✕
+                                {getSafeEmoji('✕')}
                               </button>
                             ) : (
                               <span style={{ fontSize: '11px', fontWeight: '700', color: '#94A3B8', background: theme === 'dark' ? '#0F172A' : '#F1F5F9', border: '1px solid var(--border-color, #CBD5E1)', padding: '2px 6px', borderRadius: '4px' }}>
@@ -8336,7 +8363,7 @@ function App() {
                                 padding: '4px'
                               }}
                             >
-                              ✕
+                              {getSafeEmoji('✕')}
                             </button>
                           )}
                         </div>
@@ -11491,7 +11518,7 @@ function App() {
                           }}
                           style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
                         >
-                          ✕ Remove Product
+                          {getSafeEmoji('✕')} Remove Product
                         </button>
                       )}
                     </div>
@@ -11725,7 +11752,7 @@ function App() {
                               }}
                               style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '12px', cursor: 'pointer' }}
                             >
-                              ✕
+                              {getSafeEmoji('✕')}
                             </button>
                           )}
                         </div>

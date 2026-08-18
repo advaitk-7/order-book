@@ -32,6 +32,8 @@ const NEEDS_DETECTION = new Set([
   '\u{1F9F5}',       // 🧵  thread (Unicode 11.0, 2018)
   '\u{1F3EC}',       // 🏬  store building
   '\u{1F3ED}',       // 🏭  factory
+  '\u{1F648}',       // 🙈  see-no-evil monkey (Unicode 6.0, may be missing on old Win)
+  '\u2715',          // ✕   multiplication x (used as close/delete, may be tofu on old fonts)
 ]);
 
 /**
@@ -106,6 +108,8 @@ export const EMOJI_REGISTRY = {
   '\u{1F9F5}':       ['\u2702', '~'],      // 🧵  -> scissors -> tilde
   '\u{1F3EC}':       ['\u{1F3E2}', 'S'],  // 🏬  -> office building -> S
   '\u{1F3ED}':       ['\u{1F3EC}', 'F'],  // 🏭  -> store -> F
+  '\u{1F648}':       ['\u{1F435}', ':P'], // 🙈  -> monkey face -> :P
+  '\u2715':          ['x', 'x'],          // ✕   -> x text fallback
 };
 
 /**
