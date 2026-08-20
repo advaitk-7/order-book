@@ -105,6 +105,27 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
+  line-height: 1;
+}
+
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+}
+
+.nav-icon svg {
+  display: block;
+}
+
+.nav-text {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
 }
 
 .nav-link:hover {
@@ -711,6 +732,10 @@ textarea {
 button {
   border-radius: 14px;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
 }
 
 button:hover {
