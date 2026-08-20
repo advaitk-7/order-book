@@ -529,8 +529,21 @@ app.post("/api/auth/login", async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const DEMO_MONGO_URI = (() => {
   const base = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/order_book";
-  // Replace the last DB name segment with order_book_demo
-  return base.replace(/\/[^/?]+(\?|$)/, '/order_book_demo$1');
+  try {
+    const urlParts = base.split("?");
+    const queryPart = urlParts[1] ? `?${urlParts[1]}` : "";
+    let mainPart = urlParts[0];
+
+    const protoEnd = mainPart.indexOf("://") + 3;
+    const lastSlash = mainPart.lastIndexOf("/");
+
+    if (lastSlash > protoEnd) {
+      mainPart = mainPart.substring(0, lastSlash);
+    }
+    return `${mainPart}/order_book_demo${queryPart}`;
+  } catch (e) {
+    return base + "_demo";
+  }
 })();
 
 let demoConnection = null;
@@ -542,12 +555,14 @@ const getDemoConnection = async () => {
 };
 
 const buildDemoModels = (conn) => ({
-  Order:      conn.model('Order',      mongoose.model('Order').schema),
-  Waitlist:   conn.model('Waitlist',   mongoose.model('Waitlist').schema),
-  Party:      conn.model('Party',      mongoose.model('Party').schema),
-  VendorOrder:conn.model('VendorOrder',mongoose.model('VendorOrder').schema),
-  Client:     conn.model('Client',     mongoose.model('Client').schema),
-  BulkOrder:  conn.model('BulkOrder',  mongoose.model('BulkOrder').schema),
+  Order:          conn.model('Order',          orderSchema),
+  Waitlist:       conn.model('Waitlist',       waitlistSchema),
+  Party:          conn.model('Party',          partySchema),
+  VendorOrder:    conn.model('VendorOrder',    vendorOrderSchema),
+  Client:         conn.model('Client',         clientSchema),
+  BulkOrder:      conn.model('BulkOrder',      bulkOrderSchema),
+  AuditLog:       conn.model('AuditLog',       auditLogSchema),
+  SystemSettings: conn.model('SystemSettings', systemSettingsSchema),
 });
 
 const seedDemoDatabase = async (models) => {
