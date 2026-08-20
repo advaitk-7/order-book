@@ -875,8 +875,17 @@ if (!fs.existsSync(BACKUP_DIR)) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
 
-const performBackup = async () => {
+const BACKUP_DEMO_DIR = path.join(__dirname, "backups_demo");
+if (!fs.existsSync(BACKUP_DEMO_DIR)) {
+  fs.mkdirSync(BACKUP_DEMO_DIR, { recursive: true });
+}
+
+const performBackup = async (isDemoOverride = false) => {
   try {
+    const store = asyncLocalStorage.getStore();
+    const isDemo = isDemoOverride || Boolean(store && store.isDemo);
+    const targetDir = isDemo ? BACKUP_DEMO_DIR : BACKUP_DIR;
+
     const orders = await Order.find({});
     const admins = await Admin.find({});
     const auditLogs = await AuditLog.find({});
@@ -914,38 +923,42 @@ const performBackup = async () => {
     const minutesStr = String(ist.getMinutes()).padStart(2, '0');
     const secondsStr = String(ist.getSeconds()).padStart(2, '0');
 
-    const filename = `liberty_backup_${day}-${month}-${year}_${hoursStr}-${minutesStr}-${secondsStr}-${ampm}.json.gz`;
-    const filepath = path.join(BACKUP_DIR, filename);
+    const prefix = isDemo ? 'demo_backup' : 'liberty_backup';
+    const filename = `${prefix}_${day}-${month}-${year}_${hoursStr}-${minutesStr}-${secondsStr}-${ampm}.json.gz`;
+    const filepath = path.join(targetDir, filename);
 
     fs.writeFileSync(filepath, compressed);
-    console.log(`Auto database database backup created successfully: ${filename}`);
+    console.log(`[${isDemo ? 'DEMO' : 'PROD'}] Database backup created successfully: ${filename}`);
 
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-    if (botToken && chatId) {
-      const caption = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}\n- Waitlist: ${waitlist.length}\n- Waitlist Schools: ${waitlistSchools.length}`;
-      
-      const formData = new FormData();
-      formData.append("chat_id", chatId);
-      
-      const fileBlob = new Blob([compressed], { type: "application/x-gzip" });
-      formData.append("document", fileBlob, filename);
-      formData.append("caption", caption);
-      formData.append("parse_mode", "Markdown");
+    // ONLY send Telegram notification for REAL production backups (never for demo sandbox backups)
+    if (!isDemo) {
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      const chatId = process.env.TELEGRAM_CHAT_ID;
+      if (botToken && chatId) {
+        const caption = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}\n- Waitlist: ${waitlist.length}\n- Waitlist Schools: ${waitlistSchools.length}`;
+        
+        const formData = new FormData();
+        formData.append("chat_id", chatId);
+        
+        const fileBlob = new Blob([compressed], { type: "application/x-gzip" });
+        formData.append("document", fileBlob, filename);
+        formData.append("caption", caption);
+        formData.append("parse_mode", "Markdown");
 
-      const url = `https://api.telegram.org/bot${botToken}/sendDocument`;
-      fetch(url, {
-        method: "POST",
-        body: formData
-      })
-      .then(res => {
-        if (!res.ok) {
-          return res.json().then(errData => {
-            console.error("Telegram document upload failed response:", errData);
-          });
-        }
-      })
-      .catch(err => console.error("Failed to send Telegram backup document:", err.message));
+        const url = `https://api.telegram.org/bot${botToken}/sendDocument`;
+        fetch(url, {
+          method: "POST",
+          body: formData
+        })
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(errData => {
+              console.error("Telegram document upload failed response:", errData);
+            });
+          }
+        })
+        .catch(err => console.error("Failed to send Telegram backup document:", err.message));
+      }
     }
 
     return { filename, size: compressed.length };
@@ -2672,7 +2685,7 @@ app.delete("/api/audit-logs", authenticateJWT, async (req, res) => {
 
 const parseBackupTimestamp = (filename, fileStats) => {
   try {
-    const match = filename.match(/liberty_backup_(\d{2})-([A-Za-z]{3})-(\d{4})_(\d{2})-(\d{2})-(\d{2})-(AM|PM)\.json\.gz/);
+    const match = filename.match(/(?:liberty_backup|demo_backup)_(\d{2})-([A-Za-z]{3})-(\d{4})_(\d{2})-(\d{2})-(\d{2})-(AM|PM)\.json\.gz/);
     if (match) {
       const [_, day, monthStr, year, hrsStr, minsStr, secsStr, ampm] = match;
       const months = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
@@ -2695,10 +2708,17 @@ const parseBackupTimestamp = (filename, fileStats) => {
 // Backup Endpoints
 app.get("/api/backups", authenticateJWT, async (req, res) => {
   try {
-    const files = fs.readdirSync(BACKUP_DIR)
+    const isDemo = Boolean(req.user && req.user.role === 'demo');
+    const targetDir = isDemo ? BACKUP_DEMO_DIR : BACKUP_DIR;
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const files = fs.readdirSync(targetDir)
       .filter(f => f.endsWith(".json.gz"))
       .map(f => {
-        const stats = fs.statSync(path.join(BACKUP_DIR, f));
+        const stats = fs.statSync(path.join(targetDir, f));
         const createdAt = parseBackupTimestamp(f, stats);
         return {
           filename: f,
@@ -2724,8 +2744,11 @@ app.post("/api/backups/create", authenticateJWT, async (req, res) => {
 });
 
 app.get("/api/backups/download/:filename", authenticateJWT, (req, res) => {
+  const isDemo = Boolean(req.user && req.user.role === 'demo');
+  const targetDir = isDemo ? BACKUP_DEMO_DIR : BACKUP_DIR;
+
   const safeFilename = path.basename(req.params.filename);
-  const filepath = path.join(BACKUP_DIR, safeFilename);
+  const filepath = path.join(targetDir, safeFilename);
   if (fs.existsSync(filepath)) {
     res.download(filepath, safeFilename);
   } else {
