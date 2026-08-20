@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useDeferredValue } from 'react'
 import './App.css'
-import { getSafeEmoji } from './emojiUtils.js'
+import * as Icons from './icons.jsx'
 
 const API_BASE = import.meta.env.VITE_API_BASE || (window.location.origin.includes('localhost') ? 'http://localhost:5001' : window.location.origin)
 
@@ -4106,11 +4106,11 @@ function App() {
   const pendingPayments = orders.filter((order) => (order.paymentStatus || 'Unpaid') === 'Unpaid').length
 
   const stats = [
-    { label: 'Total Orders', value: totalOrders, icon: getSafeEmoji('📦'), description: 'All time orders', filter: 'All' },
-    { label: 'Pending Orders', value: pendingOrders, icon: getSafeEmoji('⏳'), description: 'Awaiting processing', filter: 'Pending' },
-    { label: 'Ready Orders', value: readyOrders, icon: getSafeEmoji('✅'), description: 'Ready for collection', filter: 'Ready' },
-    { label: 'Delivered Orders', value: deliveredOrders, icon: getSafeEmoji('🚚'), description: 'Completed orders', filter: 'Delivered' },
-    { label: 'Pending Payments', value: pendingPayments, icon: getSafeEmoji('💰'), description: 'Amount unpaid', filter: 'PendingPayments' },
+    { label: 'Total Orders', value: totalOrders, icon: <Icons.PackageIcon size={17} />, description: 'All time orders', filter: 'All' },
+    { label: 'Pending Orders', value: pendingOrders, icon: <Icons.ClockIcon size={17} />, description: 'Awaiting processing', filter: 'Pending' },
+    { label: 'Ready Orders', value: readyOrders, icon: <Icons.CheckCircleIcon size={17} />, description: 'Ready for collection', filter: 'Ready' },
+    { label: 'Delivered Orders', value: deliveredOrders, icon: <Icons.TruckIcon size={17} />, description: 'Completed orders', filter: 'Delivered' },
+    { label: 'Pending Payments', value: pendingPayments, icon: <Icons.CurrencyIcon size={17} />, description: 'Amount unpaid', filter: 'PendingPayments' },
   ]
 
   const pageSubtitles = {
@@ -5166,7 +5166,7 @@ return sortedOrders.slice(0, visibleCount)
                         justifyContent: 'center',
                       }}
                     >
-                      {showLoginPassword ? getSafeEmoji('🙈') : getSafeEmoji('👁️')}
+                      {showLoginPassword ? <Icons.EyeOffIcon size={18} /> : <Icons.EyeIcon size={18} />}
                     </button>
                   </div>
                 </label>
@@ -5244,7 +5244,7 @@ return sortedOrders.slice(0, visibleCount)
                         cursor: 'pointer'
                       }}
                     >
-                      {getSafeEmoji('🔄')} Resend Code
+                      <Icons.RefreshIcon size={14} style={{ marginRight: 6 }} /> Resend Code
                     </button>
                     <button
                       type="button"
@@ -5324,7 +5324,7 @@ return sortedOrders.slice(0, visibleCount)
 
               {forgotStep === 3 && (
                 <div className="login-form" style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '48px', color: '#10B981', marginBottom: '16px' }}>{getSafeEmoji('✓')}</div>
+                  <div style={{ color: '#10B981', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}><Icons.CheckIcon size={52} /></div>
                   <h2 className="login-title">Password Updated Successfully</h2>
                   <p className="login-subtitle" style={{ marginBottom: '24px' }}>
                     Your password has been changed successfully.
@@ -5365,14 +5365,14 @@ return sortedOrders.slice(0, visibleCount)
         <nav className="sidebar-nav">
           {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Restock & Bulk Orders', 'Settings'].map((page) => {
             const emojis = {
-              'Dashboard': getSafeEmoji('📊'),
-              'New Order': getSafeEmoji('➕'),
-              'Orders': getSafeEmoji('📋'),
-              'Production Queue': getSafeEmoji('🧵'),
-              'Stock Waitlist': getSafeEmoji('🔔'),
-              'Restock & Bulk Orders': getSafeEmoji('🏬'),
-              'Supplier Restock': getSafeEmoji('🏬'),
-              'Settings': getSafeEmoji('⚙️')
+              'Dashboard': <Icons.BarChartIcon size={18} />,
+              'New Order': <Icons.PlusIcon size={18} />,
+              'Orders': <Icons.ClipboardIcon size={18} />,
+              'Production Queue': <Icons.ScissorsIcon size={18} />,
+              'Stock Waitlist': <Icons.BellIcon size={18} />,
+              'Restock & Bulk Orders': <Icons.StoreIcon size={18} />,
+              'Supplier Restock': <Icons.StoreIcon size={18} />,
+              'Settings': <Icons.SettingsIcon size={18} />
             };
             return (
               <button
@@ -5506,7 +5506,7 @@ return sortedOrders.slice(0, visibleCount)
                               onClick={() => setShowSchoolManager(!showSchoolManager)}
                               style={{ fontSize: '11px', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                             >
-                              {showSchoolManager ? `${getSafeEmoji('✕')} Hide Directory` : `${getSafeEmoji('⚙️')} Manage Directory`}
+                              {showSchoolManager ? <><Icons.XIcon size={11} style={{ marginRight: 3 }} /> Hide Directory</> : <><Icons.SettingsIcon size={11} style={{ marginRight: 3 }} /> Manage Directory</>}
                             </button>
                           </div>
                           <select
@@ -5591,7 +5591,7 @@ return sortedOrders.slice(0, visibleCount)
                                           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
                                           title="Save Rename"
                                         >
-                                          {getSafeEmoji('💾')}
+                                          <Icons.SaveIcon size={14} />
                                         </button>
                                         <button
                                           type="button"
@@ -5599,7 +5599,7 @@ return sortedOrders.slice(0, visibleCount)
                                           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
                                           title="Cancel"
                                         >
-                                          {getSafeEmoji('❌')}
+                                          <Icons.XIcon size={14} />
                                         </button>
                                       </div>
                                     ) : (
@@ -5612,7 +5612,7 @@ return sortedOrders.slice(0, visibleCount)
                                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
                                             title="Rename School"
                                           >
-                                            {getSafeEmoji('✏️')}
+                                            <Icons.PencilIcon size={14} />
                                           </button>
                                           <button
                                             type="button"
@@ -5620,7 +5620,7 @@ return sortedOrders.slice(0, visibleCount)
                                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
                                             title="Delete School"
                                           >
-                                            {getSafeEmoji('🗑️')}
+                                            <Icons.TrashIcon size={14} />
                                           </button>
                                         </div>
                                       </>
@@ -5927,7 +5927,7 @@ return sortedOrders.slice(0, visibleCount)
               )}
               <div className="orders-toolbar">
                 <div className="orders-search-bar">
-                  <span className="topbar-search-icon">{getSafeEmoji('🔍')}</span>
+                  <span className="topbar-search-icon"><Icons.SearchIcon size={16} /></span>
                   <input
                     type="search"
                     placeholder="Search by order, customer or school..."
@@ -5972,7 +5972,7 @@ return sortedOrders.slice(0, visibleCount)
                         style={{ fontSize: '10px', padding: '0 4px', marginLeft: '6px', lineHeight: 1 }}
                         title="Manage School Directory"
                       >
-                        {getSafeEmoji('⚙️')}
+                        <Icons.SettingsIcon size={18} />
                       </button>
                     </div>
                     <select value={orderSchoolFilter} onChange={(event) => applyOrderSchoolFilter(event.target.value)}>
@@ -6165,7 +6165,7 @@ return sortedOrders.slice(0, visibleCount)
                                   startEditingOrder(order);
                                 }}
                               >
-                                {getSafeEmoji('✏️')}
+                                <Icons.PencilIcon size={14} />
                               </button>
                               <button
                                 type="button"
@@ -6178,7 +6178,7 @@ return sortedOrders.slice(0, visibleCount)
                                   }
                                 }}
                               >
-                                {getSafeEmoji('🗑️')}
+                                <Icons.TrashIcon size={14} />
                               </button>
                             </div>
                           </td>
@@ -6406,7 +6406,7 @@ return sortedOrders.slice(0, visibleCount)
               {/* Filter bar container */}
               <div className="orders-toolbar tailor-toolbar">
                 <div className="orders-search-bar">
-                  <span className="topbar-search-icon">{getSafeEmoji('🔍')}</span>
+                  <span className="topbar-search-icon"><Icons.SearchIcon size={16} /></span>
                   <input
                     type="search"
                     placeholder="Search by order or customer..."
@@ -6503,7 +6503,7 @@ return sortedOrders.slice(0, visibleCount)
                     onClick={() => window.print()}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
                   >
-                    {getSafeEmoji('🖨️')} Print Table
+                    <Icons.PrinterIcon size={14} style={{ marginRight: 6 }} /> Print Table
                   </button>
                   <button
                     type="button"
@@ -6512,7 +6512,7 @@ return sortedOrders.slice(0, visibleCount)
                     disabled={exportingPDF}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
                   >
-                    {exportingPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('📄')} Save as PDF`}
+                    {exportingPDF ? <><Icons.LoaderIcon size={14} style={{ marginRight: 6 }} /> Generating PDF...</> : <><Icons.FileIcon size={14} style={{ marginRight: 6 }} /> Save as PDF</>}
                   </button>
                   <button
                     type="button"
@@ -6520,7 +6520,7 @@ return sortedOrders.slice(0, visibleCount)
                     onClick={exportToCSV}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px' }}
                   >
-                    {getSafeEmoji('📊')} Export Excel (CSV)
+                    <Icons.BarChartIcon size={14} style={{ marginRight: 6 }} /> Export Excel (CSV)
                   </button>
                 </div>
               </div>
@@ -7027,7 +7027,7 @@ return sortedOrders.slice(0, visibleCount)
                       gap: '6px'
                     }}
                   >
-                    <span>{getSafeEmoji('➕')}</span> Add Request
+                    <><Icons.PlusIcon size={13} style={{ marginRight: 5 }} /> Add Request</>
                   </button>
                 </div>
 
@@ -7042,7 +7042,7 @@ return sortedOrders.slice(0, visibleCount)
                   <div className="table-search" style={{ flex: 1, minWidth: '200px' }}>
                     <input
                       type="text"
-                      placeholder={`${getSafeEmoji('🔍')} Search name, phone number, school or item...`}
+                      placeholder="Search name, phone number, school or item..."
                       value={waitlistSearch}
                       onChange={(e) => setWaitlistSearch(e.target.value)}
                     />
@@ -7207,7 +7207,7 @@ return sortedOrders.slice(0, visibleCount)
                                               color: '#64748B'
                                             }}
                                           >
-                                            {item.status === 'Pending' ? getSafeEmoji('✅') : getSafeEmoji('⏳')}
+                                            {item.status === 'Pending' ? <Icons.CheckCircleIcon size={14} /> : <Icons.ClockIcon size={14} />}
                                           </button>
                                         </div>
                                       </li>
@@ -7282,7 +7282,7 @@ return sortedOrders.slice(0, visibleCount)
                                     handleOpenEditWaitlistModal(request);
                                   }}
                                 >
-                                  {getSafeEmoji('✏️')}
+                                  <Icons.PencilIcon size={14} />
                                 </button>
                                 <button
                                   type="button"
@@ -7293,7 +7293,7 @@ return sortedOrders.slice(0, visibleCount)
                                     handleDeleteWaitlistRequest(request._id, request.customerName);
                                   }}
                                 >
-                                  {getSafeEmoji('🗑️')}
+                                  <Icons.TrashIcon size={14} />
                                 </button>
                               </div>
                             </td>
@@ -7314,7 +7314,7 @@ return sortedOrders.slice(0, visibleCount)
                 <div style={{ padding: '10px 0' }}>
                   <div style={{ marginBottom: '32px', textAlign: 'center', maxWidth: '650px', margin: '0 auto 32px' }}>
                     <h2 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
-                      {getSafeEmoji('🏬')} Restock &amp; Bulk Orders Hub
+                      <Icons.StoreIcon size={18} style={{ marginRight: 8 }} /> Restock &amp; Bulk Orders Hub
                     </h2>
                     <p style={{ fontSize: '14px', color: theme === 'dark' ? '#94A3B8' : '#64748B', lineHeight: '1.5' }}>
                       Select a subsection below to manage manufacturing orders placed with suppliers or bulk uniform supply contracts taken from commercial clients.
@@ -7352,7 +7352,7 @@ return sortedOrders.slice(0, visibleCount)
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                           <div style={{ width: '56px', height: '56px', borderRadius: '12px', background: 'rgba(37,99,235,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>
-                            {getSafeEmoji('🏬')}
+                            <Icons.StoreIcon size={22} />
                           </div>
                           <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#EFF6FF', color: '#2563EB', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             Outbound Purchase Orders
@@ -7407,7 +7407,7 @@ return sortedOrders.slice(0, visibleCount)
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                           <div style={{ width: '56px', height: '56px', borderRadius: '12px', background: 'rgba(5,150,105,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>
-                            {getSafeEmoji('🏢')}
+                            <Icons.BuildingIcon size={22} />
                           </div>
                           <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#ECFDF5', color: '#059669', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             Inbound Client Orders
@@ -7450,7 +7450,7 @@ return sortedOrders.slice(0, visibleCount)
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
                       <span style={{ fontSize: '12px', fontWeight: '800', background: '#EFF6FF', color: '#2563EB', padding: '4px 12px', borderRadius: '6px' }}>
-                        {getSafeEmoji('🏬')} Supplier Restock Orders
+                        <Icons.StoreIcon size={16} style={{ marginRight: 6 }} /> Supplier Restock Orders
                       </span>
                     </div>
                   </div>
@@ -7463,7 +7463,7 @@ return sortedOrders.slice(0, visibleCount)
                     return (
                       <div className="stats-grid grid-4" style={{ marginBottom: '24px' }}>
                         <div className="stat-card">
-                          <span className="stat-icon">{getSafeEmoji('🏬')}</span>
+                          <span className="stat-icon"><Icons.StoreIcon size={16} /></span>
                           <div className="stat-info">
                             <p className="stat-label">Active Restock POs</p>
                             <p className="stat-value">{ordersForStats.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
@@ -7473,7 +7473,7 @@ return sortedOrders.slice(0, visibleCount)
                           </div>
                         </div>
                         <div className="stat-card">
-                          <span className="stat-icon">{getSafeEmoji('📦')}</span>
+                          <span className="stat-icon"><Icons.PackageIcon size={16} /></span>
                           <div className="stat-info">
                             <p className="stat-label">Total Ordered Pcs</p>
                             <p className="stat-value">
@@ -7492,7 +7492,7 @@ return sortedOrders.slice(0, visibleCount)
                           </div>
                         </div>
                         <div className="stat-card">
-                          <span className="stat-icon">{getSafeEmoji('⏳')}</span>
+                          <span className="stat-icon"><Icons.ClockIcon size={16} /></span>
                           <div className="stat-info">
                             <p className="stat-label">Pending Balance Pcs</p>
                             <p className="stat-value" style={{ color: '#EAB308' }}>
@@ -7514,7 +7514,7 @@ return sortedOrders.slice(0, visibleCount)
                           </div>
                         </div>
                         <div className="stat-card">
-                          <span className="stat-icon">{getSafeEmoji('✅')}</span>
+                          <span className="stat-icon"><Icons.CheckCircleIcon size={16} /></span>
                           <div className="stat-info">
                             <p className="stat-label">Received Stock Pcs</p>
                             <p className="stat-value" style={{ color: '#10B981' }}>
@@ -7540,7 +7540,7 @@ return sortedOrders.slice(0, visibleCount)
                   <div className="card card-panel">
                     <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <h2 className="card-title" style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{getSafeEmoji('🏬')} Supplier Restock & Orders</h2>
+                        <h2 className="card-title" style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}><Icons.StoreIcon size={18} style={{ marginRight: 6 }} /> Supplier Restock &amp; Orders</h2>
                         <p className="card-subtitle">Track bulk manufacturing orders, supplier details, and size-wise partial stock installments.</p>
                       </div>
 
@@ -7582,7 +7582,7 @@ return sortedOrders.slice(0, visibleCount)
                           onClick={() => setShowPartyManagerModal(true)}
                           style={{ padding: '0 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
                         >
-                          {getSafeEmoji('🏭')} Manage Suppliers ({parties.length})
+                          <Icons.FactoryIcon size={14} style={{ marginRight: 6 }} /> Manage Suppliers ({parties.length})
                         </button>
                       </div>
                     </div>
@@ -7598,7 +7598,7 @@ return sortedOrders.slice(0, visibleCount)
                           onClick={() => setShowPartyManagerModal(true)}
                           style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
                         >
-                          {getSafeEmoji('⚙️')} Manage Supplier Profiles
+                          <Icons.SettingsIcon size={14} style={{ marginRight: 6 }} /> Manage Supplier Profiles
                         </button>
                       </div>
 
@@ -7618,7 +7618,7 @@ return sortedOrders.slice(0, visibleCount)
                           }}
                         >
                           <div style={{ fontWeight: '800', fontSize: '13px', color: vendorOrderPartyFilter === 'All' ? '#2563EB' : 'inherit' }}>
-                            {getSafeEmoji('🏬')} All Suppliers
+                            <Icons.StoreIcon size={13} style={{ marginRight: 4 }} /> All Suppliers
                           </div>
                           <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
                             {parties.length} Registered Suppliers
@@ -7655,7 +7655,7 @@ return sortedOrders.slice(0, visibleCount)
                               }}
                             >
                               <div style={{ fontWeight: '800', fontSize: '13px', color: isSelected ? '#2563EB' : 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span>{getSafeEmoji('🏭')} {p.name}</span>
+                                <span><Icons.FactoryIcon size={13} style={{ marginRight: 4 }} /> {p.name}</span>
                                 {isSelected && <span style={{ fontSize: '10px', background: '#2563EB', color: '#FFF', padding: '2px 6px', borderRadius: '10px' }}>Active</span>}
                               </div>
                               <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
@@ -7692,7 +7692,7 @@ return sortedOrders.slice(0, visibleCount)
                           }}
                         >
                           <span style={{ position: 'absolute', left: '14px', color: vendorOrderSearchFocused ? '#2563EB' : '#94A3B8', fontSize: '15px', pointerEvents: 'none', transition: 'color 0.2s' }}>
-                            {getSafeEmoji('🔍')}
+                            <Icons.SearchIcon size={15} />
                           </span>
                           <input
                             ref={poSearchInputRef}
@@ -7734,7 +7734,7 @@ return sortedOrders.slice(0, visibleCount)
                                 }}
                                 title="Clear search (Esc)"
                               >
-                                {getSafeEmoji('✕')}
+                                <Icons.XIcon size={14} />
                               </button>
                             ) : (
                               <span style={{ fontSize: '11px', fontWeight: '700', color: '#94A3B8', background: theme === 'dark' ? '#0F172A' : '#F1F5F9', border: '1px solid var(--border-color, #CBD5E1)', padding: '2px 6px', borderRadius: '4px' }}>
@@ -7976,7 +7976,7 @@ return sortedOrders.slice(0, visibleCount)
                                             border: theme === 'dark' ? '1px solid #6B21A8' : '1px solid #E9D5FF'
                                           }}
                                         >
-                                          {getSafeEmoji('⏱️')} Auto-deletes in {daysLeftForDeletion} {daysLeftForDeletion === 1 ? 'day' : 'days'}
+                                          <><Icons.TimerIcon size={12} style={{ marginRight: 4 }} /> Auto-deletes in {daysLeftForDeletion} {daysLeftForDeletion === 1 ? 'day' : 'days'}</>
                                         </span>
                                       )}
 
@@ -8000,7 +8000,7 @@ return sortedOrders.slice(0, visibleCount)
                                         }}
                                         title={order.status === 'Completed' ? 'All stock received for this order' : 'Receive stock batch for this order'}
                                       >
-                                        {getSafeEmoji('➕')} {order.status === 'Completed' ? 'All Received' : 'Receive Stock'}
+                                        <><Icons.PackageIcon size={13} style={{ marginRight: 5 }} /> {order.status === 'Completed' ? 'All Received' : 'Receive Stock'}</>
                                       </button>
                                       <button
                                         type="button"
@@ -8023,7 +8023,7 @@ return sortedOrders.slice(0, visibleCount)
                                           setShowVendorOrderModal(true)
                                         }}
                                       >
-                                        {getSafeEmoji('✏️')}
+                                        <Icons.PencilIcon size={14} />
                                       </button>
                                       <button
                                         type="button"
@@ -8031,7 +8031,7 @@ return sortedOrders.slice(0, visibleCount)
                                         title="Delete PO"
                                         onClick={() => handleDeleteVendorOrder(order._id, order.poNumber)}
                                       >
-                                        {getSafeEmoji('🗑️')}
+                                        <Icons.TrashIcon size={14} />
                                       </button>
                                     </div>
                                   </div>
@@ -8068,7 +8068,7 @@ return sortedOrders.slice(0, visibleCount)
                                       }}
                                       title="Export Excel (CSV) Spreadsheet"
                                     >
-                                      <span style={{ fontSize: '13px' }}>{getSafeEmoji('📊')}</span>
+                                      <span style={{ fontSize: '13px' }}><Icons.BarChartIcon size={13} /></span>
                                       Export Excel (CSV)
                                     </button>
                                     <button
@@ -8090,7 +8090,7 @@ return sortedOrders.slice(0, visibleCount)
                                       }}
                                       title="Configure and Save as PDF"
                                     >
-                                      <span style={{ fontSize: '13px' }}>{getSafeEmoji('📄')}</span>
+                                      <span style={{ fontSize: '13px' }}><Icons.FileIcon size={13} /></span>
                                       Save as PDF
                                     </button>
                                   </div>
@@ -8116,7 +8116,7 @@ return sortedOrders.slice(0, visibleCount)
                                         lineHeight: '1.5'
                                       }}
                                     >
-                                      <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '2px' }}>{getSafeEmoji('📝')}</span>
+                                      <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '2px' }}><Icons.NoteIcon size={15} /></span>
                                       <div style={{ flex: 1 }}>
                                         <strong style={{ color: theme === 'dark' ? '#FBBF24' : '#B45309' }}>PO Special Instructions / Note:</strong> {order.notes}
                                       </div>
@@ -8288,7 +8288,7 @@ return sortedOrders.slice(0, visibleCount)
                                   {order.installments && order.installments.length > 0 && (
                                     <div style={{ marginTop: '16px', borderTop: '1px dashed var(--border-color, #CBD5E1)', paddingTop: '14px' }}>
                                       <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#38BDF8' : '#0284C7', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span>{getSafeEmoji('📦')}</span> Received Installment History ({order.installments.length} {order.installments.length === 1 ? 'Batch' : 'Batches'}):
+                                        <><Icons.PackageIcon size={13} style={{ marginRight: 4 }} /> Received Installment History ({order.installments.length} {order.installments.length === 1 ? 'Batch' : 'Batches'}):</>
                                       </div>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         {order.installments.map((inst, idx) => {
@@ -8348,7 +8348,7 @@ return sortedOrders.slice(0, visibleCount)
                                                   title="Edit Installment Batch"
                                                   onClick={() => handleOpenEditInstallment(order, inst)}
                                                 >
-                                                  {getSafeEmoji('✏️')}
+                                                  <Icons.PencilIcon size={13} />
                                                 </button>
                                                 <button
                                                   type="button"
@@ -8357,7 +8357,7 @@ return sortedOrders.slice(0, visibleCount)
                                                   title="Delete Installment Batch"
                                                   onClick={() => handleDeleteInstallment(order, inst._id)}
                                                 >
-                                                  {getSafeEmoji('🗑️')}
+                                                  <Icons.TrashIcon size={13} />
                                                 </button>
                                               </div>
                                             </div>
@@ -8392,7 +8392,7 @@ return sortedOrders.slice(0, visibleCount)
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', color: '#64748B' }}>Subsection:</span>
                       <span style={{ fontSize: '12px', fontWeight: '800', background: '#ECFDF5', color: '#059669', padding: '4px 12px', borderRadius: '6px' }}>
-                        {getSafeEmoji('🏢')} Bulk Client Orders
+                        <Icons.BuildingIcon size={16} style={{ marginRight: 6 }} /> Bulk Client Orders
                       </span>
                     </div>
                   </div>
@@ -8406,7 +8406,7 @@ return sortedOrders.slice(0, visibleCount)
                     return (
                       <div className="stats-grid grid-4" style={{ marginBottom: '24px' }}>
                         <div className="stat-card">
-                          <span className="stat-icon">{getSafeEmoji('🏢')}</span>
+                          <span className="stat-icon"><Icons.BuildingIcon size={16} /></span>
                           <div className="stat-info">
                             <p className="stat-label">Active Bulk Orders</p>
                             <p className="stat-value">{ordersForStats.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length}</p>
@@ -8417,7 +8417,7 @@ return sortedOrders.slice(0, visibleCount)
                         </div>
 
                         <div className="stat-card">
-                          <span className="stat-icon">{getSafeEmoji('📦')}</span>
+                          <span className="stat-icon"><Icons.PackageIcon size={16} /></span>
                           <div className="stat-info">
                             <p className="stat-label">Total Ordered Pcs</p>
                             <p className="stat-value">
@@ -8438,7 +8438,7 @@ return sortedOrders.slice(0, visibleCount)
                         </div>
 
                         <div className="stat-card">
-                          <span className="stat-icon">{getSafeEmoji('⏳')}</span>
+                          <span className="stat-icon"><Icons.ClockIcon size={16} /></span>
                           <div className="stat-info">
                             <p className="stat-label">Pending Delivery Balance</p>
                             <p className="stat-value" style={{ color: '#D97706' }}>
@@ -8459,7 +8459,7 @@ return sortedOrders.slice(0, visibleCount)
                         </div>
 
                         <div className="stat-card">
-                          <span className="stat-icon">{getSafeEmoji('🚚')}</span>
+                          <span className="stat-icon"><Icons.TruckIcon size={16} /></span>
                           <div className="stat-info">
                             <p className="stat-label">Dispatched Stock Pcs</p>
                             <p className="stat-value" style={{ color: '#059669' }}>
@@ -8486,7 +8486,7 @@ return sortedOrders.slice(0, visibleCount)
                   <div className="card card-panel">
                     <div className="card-header space-between" style={{ flexWrap: 'wrap', gap: '12px' }}>
                       <div>
-                        <h2 className="card-title" style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{getSafeEmoji('🏢')} Bulk Client Sales Orders</h2>
+                        <h2 className="card-title" style={{ color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}><Icons.BuildingIcon size={18} style={{ marginRight: 6 }} /> Bulk Client Sales Orders</h2>
                         <p className="card-subtitle">Manage uniform supply contracts, commercial client orders, size-wise dispatch batches, and delivery balances.</p>
                       </div>
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -8501,7 +8501,7 @@ return sortedOrders.slice(0, visibleCount)
                           }}
                           style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', fontWeight: '700' }}
                         >
-                          <span>{getSafeEmoji('🏢')}</span> Clients Directory ({clients.length})
+                          <><Icons.BuildingIcon size={13} style={{ marginRight: 4 }} /> Clients Directory ({clients.length})</>
                         </button>
                         <button
                           type="button"
@@ -8549,7 +8549,7 @@ return sortedOrders.slice(0, visibleCount)
                           }}
                         >
                           <span style={{ position: 'absolute', left: '14px', color: bulkOrderSearchFocused ? '#059669' : '#94A3B8', fontSize: '15px', pointerEvents: 'none', transition: 'color 0.2s' }}>
-                            {getSafeEmoji('🔍')}
+                            <Icons.SearchIcon size={15} />
                           </span>
                           <input
                             ref={boSearchInputRef}
@@ -8588,7 +8588,7 @@ return sortedOrders.slice(0, visibleCount)
                                 padding: '4px'
                               }}
                             >
-                              {getSafeEmoji('✕')}
+                              <Icons.XIcon size={14} />
                             </button>
                           )}
                         </div>
@@ -8761,7 +8761,7 @@ return sortedOrders.slice(0, visibleCount)
                                         }}
                                         title={order.status === 'Completed' ? 'All items fully dispatched' : 'Dispatch stock batch for this order'}
                                       >
-                                        {getSafeEmoji('🚚')} {order.status === 'Completed' ? 'All Dispatched' : 'Dispatch Stock'}
+                                        <><Icons.TruckIcon size={13} style={{ marginRight: 5 }} /> {order.status === 'Completed' ? 'All Dispatched' : 'Dispatch Stock'}</>
                                       </button>
 
                                       <button
@@ -8793,7 +8793,7 @@ return sortedOrders.slice(0, visibleCount)
                                           setShowBulkOrderModal(true)
                                         }}
                                       >
-                                        {getSafeEmoji('✏️')}
+                                        <Icons.PencilIcon size={14} />
                                       </button>
 
                                       <button
@@ -8802,7 +8802,7 @@ return sortedOrders.slice(0, visibleCount)
                                         title="Delete Bulk Order"
                                         onClick={() => handleDeleteBulkOrder(order._id, order.boNumber)}
                                       >
-                                        {getSafeEmoji('🗑️')}
+                                        <Icons.TrashIcon size={14} />
                                       </button>
                                     </div>
                                   </div>
@@ -8840,7 +8840,7 @@ return sortedOrders.slice(0, visibleCount)
                                       }}
                                       title="Export Excel (CSV) Spreadsheet"
                                     >
-                                      <span style={{ fontSize: '13px' }}>{getSafeEmoji('📊')}</span>
+                                      <span style={{ fontSize: '13px' }}><Icons.BarChartIcon size={13} /></span>
                                       Export Excel (CSV)
                                     </button>
                                     <button
@@ -8862,7 +8862,7 @@ return sortedOrders.slice(0, visibleCount)
                                       }}
                                       title="Configure and Save as PDF"
                                     >
-                                      <span style={{ fontSize: '13px' }}>{getSafeEmoji('📄')}</span>
+                                      <span style={{ fontSize: '13px' }}><Icons.FileIcon size={13} /></span>
                                       Save as PDF
                                     </button>
                                   </div>
@@ -8888,7 +8888,7 @@ return sortedOrders.slice(0, visibleCount)
                                         lineHeight: '1.5'
                                       }}
                                     >
-                                      <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '2px' }}>{getSafeEmoji('📝')}</span>
+                                      <span style={{ flexShrink: 0, marginTop: '2px' }}><Icons.NoteIcon size={15} /></span>
                                       <div style={{ flex: 1 }}>
                                         <strong style={{ color: theme === 'dark' ? '#FBBF24' : '#B45309' }}>Order Special Instructions / Note:</strong> {order.notes}
                                       </div>
@@ -9072,7 +9072,7 @@ return sortedOrders.slice(0, visibleCount)
                                   {order.dispatches && order.dispatches.length > 0 && (
                                     <div style={{ marginTop: '16px', borderTop: '1px dashed var(--border-color, #CBD5E1)', paddingTop: '14px' }}>
                                       <div style={{ fontSize: '13px', fontWeight: '800', color: theme === 'dark' ? '#34D399' : '#059669', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span>{getSafeEmoji('🚚')}</span> Dispatched Stock Batches ({order.dispatches.length} {order.dispatches.length === 1 ? 'Batch' : 'Batches'}):
+                                        <><Icons.TruckIcon size={13} style={{ marginRight: 4 }} /> Dispatched Stock Batches ({order.dispatches.length} {order.dispatches.length === 1 ? 'Batch' : 'Batches'}):</>
                                       </div>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         {order.dispatches.map((inst, idx) => {
@@ -9212,7 +9212,7 @@ return sortedOrders.slice(0, visibleCount)
                   <div className="settings-left-col">
                     {/* Account management */}
                     <div className="settings-box">
-                      <p className="settings-box-title">{getSafeEmoji('🔒')} Administrator Account</p>
+                      <p className="settings-box-title"><Icons.LockIcon size={16} style={{ marginRight: 6 }} /> Administrator Account</p>
                       <p className="settings-box-desc">Update your secure administrator credentials for accessing the Liberty Uniform Order Book.</p>
                       <button
                         type="button"
@@ -9226,14 +9226,14 @@ return sortedOrders.slice(0, visibleCount)
 
                     {/* Production Categories & Pricing Rates */}
                     <div className="settings-box" style={{ gridColumn: 'span 2' }}>
-                      <p className="settings-box-title">{getSafeEmoji('💵')} Production Categories & Pricing Rates ({productionCategories.length} Categories)</p>
+                      <p className="settings-box-title"><Icons.TagIcon size={16} style={{ marginRight: 6 }} /> Production Categories &amp; Pricing Rates ({productionCategories.length} Categories)</p>
                       <p className="settings-box-desc">Add new categories, edit unit rates (₹), or remove categories used inside the Production Queue Cost Calculator.</p>
 
                       {/* Add New Category Form */}
                       <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end', background: theme === 'dark' ? '#0F172A' : '#F8FAFC', padding: '14px', borderRadius: '12px', marginBottom: '16px', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.06)' : '1px solid #E2E8F0' }}>
                         <div style={{ flex: 2, minWidth: '180px' }}>
                           <label style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '6px' }}>
-                            {getSafeEmoji('➕')} New Category Name
+                            <><Icons.PlusIcon size={14} style={{ marginRight: 4 }} /> New Category Name</>
                           </label>
                           <input
                             type="text"
@@ -9321,7 +9321,7 @@ return sortedOrders.slice(0, visibleCount)
                                   }}
                                   title={`Delete ${cat.name}`}
                                 >
-                                  {getSafeEmoji('🗑️')}
+                                  <Icons.TrashIcon size={14} />
                                 </button>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -9357,7 +9357,7 @@ return sortedOrders.slice(0, visibleCount)
 
                     {/* WhatsApp Notification Message Templates */}
                     <div className="settings-box">
-                      <p className="settings-box-title">{getSafeEmoji('💬')} WhatsApp Notification Message Templates</p>
+                      <p className="settings-box-title"><Icons.MessageIcon size={16} style={{ marginRight: 6 }} /> WhatsApp Notification Message Templates</p>
                       <p className="settings-box-desc">Customize automated WhatsApp message templates for Stock Waitlist restocks and Order Ready alerts. Use variables in curly braces like <code>{"{customerName}"}</code>.</p>
 
                       <form onSubmit={handleUpdateWhatsAppTemplates} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -9452,7 +9452,7 @@ return sortedOrders.slice(0, visibleCount)
 
                     {/* Backup & restore management */}
                     <div className="settings-box">
-                      <p className="settings-box-title">{getSafeEmoji('💾')} Database Backups & Recovery</p>
+                      <p className="settings-box-title"><Icons.DatabaseIcon size={16} style={{ marginRight: 6 }} /> Database Backups &amp; Recovery</p>
                       <p className="settings-box-desc">Create and restore backups to safeguard against accidental data deletion or hardware failures.</p>
 
                       <div className="backups-list">
@@ -9476,7 +9476,7 @@ return sortedOrders.slice(0, visibleCount)
                                   onClick={() => handleDownloadBackup(backup.filename)}
                                   style={{ padding: '4px 8px', fontSize: '11px', minWidth: 'auto' }}
                                 >
-                                  {getSafeEmoji('⬇️')} Download
+                                  <><Icons.DownloadIcon size={13} style={{ marginRight: 4 }} /> Download</>
                                 </button>
                               </div>
                             </div>
@@ -9507,7 +9507,7 @@ return sortedOrders.slice(0, visibleCount)
 
                     {/* WhatsApp integration configuration card */}
                     <div className="settings-box">
-                      <p className="settings-box-title">{getSafeEmoji('💬')} WhatsApp Integration Mode</p>
+                      <p className="settings-box-title"><Icons.MessageIcon size={16} style={{ marginRight: 6 }} /> WhatsApp Integration Mode</p>
                       <p className="settings-box-desc">Choose whether customer alerts launch the native WhatsApp app (supporting drafts stack-to-top) or load WhatsApp Web in browser tabs.</p>
                       <div style={{ marginTop: 'auto' }}>
                         <label style={{ fontSize: '12px', fontWeight: '600', color: theme === 'dark' ? '#CBD5E1' : '#475569', display: 'block', marginBottom: '6px' }}>Integration Type</label>
@@ -9524,7 +9524,7 @@ return sortedOrders.slice(0, visibleCount)
 
                     {/* Active Logged-In Devices card */}
                     <div className="settings-box">
-                      <p className="settings-box-title">{getSafeEmoji('📱')} Active Logged-In Devices</p>
+                      <p className="settings-box-title"><Icons.SmartphoneIcon size={16} style={{ marginRight: 6 }} /> Active Logged-In Devices</p>
                       <p className="settings-box-desc">Manage other devices that are currently logged in to your account.</p>
 
                       <div className="backups-list" style={{ maxHeight: '200px' }}>
@@ -9538,7 +9538,7 @@ return sortedOrders.slice(0, visibleCount)
                               <div className="backup-details" style={{ flex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                                   <span style={{ fontSize: '14px' }}>
-                                    {s.userAgent.toLowerCase().includes('iphone') || s.userAgent.toLowerCase().includes('android') || s.userAgent.toLowerCase().includes('ios') ? getSafeEmoji('📱') : getSafeEmoji('💻')}
+                                    {s.userAgent.toLowerCase().includes('iphone') || s.userAgent.toLowerCase().includes('android') || s.userAgent.toLowerCase().includes('ios') ? <Icons.SmartphoneIcon size={16} /> : <Icons.LaptopIcon size={16} />}
                                   </span>
                                   <span style={{ fontWeight: '600', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
                                     {s.userAgent}
@@ -9577,7 +9577,7 @@ return sortedOrders.slice(0, visibleCount)
                           onClick={handleRevokeOthers}
                           style={{ marginTop: 'auto', width: '100%', borderRadius: '12px', height: '38px', fontSize: '12px', fontWeight: 'bold' }}
                         >
-                          {getSafeEmoji('🚪')} Log Out All Other Devices
+                          <><Icons.LogOutIcon size={14} style={{ marginRight: 6 }} /> Log Out All Other Devices</>
                         </button>
                       )}
                     </div>
@@ -9586,7 +9586,7 @@ return sortedOrders.slice(0, visibleCount)
                   <div className="settings-right-col">
                     {/* Timeline Audit Logs */}
                     <div className="settings-box" style={{ height: '100%' }}>
-                      <p className="settings-box-title">{getSafeEmoji('📋')} System Audit Logs</p>
+                      <p className="settings-box-title"><Icons.ClipboardIcon size={16} style={{ marginRight: 6 }} /> System Audit Logs</p>
                       <p className="settings-box-desc">Real-time trail of edits, creations, deletions, and status changes made to your data.</p>
 
                       {/* Search and Filters Controls */}
@@ -9602,7 +9602,7 @@ return sortedOrders.slice(0, visibleCount)
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <input
                             type="search"
-                            placeholder={`${getSafeEmoji('🔍')} Search log messages...`}
+                            placeholder="Search log messages..."
                             value={logSearch}
                             onChange={(e) => setLogSearch(e.target.value)}
                             style={{
@@ -9642,7 +9642,7 @@ return sortedOrders.slice(0, visibleCount)
                           </select>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>{getSafeEmoji('📅')} View Specific Day:</span>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}><Icons.CalendarIcon size={13} /> View Specific Day:</span>
                           <input
                             type="date"
                             value={logDateFilter}
@@ -9720,7 +9720,7 @@ return sortedOrders.slice(0, visibleCount)
           <div className="pdf-modal-card">
             <div className="pdf-modal-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} PDF Export & Live Preview</h3>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.FileIcon size={20} /> PDF Export &amp; Live Preview</h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
                   Configure paper format, orientation, margins, and density with a live sheet preview.
                 </p>
@@ -9731,7 +9731,7 @@ return sortedOrders.slice(0, visibleCount)
                 onClick={() => setShowPDFModal(false)}
                 style={{ position: 'static', fontSize: '20px' }}
               >
-                {getSafeEmoji('✕')}
+                <Icons.XIcon size={18} />
               </button>
             </div>
 
@@ -9812,7 +9812,7 @@ return sortedOrders.slice(0, visibleCount)
                     disabled={exportingPDF}
                     style={{ padding: '12px', fontSize: '14px', fontWeight: '700', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
-                    {exportingPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('⬇️')} Download PDF`}
+                    {exportingPDF ? <><Icons.LoaderIcon size={14} style={{ marginRight: 6 }} /> Generating PDF...</> : <><Icons.DownloadIcon size={14} style={{ marginRight: 6 }} /> Download PDF</>}
                   </button>
                   <button
                     type="button"
@@ -10131,11 +10131,11 @@ return sortedOrders.slice(0, visibleCount)
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '500px' }}>
             <button type="button" className="manage-modal-close" onClick={handleCloseWaitlistModal}>
-              {getSafeEmoji('✕')}
+              <Icons.XIcon size={18} />
             </button>
-            <p className="manage-modal-title">
-              {selectedWaitlistRequest ? `${getSafeEmoji('✏️')} Edit Waitlist Request` : `${getSafeEmoji('➕')} Add Waitlist Request`}
-            </p>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '800', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {selectedWaitlistRequest ? <><Icons.PencilIcon size={16} /> Edit Waitlist Request</> : <><Icons.PlusIcon size={16} /> Add Waitlist Request</>}
+            </h3>
             <p className="manage-modal-subtitle">
               Enter customer and product details for waitlist notification.
             </p>
@@ -10183,7 +10183,7 @@ return sortedOrders.slice(0, visibleCount)
                       padding: 0
                     }}
                   >
-                    {showSchoolManager ? `${getSafeEmoji('✕')} Hide Directory` : `${getSafeEmoji('⚙️')} Manage Directory`}
+                    {showSchoolManager ? <><Icons.XIcon size={11} style={{ marginRight: 3 }} /> Hide Directory</> : <><Icons.SettingsIcon size={11} style={{ marginRight: 3 }} /> Manage Directory</>}
                   </button>
                 </div>
 
@@ -10317,7 +10317,7 @@ return sortedOrders.slice(0, visibleCount)
                                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
                                   title="Save Rename"
                                 >
-                                  {getSafeEmoji('💾')}
+                                  <Icons.SaveIcon size={14} />
                                 </button>
                                 <button
                                   type="button"
@@ -10325,7 +10325,7 @@ return sortedOrders.slice(0, visibleCount)
                                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
                                   title="Cancel"
                                 >
-                                  {getSafeEmoji('❌')}
+                                  <Icons.XIcon size={14} />
                                 </button>
                               </div>
                             ) : (
@@ -10338,7 +10338,7 @@ return sortedOrders.slice(0, visibleCount)
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
                                     title="Rename School"
                                   >
-                                    {getSafeEmoji('✏️')}
+                                    <Icons.PencilIcon size={14} />
                                   </button>
                                   <button
                                     type="button"
@@ -10346,7 +10346,7 @@ return sortedOrders.slice(0, visibleCount)
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
                                     title="Delete School"
                                   >
-                                    {getSafeEmoji('🗑️')}
+                                    <Icons.TrashIcon size={14} />
                                   </button>
                                 </div>
                               </>
@@ -10395,7 +10395,7 @@ return sortedOrders.slice(0, visibleCount)
                       }}
                       title="Remove Item"
                     >
-                      {getSafeEmoji('🗑️')}
+                      <Icons.TrashIcon size={14} />
                     </button>
                   </div>
                 ))}
@@ -10417,7 +10417,7 @@ return sortedOrders.slice(0, visibleCount)
                     marginTop: '4px'
                   }}
                 >
-                  {getSafeEmoji('➕')} Add Item
+                  <><Icons.PlusIcon size={13} style={{ marginRight: 4 }} /> Add Item</>
                 </button>
               </div>
 
@@ -10474,7 +10474,7 @@ return sortedOrders.slice(0, visibleCount)
               &times;
             </button>
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <div style={{ fontSize: '38px', marginBottom: '8px' }}>{getSafeEmoji('⚠️')}</div>
+              <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'center', color: '#F59E0B' }}><Icons.AlertIcon size={38} /></div>
               <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '800', color: '#B45309' }}>
                 Cycle Cleanup Warning
               </h3>
@@ -10483,7 +10483,7 @@ return sortedOrders.slice(0, visibleCount)
                 This will automatically purge <strong>{cleanupPreviewData.deliveredCount} delivered order(s)</strong> in range <strong>#{cleanupPreviewData.startNum} - #{cleanupPreviewData.endNum}</strong> to free space for the next cycle.
               </p>
               <div style={{ background: '#FEF3C7', padding: '10px 14px', borderRadius: '8px', border: '1px solid #FCD34D', fontSize: '12px', color: '#92400E', textAlign: 'left', marginBottom: '20px' }}>
-                {getSafeEmoji('ℹ️')} <strong>Safety Note:</strong> Any active (Pending or Ready) orders in this range will remain completely safe.
+                <Icons.InfoIcon size={14} style={{ marginRight: 4 }} /> <strong>Safety Note:</strong> Any active (Pending or Ready) orders in this range will remain completely safe.
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
@@ -10522,11 +10522,11 @@ return sortedOrders.slice(0, visibleCount)
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => setShowVendorOrderModal(false)}>
-              {getSafeEmoji('✕')}
+              <Icons.XIcon size={18} />
             </button>
-            <p className="manage-modal-title">
-              {selectedVendorOrder ? `${getSafeEmoji('✏️')} Edit Restock PO ${selectedVendorOrder.poNumber}` : `${getSafeEmoji('➕')} Create New Restock PO`}
-            </p>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '800', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {selectedVendorOrder ? <><Icons.PencilIcon size={16} /> Edit Restock PO {selectedVendorOrder.poNumber}</> : <><Icons.PlusIcon size={16} /> Create New Restock PO</>}
+            </h3>
             <p className="manage-modal-subtitle">
               Issue a bulk manufacturing order to a supplier with products, schools, and size-wise target quantities.
             </p>
@@ -10612,7 +10612,7 @@ return sortedOrders.slice(0, visibleCount)
                     }}
                     style={{ fontSize: '12px', padding: '6px 12px' }}
                   >
-                    {getSafeEmoji('➕')} Add Another Product to Order
+                    <><Icons.PlusIcon size={13} style={{ marginRight: 4 }} /> Add Another Product to Order</>
                   </button>
                 </div>
 
@@ -10641,7 +10641,7 @@ return sortedOrders.slice(0, visibleCount)
                           }}
                           style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
                         >
-                          {getSafeEmoji('🗑️')} Remove Product
+                          <><Icons.TrashIcon size={13} style={{ marginRight: 4 }} /> Remove Product</>
                         </button>
                       )}
                     </div>
@@ -10907,7 +10907,7 @@ return sortedOrders.slice(0, visibleCount)
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', width: '28px', display: 'flex', justifyContent: 'center', opacity: (prod.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
                             title="Remove Row"
                           >
-                            {getSafeEmoji('🗑️')}
+                            <Icons.TrashIcon size={13} />
                           </button>
                         </div>
                       ))}
@@ -10959,7 +10959,7 @@ return sortedOrders.slice(0, visibleCount)
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => { setShowInstallmentModal(false); setSelectedOrderForInstallment(null); }}>
-              {getSafeEmoji('✕')}
+              <Icons.XIcon size={18} />
             </button>
             <p className="manage-modal-title">📦 Record Stock Delivery Batch</p>
             <p className="manage-modal-subtitle">
@@ -11039,7 +11039,7 @@ return sortedOrders.slice(0, visibleCount)
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => { setShowEditInstallmentModal(false); setEditingInstallment(null); }}>
-              {getSafeEmoji('✕')}
+              <Icons.XIcon size={18} />
             </button>
             <p className="manage-modal-title">✏️ Edit Stock Delivery Batch</p>
             <p className="manage-modal-subtitle">
@@ -11136,10 +11136,10 @@ return sortedOrders.slice(0, visibleCount)
                 setPartyFormData({ name: '', contactNumber: '', notes: '' })
               }}
             >
-              {getSafeEmoji('✕')}
+              <Icons.XIcon size={18} />
             </button>
             <p className="manage-modal-title">
-              {getSafeEmoji('🏭')} Manage Supplier Directory ({parties.length})
+              <Icons.FactoryIcon size={18} /> Manage Supplier Directory ({parties.length})
             </p>
             <p className="manage-modal-subtitle">
               Add supplier profiles to issue bulk restock orders.
@@ -11257,7 +11257,7 @@ return sortedOrders.slice(0, visibleCount)
                           }}
                           title="Edit Supplier Details"
                         >
-                          {getSafeEmoji('✏️')}
+                          <Icons.PencilIcon size={14} />
                         </button>
                         <button
                           type="button"
@@ -11265,7 +11265,7 @@ return sortedOrders.slice(0, visibleCount)
                           onClick={() => handleDeleteParty(p._id, p.name)}
                           title="Delete Supplier"
                         >
-                          {getSafeEmoji('🗑️')}
+                          <Icons.TrashIcon size={14} />
                         </button>
                       </div>
                     </div>
@@ -11290,7 +11290,7 @@ return sortedOrders.slice(0, visibleCount)
           <div className="pdf-modal-card">
             <div className="pdf-modal-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} PO PDF Export & Live Preview</h3>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.FileIcon size={20} /> PO PDF Export &amp; Live Preview</h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
                   Configure paper format, orientation, margins, and density with a live sheet preview for {selectedPOForPDF.poNumber}.
                 </p>
@@ -11301,7 +11301,7 @@ return sortedOrders.slice(0, visibleCount)
                 onClick={() => setShowPOPDFModal(false)}
                 style={{ position: 'static', fontSize: '20px' }}
               >
-                {getSafeEmoji('✕')}
+                <Icons.XIcon size={18} />
               </button>
             </div>
 
@@ -11424,7 +11424,7 @@ return sortedOrders.slice(0, visibleCount)
                     disabled={exportingPOPDF}
                     style={{ padding: '12px', width: '100%', fontSize: '13px', justifyContent: 'center' }}
                   >
-                    {exportingPOPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('⬇️')} Download PDF`}
+                    {exportingPOPDF ? <><Icons.LoaderIcon size={14} style={{ marginRight: 6 }} /> Generating PDF...</> : <><Icons.DownloadIcon size={14} style={{ marginRight: 6 }} /> Download PDF</>}
                   </button>
                   <button
                     type="button"
@@ -11630,11 +11630,11 @@ return sortedOrders.slice(0, visibleCount)
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => setShowBulkOrderModal(false)}>
-              {getSafeEmoji('✕')}
+              <Icons.XIcon size={18} />
             </button>
-            <p className="manage-modal-title">
-              {selectedBulkOrder ? `${getSafeEmoji('✏️')} Edit Client Order ${getDisplayCoNumber(selectedBulkOrder)}` : `${getSafeEmoji('➕')} Create Client Order`}
-            </p>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '800', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {selectedBulkOrder ? <><Icons.PencilIcon size={16} /> Edit Client Order {getDisplayCoNumber(selectedBulkOrder)}</> : <><Icons.PlusIcon size={16} /> Create Client Order</>}
+            </h3>
             <p className="manage-modal-subtitle">
               Issue a bulk supply order to a client with products, school/firm details, and size-wise target quantities.
             </p>
@@ -11749,7 +11749,7 @@ return sortedOrders.slice(0, visibleCount)
                           }}
                           style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
                         >
-                          {getSafeEmoji('✕')} Remove Product
+                          <><Icons.XIcon size={13} style={{ marginRight: 4 }} /> Remove Product</>
                         </button>
                       )}
                     </div>
@@ -12017,7 +12017,7 @@ return sortedOrders.slice(0, visibleCount)
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', width: '28px', display: 'flex', justifyContent: 'center', opacity: (p.sizeBreakdown || []).length <= 1 ? 0.3 : 1 }}
                             title="Remove Row"
                           >
-                            {getSafeEmoji('🗑️')}
+                            <Icons.TrashIcon size={13} />
                           </button>
                         </div>
                       ))}
@@ -12057,7 +12057,7 @@ return sortedOrders.slice(0, visibleCount)
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => setShowClientManagerModal(false)}>
-              {getSafeEmoji('✕')}
+              <Icons.XIcon size={18} />
             </button>
             <p className="manage-modal-title">🏢 Clients Directory</p>
             <p className="manage-modal-subtitle">Manage corporate and commercial client directory for bulk uniform supply orders.</p>
@@ -12226,7 +12226,7 @@ return sortedOrders.slice(0, visibleCount)
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => setShowDispatchModal(false)}>
-              {getSafeEmoji('✕')}
+              <Icons.XIcon size={18} />
             </button>
             <p className="manage-modal-title">🚚 Dispatch Stock Batch</p>
             <p className="manage-modal-subtitle">
@@ -12311,7 +12311,7 @@ return sortedOrders.slice(0, visibleCount)
         <div className="manage-modal-backdrop">
           <div className="manage-modal-card" style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button type="button" className="manage-modal-close" onClick={() => { setShowEditDispatchModal(false); setEditingDispatch(null); }}>
-              {getSafeEmoji('✕')}
+              <Icons.XIcon size={18} />
             </button>
             <p className="manage-modal-title">✏️ Edit Stock Dispatch Batch</p>
 
@@ -12406,7 +12406,7 @@ return sortedOrders.slice(0, visibleCount)
           <div className="pdf-modal-card">
             <div className="pdf-modal-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>{getSafeEmoji('📄')} CO PDF Export &amp; Live Preview</h3>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.FileIcon size={20} /> CO PDF Export &amp; Live Preview</h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>
                   Configure paper format, orientation, margins, and density with a live sheet preview for {getDisplayCoNumber(selectedBOForPDF)}.
                 </p>
@@ -12417,7 +12417,7 @@ return sortedOrders.slice(0, visibleCount)
                 onClick={() => setShowBOPDFModal(false)}
                 style={{ position: 'static', fontSize: '20px' }}
               >
-                {getSafeEmoji('✕')}
+                <Icons.XIcon size={18} />
               </button>
             </div>
 
@@ -12540,7 +12540,7 @@ return sortedOrders.slice(0, visibleCount)
                     disabled={exportingBOPDF}
                     style={{ padding: '12px', width: '100%', fontSize: '13px', justifyContent: 'center' }}
                   >
-                    {exportingBOPDF ? `${getSafeEmoji('⌛')} Generating PDF...` : `${getSafeEmoji('⬇️')} Download PDF`}
+                    {exportingBOPDF ? <><Icons.LoaderIcon size={14} style={{ marginRight: 6 }} /> Generating PDF...</> : <><Icons.DownloadIcon size={14} style={{ marginRight: 6 }} /> Download PDF</>}
                   </button>
                   <button
                     type="button"
