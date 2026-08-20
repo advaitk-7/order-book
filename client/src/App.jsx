@@ -6012,6 +6012,26 @@ return sortedOrders.slice(0, visibleCount)
                       />
                     </div>
                   )}
+                  {Boolean(searchTerm || orderFilter !== 'All' || orderPaymentFilter !== 'All' || orderContactFilter !== 'All' || orderSchoolFilter !== 'All' || orderDeliveryFilter !== 'All' || orderCustomStartDate || orderCustomEndDate) && (
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      onClick={() => {
+                        setSearchTerm('');
+                        setOrderFilter('All');
+                        setOrderPaymentFilter('All');
+                        setOrderContactFilter('All');
+                        setOrderSchoolFilter('All');
+                        setOrderDeliveryFilter('All');
+                        setOrderCustomStartDate('');
+                        setOrderCustomEndDate('');
+                      }}
+                      style={{ fontSize: '12px', padding: '6px 10px', color: '#EF4444', borderColor: '#FCA5A5', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      title="Clear all active filters"
+                    >
+                      <Icons.XIcon size={13} /> Reset Filters
+                    </button>
+                  )}
                   <button type="button" className="danger-btn" onClick={handleBulkDelete} disabled={selectedIds.length === 0}>
                     Delete Selected{selectedIds.length ? ` (${selectedIds.length})` : ''}
                   </button>
@@ -6597,6 +6617,26 @@ return sortedOrders.slice(0, visibleCount)
                         style={{ padding: '6px 10px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13px' }}
                       />
                     </div>
+                  )}
+                  {Boolean(tailorSearchTerm || tailorStatusFilter !== 'All' || tailorProductFilter !== 'All' || tailorCategoryFilter !== 'All' || tailorSchoolFilter !== 'All' || tailorDeliveryFilter !== 'All' || tailorCustomStartDate || tailorCustomEndDate) && (
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      onClick={() => {
+                        setTailorSearchTerm('');
+                        setTailorStatusFilter('All');
+                        setTailorProductFilter('All');
+                        setTailorCategoryFilter('All');
+                        setTailorSchoolFilter('All');
+                        setTailorDeliveryFilter('All');
+                        setTailorCustomStartDate('');
+                        setTailorCustomEndDate('');
+                      }}
+                      style={{ fontSize: '12px', padding: '6px 10px', color: '#EF4444', borderColor: '#FCA5A5', display: 'flex', alignItems: 'center', gap: '4px', alignSelf: 'center' }}
+                      title="Clear all active production queue filters"
+                    >
+                      <Icons.XIcon size={13} /> Reset Filters
+                    </button>
                   )}
                 </div>
 
@@ -7193,6 +7233,21 @@ return sortedOrders.slice(0, visibleCount)
                       ))}
                     </select>
                   </div>
+                  {Boolean(waitlistSearch || waitlistStatusFilter !== 'All' || waitlistSchoolFilter !== 'All') && (
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      onClick={() => {
+                        setWaitlistSearch('');
+                        setWaitlistStatusFilter('All');
+                        setWaitlistSchoolFilter('All');
+                      }}
+                      style={{ fontSize: '12px', padding: '6px 10px', color: '#EF4444', borderColor: '#FCA5A5', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      title="Clear all active waitlist filters"
+                    >
+                      <Icons.XIcon size={13} /> Reset Filters
+                    </button>
+                  )}
                   <button type="button" className="danger-btn" onClick={handleBulkDeleteWaitlist} disabled={selectedWaitlistIds.length === 0}>
                     Delete Selected{selectedWaitlistIds.length ? ` (${selectedWaitlistIds.length})` : ''}
                   </button>
@@ -7895,6 +7950,23 @@ return sortedOrders.slice(0, visibleCount)
                               <option value="Completed">Completed</option>
                             </select>
                           </label>
+
+                          {Boolean(vendorOrderSearch || vendorOrderPartyFilter !== 'All' || vendorOrderSchoolFilter !== 'All' || vendorOrderStatusFilter !== 'All') && (
+                            <button
+                              type="button"
+                              className="ghost-btn"
+                              onClick={() => {
+                                setVendorOrderSearch('');
+                                setVendorOrderPartyFilter('All');
+                                setVendorOrderSchoolFilter('All');
+                                setVendorOrderStatusFilter('All');
+                              }}
+                              style={{ fontSize: '12px', padding: '6px 10px', color: '#EF4444', borderColor: '#FCA5A5', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              title="Clear all active supplier restock filters"
+                            >
+                              <Icons.XIcon size={13} /> Reset Filters
+                            </button>
+                          )}
                         </div>
 
                         {/* Live PO Counter Pill */}
@@ -8727,6 +8799,22 @@ return sortedOrders.slice(0, visibleCount)
                           <option value="Completed">Completed (100% Dispatched)</option>
                           <option value="Cancelled">Cancelled</option>
                         </select>
+
+                        {Boolean(bulkOrderSearch || bulkOrderClientFilter !== 'All' || bulkOrderStatusFilter !== 'All') && (
+                          <button
+                            type="button"
+                            className="ghost-btn"
+                            onClick={() => {
+                              setBulkOrderSearch('');
+                              setBulkOrderClientFilter('All');
+                              setBulkOrderStatusFilter('All');
+                            }}
+                            style={{ fontSize: '12px', padding: '6px 10px', color: '#EF4444', borderColor: '#FCA5A5', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            title="Clear all active bulk client order filters"
+                          >
+                            <Icons.XIcon size={13} /> Reset Filters
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -9763,23 +9851,19 @@ return sortedOrders.slice(0, visibleCount)
                               border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
                             }}
                           />
-                          {logDateFilter && (
+                          {Boolean(logSearch || logTypeFilter !== 'All' || logDateFilter) && (
                             <button
                               type="button"
-                              onClick={() => setLogDateFilter('')}
-                              className="danger-btn"
-                              style={{
-                                padding: '6px 10px',
-                                fontSize: '11px',
-                                borderRadius: '8px',
-                                minWidth: 'auto',
-                                height: '32px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
+                              className="ghost-btn"
+                              onClick={() => {
+                                setLogSearch('');
+                                setLogTypeFilter('All');
+                                setLogDateFilter('');
                               }}
+                              style={{ fontSize: '11px', padding: '4px 8px', color: '#EF4444', borderColor: '#FCA5A5', display: 'flex', alignItems: 'center', gap: '4px', height: '32px' }}
+                              title="Clear log filters"
                             >
-                              Clear
+                              <Icons.XIcon size={12} /> Clear Filters
                             </button>
                           )}
                         </div>
