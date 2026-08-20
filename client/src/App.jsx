@@ -6618,13 +6618,13 @@ return sortedOrders.slice(0, visibleCount)
                       />
                     </div>
                   )}
-                  {Boolean(tailorSearchTerm || tailorStatusFilter !== 'All' || tailorProductFilter !== 'All' || tailorCategoryFilter !== 'All' || tailorSchoolFilter !== 'All' || tailorDeliveryFilter !== 'All' || tailorCustomStartDate || tailorCustomEndDate) && (
+                  {Boolean(tailorSearchTerm || tailorStatusFilter !== 'Pending' || tailorProductFilter !== 'All' || tailorCategoryFilter !== 'All' || tailorSchoolFilter !== 'All' || tailorDeliveryFilter !== 'All' || tailorCustomStartDate || tailorCustomEndDate) && (
                     <button
                       type="button"
                       className="ghost-btn"
                       onClick={() => {
                         setTailorSearchTerm('');
-                        setTailorStatusFilter('All');
+                        setTailorStatusFilter('Pending');
                         setTailorProductFilter('All');
                         setTailorCategoryFilter('All');
                         setTailorSchoolFilter('All');
