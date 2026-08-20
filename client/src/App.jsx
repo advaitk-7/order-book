@@ -411,12 +411,32 @@ function App() {
 
       // iPadOS 13+ Safari Desktop Mode reports platform 'MacIntel' with maxTouchPoints > 1
       const isIPad = /iPad/i.test(ua) || ((platform === 'MacIntel' || /Macintosh/i.test(ua)) && maxTouch > 1);
-
       if (isIPad) return 'Apple iPad';
-      if (/iPhone/i.test(ua)) return 'Apple iPhone';
-      if (/Android/i.test(ua)) return 'Android Device';
+
+      if (/iPhone|iPod/i.test(ua)) return 'Apple iPhone';
+
+      if (/Android/i.test(ua)) {
+        if (/OnePlus|CPH\d{4}|PJD\d{3}|PJG\d{3}/i.test(ua)) {
+          const m = ua.match(/(OnePlus[\w\s\+]+|CPH\d{4}|PJD\d{3})/i);
+          return m ? m[1].replace(/_/g, ' ') : 'OnePlus Smartphone';
+        }
+        if (/SM-[F|G|N|A|M|S]\d{3}/i.test(ua) || /Samsung/i.test(ua)) {
+          const m = ua.match(/(SM-[A-Z0-9]+)/i);
+          return m ? `Samsung Galaxy (${m[1]})` : 'Samsung Galaxy';
+        }
+        if (/Pixel/i.test(ua)) {
+          const m = ua.match(/(Pixel\s?\d+[\w\s]*)/i);
+          return m ? `Google ${m[1]}` : 'Google Pixel';
+        }
+        if (/Xiaomi|Redmi|POCO/i.test(ua)) return 'Xiaomi / Redmi Smartphone';
+        if (/Vivo/i.test(ua)) return 'Vivo Smartphone';
+        if (/OPPO/i.test(ua)) return 'OPPO Smartphone';
+        return 'Android Device';
+      }
+
       if (/Macintosh|Mac OS X/i.test(ua)) return 'MacBook / Mac Computer';
       if (/Windows/i.test(ua)) return 'Windows PC';
+      if (/Linux/i.test(ua)) return 'Linux PC';
     } catch (e) {}
     return '';
   };

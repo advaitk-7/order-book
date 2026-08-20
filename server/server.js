@@ -204,6 +204,18 @@ const authenticateJWT = async (req, res, next) => {
           return res.status(401).json({ message: "Session expired or logged out" });
         }
         session.lastActive = new Date();
+
+        // Auto-correct device name if X-Device-Type header is passed and session userAgent needs updating
+        const deviceHeader = req.headers['x-device-type'];
+        if (deviceHeader && String(deviceHeader).trim()) {
+          const cleanHeader = String(deviceHeader).trim();
+          if (session.userAgent && !session.userAgent.includes(cleanHeader)) {
+            const rawUa = req.headers['user-agent'] || '';
+            const updatedAgent = parseUserAgent(rawUa, cleanHeader);
+            session.userAgent = user.role === 'demo' ? `[Demo] ${updatedAgent}` : updatedAgent;
+          }
+        }
+
         session.save().catch(() => {});
 
         req.user = user;
