@@ -5481,7 +5481,7 @@ return sortedOrders.slice(0, visibleCount)
               onClick={() => setShowLogoutDropdown(!showLogoutDropdown)}
               style={{ cursor: 'pointer' }}
             >
-              {isDemoMode ? 'G' : 'AK'}
+              AK
             </div>
             {showLogoutDropdown && (
               <div className="logout-dropdown">
