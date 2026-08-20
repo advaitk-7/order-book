@@ -107,6 +107,23 @@ html, body {
   gap: 10px;
 }
 
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-icon svg {
+  display: block;
+}
+
+.nav-text {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
 .nav-link:hover {
   background: rgba(37, 99, 235, 0.05);
   color: #2563EB;
