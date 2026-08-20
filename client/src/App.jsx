@@ -6028,6 +6028,111 @@ return sortedOrders.slice(0, visibleCount)
                 </div>
               </div>
 
+              {showSchoolManager && (
+                <div style={{
+                  background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
+                  border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E2E8F0',
+                  borderRadius: '12px',
+                  padding: '14px 16px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#93C5FD' : '#1D4ED8', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>School / Firm Directory Manager</span>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 'normal' }}>Add, rename or remove registered school choices</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                    <input
+                      type="text"
+                      placeholder="Type new school name..."
+                      value={newSchoolNameInput}
+                      onChange={(e) => setNewSchoolNameInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveWaitlistSchool(e) }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        fontSize: '13px',
+                        borderRadius: '8px',
+                        border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #CBD5E1',
+                        background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                        color: 'inherit'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveWaitlistSchool}
+                      className="primary-btn"
+                      style={{ padding: '0 16px', fontSize: '12px', height: '36px', minWidth: 'auto', display: 'flex', alignItems: 'center' }}
+                    >
+                      Add School
+                    </button>
+                  </div>
+                  <div style={{ maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {waitlistSchools.length === 0 ? (
+                      <p style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', margin: '12px 0' }}>No registered schools yet in directory.</p>
+                    ) : (
+                      waitlistSchools.map((s) => (
+                        <div key={s._id} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 4px',
+                          borderBottom: '1px solid var(--border-color, #E5E7EB)'
+                        }}>
+                          {editingSchoolId === s._id ? (
+                            <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
+                              <input
+                                type="text"
+                                value={editingSchoolNameInput}
+                                onChange={(e) => setEditingSchoolNameInput(e.target.value)}
+                                style={{ flex: 1, padding: '4px 8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #2563EB', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRenameWaitlistSchool(s._id, editingSchoolNameInput)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#10B981' }}
+                                title="Save Rename"
+                              >
+                                <Icons.SaveIcon size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setEditingSchoolId(null); setEditingSchoolNameInput(''); }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#EF4444' }}
+                                title="Cancel"
+                              >
+                                <Icons.XIcon size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <span style={{ fontSize: '13px', fontWeight: '500' }}>{s.name}</span>
+                              <div style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingSchoolId(s._id); setEditingSchoolNameInput(s.name); }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '13px', color: '#2563EB' }}
+                                  title="Rename School"
+                                >
+                                  <Icons.PencilIcon size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteWaitlistSchool(s._id, s.name)}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '13px', color: '#EF4444' }}
+                                  title="Delete School"
+                                >
+                                  <Icons.TrashIcon size={14} />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="table-panel">
                 <div className="table-wrap" ref={tableWrapRef}>
                   <table>
