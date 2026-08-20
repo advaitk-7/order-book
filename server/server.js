@@ -773,8 +773,12 @@ app.get("/api/auth/sessions", authenticateJWT, async (req, res) => {
     const authHeader = req.headers.authorization;
     const currentToken = authHeader ? authHeader.split(' ')[1] : '';
 
-    const sessions = await Session.find({ username: req.user.username })
-      .sort({ lastActive: -1 });
+    const isAdmin = (req.user.username === ADMIN_USERNAME);
+    const query = isAdmin 
+      ? { $or: [{ username: ADMIN_USERNAME }, { username: 'guest_demo' }] }
+      : { username: req.user.username };
+
+    const sessions = await Session.find(query).sort({ lastActive: -1 });
 
     const formatted = sessions.map(s => {
       let displayName = s.userAgent;
@@ -805,7 +809,8 @@ app.delete("/api/auth/sessions/:id", authenticateJWT, async (req, res) => {
       return res.status(404).json({ message: "Session not found" });
     }
 
-    if (session.username !== req.user.username) {
+    const isAdmin = (req.user.username === ADMIN_USERNAME);
+    if (session.username !== req.user.username && !isAdmin) {
       return res.status(403).json({ message: "Access denied" });
     }
 
