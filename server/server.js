@@ -2168,10 +2168,25 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
 
 app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
   try {
-    const { partyName, products, targetDate, notes, status } = req.body;
+    const { poNumber, partyName, products, targetDate, notes, status } = req.body;
     const order = await VendorOrder.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ message: "Supplier order not found" });
+    }
+
+    if (poNumber) {
+      let cleanPo = String(poNumber).trim();
+      if (!cleanPo.toUpperCase().startsWith("PO-")) {
+        const cleanDigits = cleanPo.replace(/\D/g, "");
+        cleanPo = `PO-${String(Number(cleanDigits) || 1).padStart(4, "0")}`;
+      }
+      if (cleanPo !== order.poNumber) {
+        const existing = await VendorOrder.findOne({ poNumber: cleanPo, _id: { $ne: req.params.id } });
+        if (existing) {
+          return res.status(409).json({ message: `Restock PO number '${cleanPo}' is already in use.` });
+        }
+        order.poNumber = cleanPo;
+      }
     }
 
     if (partyName) order.partyName = partyName.trim();
@@ -2552,10 +2567,25 @@ app.post("/api/bulk-orders", authenticateJWT, async (req, res) => {
 
 app.patch("/api/bulk-orders/:id", authenticateJWT, async (req, res) => {
   try {
-    const { clientName, products, targetDate, notes, status } = req.body;
+    const { boNumber, clientName, products, targetDate, notes, status } = req.body;
     const order = await BulkOrder.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ message: "Bulk order not found" });
+    }
+
+    if (boNumber) {
+      let cleanBo = String(boNumber).trim();
+      if (!cleanBo.toUpperCase().startsWith("CO-")) {
+        const cleanDigits = cleanBo.replace(/\D/g, "");
+        cleanBo = `CO-${String(Number(cleanDigits) || 1).padStart(4, "0")}`;
+      }
+      if (cleanBo !== order.boNumber) {
+        const existing = await BulkOrder.findOne({ boNumber: cleanBo, _id: { $ne: req.params.id } });
+        if (existing) {
+          return res.status(409).json({ message: `Bulk Order number '${cleanBo}' is already in use.` });
+        }
+        order.boNumber = cleanBo;
+      }
     }
 
     if (clientName) order.clientName = clientName.trim();

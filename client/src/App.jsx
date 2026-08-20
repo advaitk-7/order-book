@@ -1929,7 +1929,7 @@ function App() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          poNumber: !selectedVendorOrder ? `PO-${String(Number(vendorOrderFormData.poNumber) || getNextPoNumber(vendorOrders)).padStart(4, '0')}` : undefined,
+          poNumber: `PO-${String(Number(vendorOrderFormData.poNumber) || (selectedVendorOrder ? Number(String(selectedVendorOrder.poNumber).replace(/\D/g, '')) : getNextPoNumber(vendorOrders))).padStart(4, '0')}`,
           partyName: vendorOrderFormData.partyName,
           products: cleanProducts,
           targetDate: vendorOrderFormData.targetDate,
@@ -2266,7 +2266,7 @@ function App() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          boNumber: !selectedBulkOrder ? `CO-${String(Number(bulkOrderFormData.boNumber) || getNextCoNumber(bulkOrders)).padStart(4, '0')}` : undefined,
+          boNumber: `CO-${String(Number(bulkOrderFormData.boNumber) || (selectedBulkOrder ? Number(String(selectedBulkOrder.boNumber).replace(/\D/g, '')) : getNextCoNumber(bulkOrders))).padStart(4, '0')}`,
           clientName: bulkOrderFormData.clientName,
           products: cleanProducts,
           targetDate: bulkOrderFormData.targetDate,
@@ -10815,7 +10815,6 @@ return sortedOrders.slice(0, visibleCount)
                       max="9999"
                       value={vendorOrderFormData.poNumber}
                       onChange={(e) => setVendorOrderFormData({ ...vendorOrderFormData, poNumber: e.target.value })}
-                      disabled={Boolean(selectedVendorOrder)}
                       style={{ width: '100px', fontWeight: '700', fontSize: '14px' }}
                       placeholder="e.g. 1"
                     />
@@ -11923,7 +11922,6 @@ return sortedOrders.slice(0, visibleCount)
                       max="9999"
                       value={bulkOrderFormData.boNumber}
                       onChange={(e) => setBulkOrderFormData({ ...bulkOrderFormData, boNumber: e.target.value })}
-                      disabled={Boolean(selectedBulkOrder)}
                       style={{ width: '100px', fontWeight: '700', fontSize: '14px' }}
                       placeholder="e.g. 1"
                     />
