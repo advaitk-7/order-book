@@ -5365,14 +5365,14 @@ return sortedOrders.slice(0, visibleCount)
         <nav className="sidebar-nav">
           {['Dashboard', 'New Order', 'Orders', 'Production Queue', 'Stock Waitlist', 'Restock & Bulk Orders', 'Settings'].map((page) => {
             const emojis = {
-              'Dashboard': <Icons.BarChartIcon size={18} />,
-              'New Order': <Icons.PlusIcon size={18} />,
-              'Orders': <Icons.ClipboardIcon size={18} />,
-              'Production Queue': <Icons.ScissorsIcon size={18} />,
-              'Stock Waitlist': <Icons.BellIcon size={18} />,
-              'Restock & Bulk Orders': <Icons.StoreIcon size={18} />,
-              'Supplier Restock': <Icons.StoreIcon size={18} />,
-              'Settings': <Icons.SettingsIcon size={18} />
+              'Dashboard': <Icons.BarChartIcon size={20} />,
+              'New Order': <Icons.PlusIcon size={20} />,
+              'Orders': <Icons.ClipboardIcon size={20} />,
+              'Production Queue': <Icons.ScissorsIcon size={20} />,
+              'Stock Waitlist': <Icons.BellIcon size={20} />,
+              'Restock & Bulk Orders': <Icons.StoreIcon size={20} />,
+              'Supplier Restock': <Icons.StoreIcon size={20} />,
+              'Settings': <Icons.SettingsIcon size={20} />
             };
             return (
               <button
