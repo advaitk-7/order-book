@@ -215,7 +215,6 @@ const authenticateJWT = async (req, res, next) => {
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: { type: String, required: true, trim: true },
-    cycle: { type: Number, default: 1 },
     customerName: { type: String, required: true, trim: true },
     contactNumber: { type: String, required: true, trim: true },
     gender: { type: String, enum: ['Male', 'Female'], required: true },
@@ -1350,9 +1349,9 @@ app.patch("/api/orders/:id", async (req, res) => {
     if (payload.orderNumber !== undefined) {
       const trimmedOrderNumber = String(payload.orderNumber).trim();
       if (trimmedOrderNumber !== oldOrder.orderNumber) {
-        const duplicateOrder = await Order.findOne({ orderNumber: trimmedOrderNumber, cycle: oldOrder.cycle || 1, _id: { $ne: req.params.id } });
+        const duplicateOrder = await Order.findOne({ orderNumber: trimmedOrderNumber, _id: { $ne: req.params.id } });
         if (duplicateOrder) {
-          return res.status(409).json({ message: `Order #${trimmedOrderNumber} already exists in Cycle ${oldOrder.cycle || 1}.` });
+          return res.status(409).json({ message: `Order #${trimmedOrderNumber} already exists.` });
         }
       }
     }

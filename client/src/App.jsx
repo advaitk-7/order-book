@@ -862,11 +862,6 @@ function App() {
     return JSON.stringify(formData) !== JSON.stringify(originalFormData)
   }, [editingOrderId, formData, originalFormData])
 
-  const maxActiveCycle = useMemo(() => {
-    if (!orders || orders.length === 0) return 1
-    return Math.max(...orders.map((o) => Number(o.cycle || 1)))
-  }, [orders])
-
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Date.now())
@@ -10750,11 +10745,11 @@ return sortedOrders.slice(0, visibleCount)
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
               <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'center', color: '#F59E0B' }}><Icons.AlertIcon size={38} /></div>
               <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '800', color: '#B45309' }}>
-                Cycle Cleanup Warning
+                Automatic Memory Cleanup Warning
               </h3>
               <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#475569', lineHeight: '1.5' }}>
-                Saving <strong>Order #{cleanupPreviewData.orderNumber}</strong> reaches a cycle threshold.
-                This will automatically purge <strong>{cleanupPreviewData.deliveredCount} delivered order(s)</strong> in range <strong>#{cleanupPreviewData.startNum} - #{cleanupPreviewData.endNum}</strong> to free space for the next cycle.
+                Saving <strong>Order #{cleanupPreviewData.orderNumber}</strong> reaches a 100-order block milestone.
+                This will automatically purge <strong>{cleanupPreviewData.deliveredCount} delivered order(s)</strong> in range <strong>#{cleanupPreviewData.startNum} - #{cleanupPreviewData.endNum}</strong> to optimize performance.
               </p>
               <div style={{ background: '#FEF3C7', padding: '10px 14px', borderRadius: '8px', border: '1px solid #FCD34D', fontSize: '12px', color: '#92400E', textAlign: 'left', marginBottom: '20px' }}>
                 <Icons.InfoIcon size={14} style={{ marginRight: 4 }} /> <strong>Safety Note:</strong> Any active (Pending or Ready) orders in this range will remain completely safe.
