@@ -20,6 +20,28 @@ const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/order_book
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
+// Global Request Context Middleware for Demo Database Isolation
+app.use((req, res, next) => {
+  const authHeader = req.headers.authorization;
+  let isDemo = false;
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded && decoded.role === 'demo') {
+          isDemo = true;
+        }
+      } catch (e) {
+        // Ignore token verification errors in global inspector
+      }
+    }
+  }
+  asyncLocalStorage.run({ isDemo }, () => {
+    next();
+  });
+});
+
 const JWT_SECRET = process.env.JWT_SECRET || "liberty_uniform_secret_key_12345";
 let ADMIN_USERNAME = process.env.ADMIN_USERNAME || "sarju";
 let currentAdminPassword = process.env.ADMIN_PASSWORD || "1";
@@ -3086,6 +3108,16 @@ async function startServer() {
       settingsRecord.value = updatedValue;
       await settingsRecord.save();
       console.log("Updated 38 pricing rates structure in MongoDB");
+    }
+
+    // Initialize and seed demo database (order_book_demo) eagerly
+    try {
+      const demoConn = await getDemoConnection();
+      const demoModels = buildDemoModels(demoConn);
+      await seedDemoDatabase(demoModels);
+      console.log("Connected to Sandbox MongoDB (order_book_demo)");
+    } catch (dErr) {
+      console.error("Demo database eager initialization error:", dErr.message);
     }
 
     // Execute automatic startup database backup
