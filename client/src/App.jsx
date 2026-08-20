@@ -403,13 +403,34 @@ function App() {
     setForgotError('');
   };
 
+  const getClientDeviceType = () => {
+    try {
+      const ua = navigator.userAgent || '';
+      const platform = navigator.platform || '';
+      const maxTouch = navigator.maxTouchPoints || 0;
+
+      // iPadOS 13+ Safari Desktop Mode reports platform 'MacIntel' with maxTouchPoints > 1
+      const isIPad = /iPad/i.test(ua) || ((platform === 'MacIntel' || /Macintosh/i.test(ua)) && maxTouch > 1);
+
+      if (isIPad) return 'Apple iPad';
+      if (/iPhone/i.test(ua)) return 'Apple iPhone';
+      if (/Android/i.test(ua)) return 'Android Device';
+      if (/Macintosh|Mac OS X/i.test(ua)) return 'MacBook / Mac Computer';
+      if (/Windows/i.test(ua)) return 'Windows PC';
+    } catch (e) {}
+    return '';
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     try {
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Type': getClientDeviceType()
+        },
         body: JSON.stringify({ username: loginUsername.trim(), password: loginPassword.trim() }),
       });
       const data = await response.json();
@@ -433,7 +454,10 @@ function App() {
     try {
       const response = await fetch(`${API_BASE}/api/login/demo`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Type': getClientDeviceType()
+        },
       });
       const data = await response.json();
       if (response.ok) {

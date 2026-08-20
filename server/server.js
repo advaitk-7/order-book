@@ -133,7 +133,15 @@ const Session = mongoose.model("Session", new mongoose.Schema({
   lastActive: { type: Date, default: Date.now }
 }));
 
-function parseUserAgent(ua) {
+function parseUserAgent(ua, deviceTypeHeader) {
+  if (deviceTypeHeader && String(deviceTypeHeader).trim()) {
+    let browser = 'Safari';
+    if (/Chrome|CriOS/i.test(ua)) browser = 'Chrome';
+    else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox';
+    else if (/Edg/i.test(ua)) browser = 'Edge';
+    return `${String(deviceTypeHeader).trim()} (${browser})`;
+  }
+
   if (!ua || ua === 'Unknown User-Agent' || ua === 'Unknown Device') {
     return 'MacBook / Desktop Computer (Chrome)';
   }
@@ -523,7 +531,8 @@ app.post("/api/auth/login", async (req, res) => {
     const token = jwt.sign({ username: matchedUsername }, JWT_SECRET, { expiresIn: "24h" });
 
     const rawUa = req.headers['user-agent'] || 'Unknown User-Agent';
-    const userAgent = parseUserAgent(rawUa);
+    const deviceTypeHeader = req.headers['x-device-type'];
+    const userAgent = parseUserAgent(rawUa, deviceTypeHeader);
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown IP';
     const ipAddress = rawIp.split(',')[0].trim();
 
@@ -613,7 +622,8 @@ app.post("/api/login/demo", async (req, res) => {
     const token = jwt.sign({ username: 'guest_demo', role: 'demo' }, JWT_SECRET, { expiresIn: '12h' });
 
     const rawUa = req.headers['user-agent'] || 'Unknown User-Agent';
-    const userAgent = parseUserAgent(rawUa);
+    const deviceTypeHeader = req.headers['x-device-type'];
+    const userAgent = parseUserAgent(rawUa, deviceTypeHeader);
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown IP';
     const ipAddress = rawIp.split(',')[0].trim();
 
