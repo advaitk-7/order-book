@@ -587,164 +587,19 @@ const buildDemoModels = (conn) => ({
 });
 
 const seedDemoDatabase = async (models) => {
-  const today = new Date();
-  const d = (offsetDays) => {
-    const dt = new Date(today);
-    dt.setDate(dt.getDate() + offsetDays);
-    return dt.toISOString().split('T')[0];
-  };
-
-  // ── 20 Dummy Orders ──────────────────────────────────────────────────────
-  const demoOrders = [
-    { orderNumber:'D-001', customerName:'Aarav Sharma',    contactNumber:'9876543210', gender:'Male',   school:"St. Xavier's High School",  grade:'6', deliveryDate:d(5),  amount:850,  paymentStatus:'Paid',   status:'Pending',   contactStatus:'Not contacted', items:[{itemType:'Shirt', sizeFarma:'32', quantity:2, productionCategory:'fs_shirt_32_44', measurements:{}},{itemType:'Pant',  sizeFarma:'28', quantity:2, productionCategory:'trousers_elastic_20_30', measurements:{}}], notes:'' },
-    { orderNumber:'D-002', customerName:'Ananya Patel',    contactNumber:'9876543211', gender:'Female', school:"Delhi Public School",         grade:'8', deliveryDate:d(3),  amount:620,  paymentStatus:'Unpaid', status:'Ready',     contactStatus:'Contacted',     items:[{itemType:'Skirt', sizeFarma:'26', quantity:1, productionCategory:'skirt_div_regular', measurements:{}},{itemType:'Top',  sizeFarma:'30', quantity:2, productionCategory:'ni_top_reg', measurements:{}}], notes:'Rush order' },
-    { orderNumber:'D-003', customerName:'Rohan Mehta',     contactNumber:'9876543212', gender:'Male',   school:"Greenwood International",    grade:'10',deliveryDate:d(-2), amount:1200, paymentStatus:'Paid',   status:'Delivered', contactStatus:'Contacted',     items:[{itemType:'Blazer',sizeFarma:'36', quantity:1, productionCategory:'coaty_at', measurements:{}},{itemType:'Shirt', sizeFarma:'34', quantity:2, productionCategory:'hs_shirt_32_44', measurements:{}}], notes:'' },
-    { orderNumber:'D-004', customerName:'Priya Singh',     contactNumber:'9876543213', gender:'Female', school:"Ryan International",         grade:'5', deliveryDate:d(7),  amount:480,  paymentStatus:'Unpaid', status:'Pending',   contactStatus:'Not contacted', items:[{itemType:'Frock', sizeFarma:'24', quantity:2, productionCategory:'nirmala_sns_frock', measurements:{waist:'22', length:'28'}}], notes:'Embroidery on collar' },
-    { orderNumber:'D-005', customerName:'Kavya Joshi',     contactNumber:'9876543214', gender:'Female', school:"City Montessori",            grade:'7', deliveryDate:d(4),  amount:730,  paymentStatus:'Paid',   status:'Ready',     contactStatus:'Contacted',     items:[{itemType:'Pinafore',sizeFarma:'28',quantity:2, productionCategory:'pinafore', measurements:{}},{itemType:'Top',sizeFarma:'28',quantity:1, productionCategory:'ni_top_cbse', measurements:{}}], notes:'' },
-    { orderNumber:'D-006', customerName:'Vikram Malhotra', contactNumber:'9876543215', gender:'Male',   school:"St. Xavier's High School",  grade:'9', deliveryDate:d(10), amount:960,  paymentStatus:'Paid',   status:'Pending',   contactStatus:'Not contacted', items:[{itemType:'Shirt', sizeFarma:'38', quantity:3, productionCategory:'hs_shirt_32_44', measurements:{}},{itemType:'Pant', sizeFarma:'32', quantity:2, productionCategory:'trousers_belt', measurements:{}}], notes:'' },
-    { orderNumber:'D-007', customerName:'Aditya Nair',     contactNumber:'9876543216', gender:'Male',   school:"Delhi Public School",        grade:'11',deliveryDate:d(6),  amount:1450, paymentStatus:'Unpaid', status:'Pending',   contactStatus:'Not contacted', items:[{itemType:'Blazer',sizeFarma:'40', quantity:1, productionCategory:'coaty_kv_dk', measurements:{}},{itemType:'Shirt',sizeFarma:'38',quantity:2, productionCategory:'fs_shirt_32_44', measurements:{}},{itemType:'Pant',sizeFarma:'34',quantity:2, productionCategory:'trousers_belt', measurements:{}}], notes:'School Sports Day Uniform' },
-    { orderNumber:'D-008', customerName:'Isha Verma',      contactNumber:'9876543217', gender:'Female', school:"Greenwood International",    grade:'4', deliveryDate:d(-5), amount:400,  paymentStatus:'Paid',   status:'Delivered', contactStatus:'Contacted',     items:[{itemType:'Frock', sizeFarma:'22', quantity:2, productionCategory:'nirmala_sns_frock', measurements:{}}], notes:'' },
-    { orderNumber:'D-009', customerName:'Siddharth Rao',   contactNumber:'9876543218', gender:'Male',   school:"Ryan International",         grade:'3', deliveryDate:d(2),  amount:560,  paymentStatus:'Paid',   status:'Ready',     contactStatus:'Contacted',     items:[{itemType:'Shirt', sizeFarma:'24', quantity:2, productionCategory:'hs_shirt_20_30', measurements:{}},{itemType:'Shorts',sizeFarma:'22', quantity:2, productionCategory:'trousers_elastic_20_30', measurements:{}}], notes:'' },
-    { orderNumber:'D-010', customerName:'Meera Kapoor',    contactNumber:'9876543219', gender:'Female', school:"City Montessori",            grade:'6', deliveryDate:d(8),  amount:890,  paymentStatus:'Unpaid', status:'Pending',   contactStatus:'Unable to contact', items:[{itemType:'Skirt', sizeFarma:'28', quantity:2, productionCategory:'at_skirt', measurements:{}},{itemType:'Top',sizeFarma:'28', quantity:2, productionCategory:'ni_top_order', measurements:{}}], notes:'Call again after 6pm' },
-    { orderNumber:'D-011', customerName:'Aryan Gupta',     contactNumber:'9876543220', gender:'Male',   school:"St. Xavier's High School",  grade:'8', deliveryDate:d(12), amount:780,  paymentStatus:'Paid',   status:'Pending',   contactStatus:'Not contacted', items:[{itemType:'Kurta', sizeFarma:'30', quantity:2, productionCategory:'kurta_regular', measurements:{length:'28'}},{itemType:'Pajama',sizeFarma:'28', quantity:2, productionCategory:'trousers_elastic_20_30', measurements:{}}], notes:'Annual Day function' },
-    { orderNumber:'D-012', customerName:'Divya Menon',     contactNumber:'9876543221', gender:'Female', school:"Delhi Public School",        grade:'9', deliveryDate:d(-1), amount:540,  paymentStatus:'Paid',   status:'Delivered', contactStatus:'Contacted',     items:[{itemType:'Top',  sizeFarma:'32', quantity:2, productionCategory:'ni_top_cbse', measurements:{}}], notes:'' },
-    { orderNumber:'D-013', customerName:'Rahul Tiwari',    contactNumber:'9876543222', gender:'Male',   school:"Greenwood International",    grade:'12',deliveryDate:d(15), amount:1680, paymentStatus:'Unpaid', status:'Pending',   contactStatus:'Not contacted', items:[{itemType:'Blazer',sizeFarma:'42', quantity:1, productionCategory:'coaty_at_order', measurements:{}},{itemType:'Shirt',sizeFarma:'40',quantity:3, productionCategory:'fs_order_shirt_32_44', measurements:{}},{itemType:'Pant',sizeFarma:'36',quantity:2, productionCategory:'trousers_belt_order', measurements:{}}], notes:'Farewell batch' },
-    { orderNumber:'D-014', customerName:'Shreya Iyer',     contactNumber:'9876543223', gender:'Female', school:"Ryan International",         grade:'7', deliveryDate:d(4),  amount:660,  paymentStatus:'Paid',   status:'Ready',     contactStatus:'Contacted',     items:[{itemType:'Skirt', sizeFarma:'26', quantity:2, productionCategory:'skirt_div_order', measurements:{}},{itemType:'Top', sizeFarma:'26', quantity:2, productionCategory:'ni_top_reg', measurements:{}}], notes:'' },
-    { orderNumber:'D-015', customerName:'Karan Bose',      contactNumber:'9876543224', gender:'Male',   school:"City Montessori",            grade:'5', deliveryDate:d(9),  amount:480,  paymentStatus:'Unpaid', status:'Pending',   contactStatus:'Not contacted', items:[{itemType:'Shirt', sizeFarma:'26', quantity:2, productionCategory:'hs_shirt_20_30', measurements:{}},{itemType:'Shorts',sizeFarma:'24', quantity:2, productionCategory:'trousers_elastic_20_30', measurements:{}}], notes:'' },
-    { orderNumber:'D-016', customerName:'Pooja Sharma',    contactNumber:'9876543225', gender:'Female', school:"St. Xavier's High School",  grade:'10',deliveryDate:d(3),  amount:820,  paymentStatus:'Paid',   status:'Ready',     contactStatus:'Contacted',     items:[{itemType:'Pinafore',sizeFarma:'30',quantity:2, productionCategory:'pinafore_order', measurements:{waist:'26', length:'34'}},{itemType:'Top',sizeFarma:'30',quantity:1, productionCategory:'ni_top_cbse', measurements:{}}], notes:'Check pleats carefully' },
-    { orderNumber:'D-017', customerName:'Nikhil Desai',    contactNumber:'9876543226', gender:'Male',   school:"Delhi Public School",        grade:'6', deliveryDate:d(11), amount:560,  paymentStatus:'Paid',   status:'Pending',   contactStatus:'Not contacted', items:[{itemType:'Shirt', sizeFarma:'28', quantity:2, productionCategory:'hs_shirt_20_30', measurements:{}},{itemType:'Pant', sizeFarma:'26', quantity:2, productionCategory:'trousers_elastic_20_30_order', measurements:{}}], notes:'' },
-    { orderNumber:'D-018', customerName:'Sneha Reddy',     contactNumber:'9876543227', gender:'Female', school:"Greenwood International",    grade:'3', deliveryDate:d(-3), amount:380,  paymentStatus:'Paid',   status:'Delivered', contactStatus:'Contacted',     items:[{itemType:'Frock', sizeFarma:'20', quantity:2, productionCategory:'nirmala_sns_frock', measurements:{}}], notes:'' },
-    { orderNumber:'D-019', customerName:'Arnav Trivedi',   contactNumber:'9876543228', gender:'Male',   school:"Ryan International",         grade:'11',deliveryDate:d(14), amount:1340, paymentStatus:'Unpaid', status:'Pending',   contactStatus:'Not contacted', items:[{itemType:'Blazer',sizeFarma:'38', quantity:1, productionCategory:'coaty_kv_dk_order', measurements:{}},{itemType:'Shirt',sizeFarma:'36',quantity:2, productionCategory:'fs_shirt_32_44', measurements:{}},{itemType:'Pant',sizeFarma:'34',quantity:1, productionCategory:'trousers_belt', measurements:{}}], notes:'' },
-    { orderNumber:'D-020', customerName:'Tanya Khanna',    contactNumber:'9876543229', gender:'Female', school:"City Montessori",            grade:'8', deliveryDate:d(7),  amount:750,  paymentStatus:'Paid',   status:'Pending',   contactStatus:'Contacted',     items:[{itemType:'Skirt', sizeFarma:'28', quantity:2, productionCategory:'at_skirt_order', measurements:{}},{itemType:'Top', sizeFarma:'28', quantity:2, productionCategory:'ni_top_cbse', measurements:{}},{itemType:'Blazer',sizeFarma:'32',quantity:1, productionCategory:'coaty_at', measurements:{}}], notes:'Double-check blazer size' },
-  ];
-
-  // ── 4 Dummy Supplier Parties ────────────────────────────────────────────
-  const demoParties = [
-    { name:'Raymond Fabric Suppliers',  contactNumber:'9123456781', specialties:['Suiting','Blazer Cloth'], notes:'Main fabric supplier' },
-    { name:'Vardhman Textiles Ltd',     contactNumber:'9123456782', specialties:['Shirt Cloth','Cotton'], notes:'Reliable delivery' },
-    { name:'Mafatlal Fabrics Co.',      contactNumber:'9123456783', specialties:['School Uniform Fabric'], notes:'' },
-    { name:'Century Denim Mills',       contactNumber:'9123456784', specialties:['Denim','Shorts Fabric'], notes:'Good pricing' },
-  ];
-
-  // ── 4 Dummy Supplier POs ────────────────────────────────────────────────
-  const demoPOs = [
-    {
-      poNumber:'PO-D-001', partyName:'Raymond Fabric Suppliers',
-      products:[{ productName:'Navy Blue Suiting Cloth', school:"St. Xavier's High School", specification:{}, specifications:[], unitPrice:180, sizeBreakdown:[{size:'1 Meter',orderedQty:120,receivedQty:80,unitPrice:180},{size:'0.5 Meter',orderedQty:60,receivedQty:40,unitPrice:95}] }],
-      targetDate:d(15), status:'Partial', sizeBreakdown:[], installments:[{ receivedAt:new Date(today.getTime()-7*86400000), challanNumber:'CH-1021', items:[{productName:'Navy Blue Suiting Cloth',size:'1 Meter',qty:80},{productName:'Navy Blue Suiting Cloth',size:'0.5 Meter',qty:40}], notes:'First installment received' }], notes:'Balance delivery pending'
-    },
-    {
-      poNumber:'PO-D-002', partyName:'Vardhman Textiles Ltd',
-      products:[{ productName:'White Cotton Shirt Cloth', school:"Delhi Public School", specification:{}, specifications:[], unitPrice:120, sizeBreakdown:[{size:'1 Meter',orderedQty:200,receivedQty:200,unitPrice:120}] }],
-      targetDate:d(-10), status:'Completed', sizeBreakdown:[], installments:[{ receivedAt:new Date(today.getTime()-14*86400000), challanNumber:'CH-0987', items:[{productName:'White Cotton Shirt Cloth',size:'1 Meter',qty:200}], notes:'Full lot received in one delivery' }], notes:''
-    },
-    {
-      poNumber:'PO-D-003', partyName:'Mafatlal Fabrics Co.',
-      products:[{ productName:'Grey School Uniform Fabric', school:"Greenwood International", specification:{}, specifications:[], unitPrice:150, sizeBreakdown:[{size:'1 Meter',orderedQty:180,receivedQty:0,unitPrice:150}] }],
-      targetDate:d(20), status:'Pending', sizeBreakdown:[], installments:[], notes:'Awaiting first delivery'
-    },
-    {
-      poNumber:'PO-D-004', partyName:'Century Denim Mills',
-      products:[{ productName:'Dark Blue Denim Shorts Fabric', school:"Ryan International", specification:{}, specifications:[], unitPrice:95, sizeBreakdown:[{size:'1 Meter',orderedQty:100,receivedQty:60,unitPrice:95}] }],
-      targetDate:d(8), status:'Partial', sizeBreakdown:[], installments:[{ receivedAt:new Date(today.getTime()-3*86400000), challanNumber:'CH-1102', items:[{productName:'Dark Blue Denim Shorts Fabric',size:'1 Meter',qty:60}], notes:'' }], notes:'Balance 40m expected this week'
-    },
-  ];
-
-  // ── 4 Dummy Clients & Bulk Orders (COs) ────────────────────────────────
-  const demoClients = [
-    { name:'Reliance Retail Uniforms',         contactNumber:'9200000001', address:'Nariman Point, Mumbai', gstNumber:'27AABCR1234C1Z5', email:'uniforms@relianceretail.com', notes:'' },
-    { name:'Apollo Hospital Staff Uniforms',    contactNumber:'9200000002', address:'Jubilee Hills, Hyderabad', gstNumber:'36AACCA5678D1Z2', email:'purchase@apollohospitals.com', notes:'Strict delivery timeline' },
-    { name:'Taj Hotels Hospitality Gear',       contactNumber:'9200000003', address:'Colaba, Mumbai', gstNumber:'27AAACT8765E1Z8', email:'procurement@tajhotels.com', notes:'Premium fabric only' },
-    { name:'Tata Motors Worker Uniforms',       contactNumber:'9200000004', address:'MIDC, Pune', gstNumber:'27AAACT3456F1Z3', email:'admin@tatamotors.com', notes:'' },
-  ];
-
-  const demoCOs = [
-    {
-      boNumber:'CO-D-001', clientName:'Reliance Retail Uniforms',
-      products:[
-        { productName:'Staff Polo Shirt',   school:'Reliance Retail Uniforms', specification:{}, specifications:[], unitPrice:450, frontLogoCost:80, backLogoCost:0,  sizeBreakdown:[{size:'S',orderedQty:50,deliveredQty:50,unitPrice:450},{size:'M',orderedQty:80,deliveredQty:60,unitPrice:450},{size:'L',orderedQty:60,deliveredQty:40,unitPrice:450},{size:'XL',orderedQty:30,deliveredQty:20,unitPrice:450}] },
-        { productName:'Staff Trousers',      school:'Reliance Retail Uniforms', specification:{}, specifications:[], unitPrice:600, frontLogoCost:0,  backLogoCost:0,  sizeBreakdown:[{size:'30',orderedQty:80,deliveredQty:70,unitPrice:600},{size:'32',orderedQty:100,deliveredQty:80,unitPrice:600},{size:'34',orderedQty:40,deliveredQty:20,unitPrice:600}] },
-      ],
-      targetDate:d(10), status:'Partial',
-      dispatches:[{ dispatchedAt:new Date(today.getTime()-5*86400000), challanNumber:'DCH-2201', items:[{productName:'Staff Polo Shirt',size:'S',qty:50},{productName:'Staff Polo Shirt',size:'M',qty:60},{productName:'Staff Trousers',size:'30',qty:70},{productName:'Staff Trousers',size:'32',qty:80}], notes:'First batch dispatched' }],
-      notes:'3 more batches planned'
-    },
-    {
-      boNumber:'CO-D-002', clientName:'Apollo Hospital Staff Uniforms',
-      products:[
-        { productName:'Nursing Scrub Top',  school:'Apollo Hospital', specification:{}, specifications:[], unitPrice:380, frontLogoCost:60, backLogoCost:0,  sizeBreakdown:[{size:'S',orderedQty:30,deliveredQty:30,unitPrice:380},{size:'M',orderedQty:50,deliveredQty:50,unitPrice:380},{size:'L',orderedQty:40,deliveredQty:40,unitPrice:380}] },
-        { productName:'Nursing Scrub Pant', school:'Apollo Hospital', specification:{}, specifications:[], unitPrice:320, frontLogoCost:0,  backLogoCost:0,  sizeBreakdown:[{size:'S',orderedQty:30,deliveredQty:30,unitPrice:320},{size:'M',orderedQty:50,deliveredQty:50,unitPrice:320},{size:'L',orderedQty:40,deliveredQty:40,unitPrice:320}] },
-      ],
-      targetDate:d(-7), status:'Completed',
-      dispatches:[{ dispatchedAt:new Date(today.getTime()-10*86400000), challanNumber:'DCH-2155', items:[{productName:'Nursing Scrub Top',size:'S',qty:30},{productName:'Nursing Scrub Top',size:'M',qty:50},{productName:'Nursing Scrub Top',size:'L',qty:40},{productName:'Nursing Scrub Pant',size:'S',qty:30},{productName:'Nursing Scrub Pant',size:'M',qty:50},{productName:'Nursing Scrub Pant',size:'L',qty:40}], notes:'Full order delivered' }],
-      notes:''
-    },
-    {
-      boNumber:'CO-D-003', clientName:'Taj Hotels Hospitality Gear',
-      products:[
-        { productName:'Banquet Staff Waistcoat', school:'Taj Hotels', specification:{}, specifications:[], unitPrice:850, frontLogoCost:120, backLogoCost:60, sizeBreakdown:[{size:'S',orderedQty:20,deliveredQty:0,unitPrice:850},{size:'M',orderedQty:40,deliveredQty:0,unitPrice:850},{size:'L',orderedQty:30,deliveredQty:0,unitPrice:850},{size:'XL',orderedQty:10,deliveredQty:0,unitPrice:850}] },
-        { productName:'Banquet Staff Trouser',   school:'Taj Hotels', specification:{}, specifications:[], unitPrice:700, frontLogoCost:0,   backLogoCost:0,  sizeBreakdown:[{size:'30',orderedQty:30,deliveredQty:0,unitPrice:700},{size:'32',orderedQty:50,deliveredQty:0,unitPrice:700},{size:'34',orderedQty:20,deliveredQty:0,unitPrice:700}] },
-      ],
-      targetDate:d(25), status:'Pending',
-      dispatches:[],
-      notes:'Premium quality fabric. Embroidered logo.'
-    },
-    {
-      boNumber:'CO-D-004', clientName:'Tata Motors Worker Uniforms',
-      products:[
-        { productName:'Industrial Safety Shirt', school:'Tata Motors', specification:{}, specifications:[], unitPrice:280, frontLogoCost:50, backLogoCost:50, sizeBreakdown:[{size:'M',orderedQty:100,deliveredQty:100,unitPrice:280},{size:'L',orderedQty:150,deliveredQty:120,unitPrice:280},{size:'XL',orderedQty:80,deliveredQty:60,unitPrice:280},{size:'XXL',orderedQty:40,deliveredQty:20,unitPrice:280}] },
-      ],
-      targetDate:d(5), status:'Partial',
-      dispatches:[{ dispatchedAt:new Date(today.getTime()-2*86400000), challanNumber:'DCH-2310', items:[{productName:'Industrial Safety Shirt',size:'M',qty:100},{productName:'Industrial Safety Shirt',size:'L',qty:120},{productName:'Industrial Safety Shirt',size:'XL',qty:60},{productName:'Industrial Safety Shirt',size:'XXL',qty:20}], notes:'First dispatch' }],
-      notes:'Balance dispatch in 5 days'
-    },
-  ];
-
-  // ── 8 Dummy Waitlist Items ──────────────────────────────────────────────
-  const demoWaitlist = [
-    { customerName:'Radhika Pillai',  contactNumber:'9911000001', schools:["St. Xavier's High School"],  items:[{name:'Full Sleeve Navy Shirt Size 32',status:'Pending'},{name:'Belt Trouser Size 30',status:'Pending'}],  notes:'Waiting since 2 weeks', notifiedAt:null },
-    { customerName:'Arun Menon',      contactNumber:'9911000002', schools:["Delhi Public School"],         items:[{name:'PE Kit Shorts Size 28',status:'Notified'}],  notes:'Stock arrived, notified', notifiedAt:new Date(today.getTime()-1*86400000) },
-    { customerName:'Geeta Sharma',    contactNumber:'9911000003', schools:["Greenwood International"],     items:[{name:'Blazer Size 36',status:'Pending'},{name:'Half Sleeve White Shirt Size 34',status:'Pending'}], notes:'', notifiedAt:null },
-    { customerName:'Rohit Kulkarni',  contactNumber:'9911000004', schools:["Ryan International"],          items:[{name:'Pleated Pinafore Size 28',status:'Pending'}], notes:'Urgent, school reopening soon', notifiedAt:null },
-    { customerName:'Fathima Nawaz',   contactNumber:'9911000005', schools:["City Montessori"],             items:[{name:'CBSE Top Size 30',status:'Notified'}], notes:'Notified via WhatsApp', notifiedAt:new Date(today.getTime()-2*86400000) },
-    { customerName:'Aditya Khanna',   contactNumber:'9911000006', schools:["St. Xavier's High School"],   items:[{name:'Cargo Shorts Size 26',status:'Pending'},{name:'Polo Shirt Size 26',status:'Pending'}], notes:'', notifiedAt:null },
-    { customerName:'Preeti Nair',     contactNumber:'9911000007', schools:["Delhi Public School"],          items:[{name:'AT Skirt Size 24',status:'Pending'}], notes:'Called twice, no answer', notifiedAt:null },
-    { customerName:'Suraj Thosar',    contactNumber:'9911000008', schools:["Greenwood International"],     items:[{name:'HS Shirt Size 38',status:'Notified'},{name:'Belt Trouser Size 34',status:'Notified'}], notes:'Picked up confirmed', notifiedAt:new Date(today.getTime()-3*86400000) },
-  ];
-
-  // Insert all seed data only if collections are empty
-  const [orderCount, waitlistCount, partyCount, vendorCount, clientCount, bulkCount] = await Promise.all([
-    models.Order.countDocuments(),
-    models.Waitlist.countDocuments(),
-    models.Party.countDocuments(),
-    models.VendorOrder.countDocuments(),
-    models.Client.countDocuments(),
-    models.BulkOrder.countDocuments(),
-  ]);
-
-  if (orderCount === 0) {
-    await models.Order.insertMany(demoOrders);
-    console.log(`[DEMO DB] Seeded ${demoOrders.length} demo orders`);
-  }
-  if (waitlistCount === 0) {
-    await models.Waitlist.insertMany(demoWaitlist);
-    console.log(`[DEMO DB] Seeded ${demoWaitlist.length} demo waitlist entries`);
-  }
-  if (partyCount === 0) {
-    await models.Party.insertMany(demoParties);
-    console.log(`[DEMO DB] Seeded ${demoParties.length} demo parties`);
-  }
-  if (vendorCount === 0) {
-    await models.VendorOrder.insertMany(demoPOs);
-    console.log(`[DEMO DB] Seeded ${demoPOs.length} demo purchase orders`);
-  }
-  if (clientCount === 0) {
-    await models.Client.insertMany(demoClients);
-    console.log(`[DEMO DB] Seeded ${demoClients.length} demo clients`);
-  }
-  if (bulkCount === 0) {
-    await models.BulkOrder.insertMany(demoCOs);
-    console.log(`[DEMO DB] Seeded ${demoCOs.length} demo bulk client orders`);
+  // Wipe all records from order_book_demo database so guest sandbox is completely clean & empty
+  try {
+    await Promise.all([
+      models.Order.deleteMany({}),
+      models.Waitlist.deleteMany({}),
+      models.Party.deleteMany({}),
+      models.VendorOrder.deleteMany({}),
+      models.Client.deleteMany({}),
+      models.BulkOrder.deleteMany({})
+    ]);
+    console.log("[DEMO DB] Prepared empty sandbox database (order_book_demo)");
+  } catch (err) {
+    console.error("[DEMO DB] Error clearing sandbox collections:", err.message);
   }
 };
 
