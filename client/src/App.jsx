@@ -351,6 +351,7 @@ const checkFuzzyMatch = (searchQuery, target) => {
 
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('token') || '')
+  const [isDemoMode, setIsDemoMode] = useState(() => localStorage.getItem('isDemoMode') === 'true')
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
   const [showLogoutDropdown, setShowLogoutDropdown] = useState(false)
   const [loginUsername, setLoginUsername] = useState('')
@@ -415,10 +416,33 @@ function App() {
       if (response.ok) {
         setToken(data.token);
         localStorage.setItem('token', data.token);
+        localStorage.removeItem('isDemoMode');
+        setIsDemoMode(false);
         setLoginUsername('');
         setLoginPassword('');
       } else {
         setLoginError(data.message || 'Login failed.');
+      }
+    } catch (err) {
+      setLoginError('Failed to connect to the server.');
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoginError('');
+    try {
+      const response = await fetch(`${API_BASE}/api/login/demo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setToken(data.token);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('isDemoMode', 'true');
+        setIsDemoMode(true);
+      } else {
+        setLoginError(data.message || 'Failed to start demo session.');
       }
     } catch (err) {
       setLoginError('Failed to connect to the server.');
@@ -503,6 +527,8 @@ function App() {
   const handleLogout = () => {
     setToken('');
     localStorage.removeItem('token');
+    localStorage.removeItem('isDemoMode');
+    setIsDemoMode(false);
     setShowLogoutDropdown(false);
     setActivePage('Dashboard');
   };
@@ -5176,6 +5202,46 @@ return sortedOrders.slice(0, visibleCount)
                 Sign In
               </button>
 
+              {/* Demo Divider */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '16px 0 0' }}>
+                <div style={{ flex: 1, height: '1px', background: '#E2E8F0' }} />
+                <span style={{ fontSize: '11px', fontWeight: '600', color: '#94A3B8', whiteSpace: 'nowrap' }}>OR</span>
+                <div style={{ flex: 1, height: '1px', background: '#E2E8F0' }} />
+              </div>
+
+              {/* 1-Click Demo Access Button */}
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                style={{
+                  width: '100%',
+                  marginTop: '10px',
+                  padding: '13px',
+                  background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+                  color: '#F8FAFC',
+                  border: '1px solid #334155',
+                  borderRadius: '14px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  letterSpacing: '0.01em',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = 'linear-gradient(135deg, #1E293B 0%, #334155 100%)'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)'}
+              >
+                <span style={{ fontSize: '16px' }}>⚡</span>
+                Try Live Demo (Guest Access)
+              </button>
+              <p style={{ fontSize: '11px', color: '#94A3B8', textAlign: 'center', marginTop: '8px', marginBottom: 0 }}>
+                Explore a sandbox with sample data — no account needed
+              </p>
+
               <button
                 type="button"
                 className="forgot-link-btn"
@@ -5396,12 +5462,31 @@ return sortedOrders.slice(0, visibleCount)
             <p className="page-subtitle">{pageSubtitles[activePage]}</p>
           </div>
           <div className="topbar-actions" style={{ position: 'relative' }}>
+            {isDemoMode && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'linear-gradient(135deg, #064E3B, #065F46)',
+                color: '#D1FAE5',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: '700',
+                letterSpacing: '0.03em',
+                boxShadow: '0 2px 8px rgba(5, 150, 105, 0.25)',
+                border: '1px solid rgba(52, 211, 153, 0.3)'
+              }}>
+                <span style={{ fontSize: '10px', lineHeight: 1 }}>🟢</span>
+                Demo Mode (Sandbox)
+              </div>
+            )}
             <div
               className="profile-badge"
               onClick={() => setShowLogoutDropdown(!showLogoutDropdown)}
               style={{ cursor: 'pointer' }}
             >
-              AK
+              {isDemoMode ? 'G' : 'AK'}
             </div>
             {showLogoutDropdown && (
               <div className="logout-dropdown">
