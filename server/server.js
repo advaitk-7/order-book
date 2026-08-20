@@ -7,6 +7,9 @@ const bcrypt = require("bcryptjs");
 const path = require("path");
 const fs = require("fs");
 const zlib = require("zlib");
+const { AsyncLocalStorage } = require("async_hooks");
+
+const asyncLocalStorage = new AsyncLocalStorage();
 
 dotenv.config();
 
@@ -175,7 +178,9 @@ const authenticateJWT = async (req, res, next) => {
 
         req.user = user;
         req.token = token;
-        next();
+        asyncLocalStorage.run({ isDemo: user && user.role === 'demo' }, () => {
+          next();
+        });
       } catch (error) {
         res.status(500).json({ message: "Auth server database error" });
       }
@@ -217,7 +222,7 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ orderNumber: 1 }, { unique: true });
 orderSchema.index({ createdAt: -1 });
 
-const Order = mongoose.model("Order", orderSchema);
+const RawOrder = mongoose.model("Order", orderSchema);
 
 const adminSchema = new mongoose.Schema({
   username: { type: String, required: true },
@@ -232,13 +237,13 @@ const auditLogSchema = new mongoose.Schema({
   details: String,
   performedBy: { type: String, default: "Admin" }
 }, { timestamps: true });
-const AuditLog = mongoose.model("AuditLog", auditLogSchema);
+const RawAuditLog = mongoose.model("AuditLog", auditLogSchema);
 
 const systemSettingsSchema = new mongoose.Schema({
   key: { type: String, required: true, unique: true },
   value: mongoose.Schema.Types.Mixed
 });
-const SystemSettings = mongoose.model("SystemSettings", systemSettingsSchema);
+const RawSystemSettings = mongoose.model("SystemSettings", systemSettingsSchema);
 
 const waitlistSchema = new mongoose.Schema(
   {
@@ -260,7 +265,7 @@ waitlistSchema.index({ notifiedAt: 1 }, { expireAfterSeconds: 604800 });
 waitlistSchema.index({ createdAt: -1 });
 waitlistSchema.index({ schools: 1 });
 
-const Waitlist = mongoose.model("Waitlist", waitlistSchema);
+const RawWaitlist = mongoose.model("Waitlist", waitlistSchema);
 
 const waitlistSchoolSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true, trim: true }
@@ -276,7 +281,7 @@ const partySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-const Party = mongoose.model("Party", partySchema);
+const RawParty = mongoose.model("Party", partySchema);
 
 const vendorOrderSchema = new mongoose.Schema(
   {
@@ -340,7 +345,7 @@ vendorOrderSchema.index({ partyName: 1 });
 vendorOrderSchema.index({ status: 1 });
 vendorOrderSchema.index({ createdAt: -1 });
 
-const VendorOrder = mongoose.model("VendorOrder", vendorOrderSchema);
+const RawVendorOrder = mongoose.model("VendorOrder", vendorOrderSchema);
 
 const clientSchema = new mongoose.Schema(
   {
@@ -353,7 +358,7 @@ const clientSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-const Client = mongoose.model("Client", clientSchema);
+const RawClient = mongoose.model("Client", clientSchema);
 
 const bulkOrderSchema = new mongoose.Schema(
   {
@@ -412,7 +417,47 @@ bulkOrderSchema.index({ clientName: 1 });
 bulkOrderSchema.index({ status: 1 });
 bulkOrderSchema.index({ createdAt: -1 });
 
-const BulkOrder = mongoose.model("BulkOrder", bulkOrderSchema);
+const RawBulkOrder = mongoose.model("BulkOrder", bulkOrderSchema);
+
+// Dynamic Model Proxy helpers for Demo Database (order_book_demo) Isolation
+let demoModelsCache = null;
+
+const getActiveModel = (prodModel, modelName) => {
+  const store = asyncLocalStorage.getStore();
+  if (store && store.isDemo && demoConnection && demoConnection.readyState === 1) {
+    if (!demoModelsCache) {
+      demoModelsCache = buildDemoModels(demoConnection);
+    }
+    return demoModelsCache[modelName] || prodModel;
+  }
+  return prodModel;
+};
+
+const createModelProxy = (prodModel, modelName) => {
+  return new Proxy(prodModel, {
+    get(target, prop, receiver) {
+      const active = getActiveModel(prodModel, modelName);
+      const val = Reflect.get(active, prop, active);
+      if (typeof val === 'function') {
+        return val.bind(active);
+      }
+      return val;
+    },
+    construct(target, args) {
+      const active = getActiveModel(prodModel, modelName);
+      return Reflect.construct(active, args);
+    }
+  });
+};
+
+const Order          = createModelProxy(RawOrder,          "Order");
+const Waitlist       = createModelProxy(RawWaitlist,       "Waitlist");
+const Party          = createModelProxy(RawParty,          "Party");
+const VendorOrder    = createModelProxy(RawVendorOrder,    "VendorOrder");
+const Client         = createModelProxy(RawClient,         "Client");
+const BulkOrder      = createModelProxy(RawBulkOrder,      "BulkOrder");
+const AuditLog       = createModelProxy(RawAuditLog,       "AuditLog");
+const SystemSettings = createModelProxy(RawSystemSettings, "SystemSettings");
 
 // 75-day TTL index removed in favor of 100-block rolling cycle cleanup
 
@@ -675,6 +720,23 @@ app.post("/api/login/demo", async (req, res) => {
     await seedDemoDatabase(models);
 
     const token = jwt.sign({ username: 'guest_demo', role: 'demo' }, JWT_SECRET, { expiresIn: '12h' });
+
+    const rawUa = req.headers['user-agent'] || 'Unknown User-Agent';
+    const userAgent = parseUserAgent(rawUa);
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown IP';
+    const ipAddress = rawIp.split(',')[0].trim();
+
+    try {
+      await Session.create({
+        token,
+        username: 'guest_demo',
+        userAgent: `[Demo] ${userAgent}`,
+        ipAddress
+      });
+    } catch (sErr) {
+      console.error("Session creation error for demo:", sErr.message);
+    }
+
     console.log("[DEMO] Guest demo session started");
     return res.json({ token, isDemo: true });
   } catch (err) {
