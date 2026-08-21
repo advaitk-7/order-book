@@ -402,6 +402,7 @@ function App() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiVoiceActive, setAiVoiceActive] = useState(false)
   const [aiSpeakerEnabled, setAiSpeakerEnabled] = useState(true)
+  const [lastUndoPayload, setLastUndoPayload] = useState(null)
   const [newCatRate, setNewCatRate] = useState('')
   const [pricingRates, setPricingRates] = useState(DEFAULT_PRICING_RATES)
   const [pricingInputs, setPricingInputs] = useState(DEFAULT_PRICING_RATES)
@@ -553,10 +554,20 @@ function App() {
           } catch (sErr) {}
         }
 
-        // Execute frontend actions automatically
-        if (data.action === 'navigate' && data.actionData?.page) {
+        // Save undo payload if returned
+        if (data.actionData?.undoPayload) {
+          setLastUndoPayload(data.actionData.undoPayload);
+        }
+
+        // Execute frontend actions & auto-navigation automatically
+        if (data.actionData?.page) {
           goToPage(data.actionData.page);
-        } else if (data.action === 'export_excel') {
+        }
+        if (data.actionData?.highlightOrder) {
+          setSearchTerm(data.actionData.highlightOrder);
+        }
+
+        if (data.action === 'export_excel') {
           handleExportCSV();
         } else if (data.action === 'create_backup') {
           fetchBackups();

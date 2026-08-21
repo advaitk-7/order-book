@@ -2915,6 +2915,25 @@ Supported pages for navigate action: "Dashboard", "New Order", "Orders", "Produc
       });
     }
 
+    // UNDO INTENT
+    if (/(undo|revert|take back|cancel last)/i.test(promptLower) || req.body.undoPayload) {
+      const undoPayload = req.body.undoPayload;
+      if (undoPayload && undoPayload.type === 'update_order') {
+        const { orderId, orderNumber, previousUpdates } = undoPayload;
+        await Order.findByIdAndUpdate(orderId, previousUpdates);
+        return res.json({
+          reply: `↩️ **Successfully Reverted!** Restored **Order #${orderNumber}** back to original status.`,
+          action: "update_order",
+          actionData: { page: "Orders", highlightOrder: String(orderNumber) }
+        });
+      }
+      return res.json({
+        reply: "No recent reversible action found to undo. ℹ️",
+        action: "none",
+        actionData: {}
+      });
+    }
+
     // ORDER STATUS UPDATE INTENT
     const statusMatch = promptLower.match(/(mark|set|change)\s+(order\s+)?#?(\w+)\s+(as\s+)?(delivered|ready|pending|paid|unpaid)/i);
     if (statusMatch) {
@@ -2923,22 +2942,37 @@ Supported pages for navigate action: "Dashboard", "New Order", "Orders", "Produc
       
       const targetOrder = orders.find(o => String(o.orderNumber).toLowerCase() === targetNum.toLowerCase());
       if (targetOrder) {
+        const previousStatus = targetOrder.status;
+        const previousPaymentStatus = targetOrder.paymentStatus;
         let updateField = {};
+
         if (["delivered", "ready", "pending"].includes(newStatus)) {
           const capitalized = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
-          targetOrder.status = capitalized;
           updateField = { status: capitalized };
         } else if (["paid", "unpaid"].includes(newStatus)) {
           const capitalized = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
-          targetOrder.paymentStatus = capitalized;
           updateField = { paymentStatus: capitalized };
         }
 
         await Order.findByIdAndUpdate(targetOrder._id, updateField);
+
+        const undoPayload = {
+          type: 'update_order',
+          orderId: targetOrder._id,
+          orderNumber: targetOrder.orderNumber,
+          previousUpdates: { status: previousStatus, paymentStatus: previousPaymentStatus }
+        };
+
         return res.json({
-          reply: `Updated **Order #${targetOrder.orderNumber}** (${targetOrder.customerName}) to **${newStatus.toUpperCase()}**! ✅`,
+          reply: `Updated **Order #${targetOrder.orderNumber}** (${targetOrder.customerName}) to **${newStatus.toUpperCase()}**! ✅\n\n*(Taking you to Orders page... Say "undo" anytime to revert)*`,
           action: "update_order",
-          actionData: { orderNumber: targetOrder.orderNumber, updates: updateField }
+          actionData: {
+            orderNumber: targetOrder.orderNumber,
+            page: "Orders",
+            highlightOrder: String(targetOrder.orderNumber),
+            updates: updateField,
+            undoPayload
+          }
         });
       }
     }
