@@ -1,7 +1,8 @@
-# 📋 Liberty Uniform — Order Book & ERP Management System
+# 📋 Liberty Uniform — Order Book & ERP Management System (MERN Stack)
 
 <div align="center">
 
+![MERN Stack](https://img.shields.io/badge/Architecture-MERN%20Full%20Stack-000000?style=for-the-badge&logo=mongodb&logoColor=green)
 ![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react&logoColor=black)
 ![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![Express](https://img.shields.io/badge/Express.js-4.x-000000?style=for-the-badge&logo=express&logoColor=white)
@@ -9,7 +10,7 @@
 ![JWT](https://img.shields.io/badge/Auth-JWT%20%26%20Bcrypt-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 ![Render](https://img.shields.io/badge/Deployed-Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)
 
-**A full-stack, enterprise-grade business management and order lifecycle platform built for a commercial tailoring business.**  
+**A full-stack MERN application (MongoDB, Express.js, React, Node.js) built for a commercial tailoring business.**  
 *Features 1-click sandboxed recruiter demo mode, real-time tailor production queues, supplier procurement, multi-device session security, and automated Telegram cloud backups.*
 
 [⚡ Launch Live App & Sandbox Demo](https://order-book-2ku0.onrender.com) · [Report Bug](https://github.com/advaitk-7/order-book/issues)
@@ -20,7 +21,7 @@
 
 ## 📌 Executive Overview
 
-**Liberty Uniform Order Book** is a production-deployed, end-to-end ERP and order management platform used daily in business operations. It digitizes custom tailoring intake, sleeve/garment size breakdowns, tailor queue assignment, supplier procurement (POs), commercial corporate dispatches (COs), customer waitlists, and financial tracking.
+**Liberty Uniform Order Book** is a production-deployed, end-to-end **MERN stack ERP and order management platform** used daily in business operations. It digitizes custom tailoring intake, sleeve/garment size breakdowns, tailor queue assignment, supplier procurement (POs), commercial corporate dispatches (COs), customer waitlists, and financial tracking.
 
 ### 🌟 Key Highlights for Recruiters
 - **⚡ Zero-Friction 1-Click Guest Demo Mode**: Recruiters can test the full platform instantly without signing up or creating credentials.
