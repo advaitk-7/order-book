@@ -918,15 +918,25 @@ const performBackup = async (isDemoOverride = false) => {
     const auditLogs = await AuditLog.find({});
     const waitlist = await Waitlist.find({});
     const waitlistSchools = await WaitlistSchool.find({});
+    const vendorOrders = await VendorOrder.find({});
+    const parties = await Party.find({});
+    const bulkOrders = await BulkOrder.find({});
+    const clients = await Client.find({});
+    const systemSettings = await SystemSettings.find({});
 
     const backupData = {
-      version: "1.2",
+      version: "1.3",
       timestamp: new Date().toISOString(),
       orders,
       admins,
       auditLogs,
       waitlist,
-      waitlistSchools
+      waitlistSchools,
+      vendorOrders,
+      parties,
+      bulkOrders,
+      clients,
+      systemSettings
     };
 
     const jsonStr = JSON.stringify(backupData, null, 2);
@@ -962,7 +972,7 @@ const performBackup = async (isDemoOverride = false) => {
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
       const chatId = process.env.TELEGRAM_CHAT_ID;
       if (botToken && chatId) {
-        const caption = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}\n- Waitlist: ${waitlist.length}\n- Waitlist Schools: ${waitlistSchools.length}`;
+        const caption = `💾 *Liberty Uniform - Auto Backup*\n\nDatabase backup successfully created:\n\`${filename}\`\n\n- Orders: ${orders.length}\n- Logs: ${auditLogs.length}\n- Waitlist: ${waitlist.length}\n- Supplier POs: ${vendorOrders.length}\n- Commercial COs: ${bulkOrders.length}`;
         
         const formData = new FormData();
         formData.append("chat_id", chatId);
@@ -1009,6 +1019,11 @@ const restoreBackup = async (compressedBuffer) => {
     await AuditLog.deleteMany({});
     await Waitlist.deleteMany({});
     await WaitlistSchool.deleteMany({});
+    await VendorOrder.deleteMany({});
+    await Party.deleteMany({});
+    await BulkOrder.deleteMany({});
+    await Client.deleteMany({});
+    await SystemSettings.deleteMany({});
 
     if (backupData.orders.length > 0) {
       await Order.insertMany(backupData.orders);
@@ -1025,6 +1040,21 @@ const restoreBackup = async (compressedBuffer) => {
     if (backupData.waitlistSchools && backupData.waitlistSchools.length > 0) {
       await WaitlistSchool.insertMany(backupData.waitlistSchools);
     }
+    if (backupData.vendorOrders && backupData.vendorOrders.length > 0) {
+      await VendorOrder.insertMany(backupData.vendorOrders);
+    }
+    if (backupData.parties && backupData.parties.length > 0) {
+      await Party.insertMany(backupData.parties);
+    }
+    if (backupData.bulkOrders && backupData.bulkOrders.length > 0) {
+      await BulkOrder.insertMany(backupData.bulkOrders);
+    }
+    if (backupData.clients && backupData.clients.length > 0) {
+      await Client.insertMany(backupData.clients);
+    }
+    if (backupData.systemSettings && backupData.systemSettings.length > 0) {
+      await SystemSettings.insertMany(backupData.systemSettings);
+    }
 
     console.log("Database backup restored successfully.");
     return {
@@ -1032,7 +1062,12 @@ const restoreBackup = async (compressedBuffer) => {
       adminsCount: backupData.admins.length,
       auditLogsCount: (backupData.auditLogs || []).length,
       waitlistCount: (backupData.waitlist || []).length,
-      waitlistSchoolsCount: (backupData.waitlistSchools || []).length
+      waitlistSchoolsCount: (backupData.waitlistSchools || []).length,
+      vendorOrdersCount: (backupData.vendorOrders || []).length,
+      partiesCount: (backupData.parties || []).length,
+      bulkOrdersCount: (backupData.bulkOrders || []).length,
+      clientsCount: (backupData.clients || []).length,
+      systemSettingsCount: (backupData.systemSettings || []).length
     };
   } catch (error) {
     console.error("Restore failed:", error.message);
