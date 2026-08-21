@@ -2783,6 +2783,205 @@ app.get("/api/backups/download/:filename", authenticateJWT, (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GEMINI AI COPILOT ENDPOINT — Web App Knowledge & Natural Task Execution
+// ─────────────────────────────────────────────────────────────────────────────
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+
+app.post("/api/ai/assistant", authenticateJWT, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ message: "Prompt message is required." });
+    }
+
+    const promptText = String(message).trim();
+    const promptLower = promptText.toLowerCase();
+
+    // 1. Fetch live system context for intelligent reasoning
+    const [orders, waitlist, vendorOrders, bulkOrders] = await Promise.all([
+      Order.find({}).lean(),
+      Waitlist.find({}).lean(),
+      VendorOrder.find({}).lean(),
+      BulkOrder.find({}).lean()
+    ]);
+
+    const isDemo = Boolean(req.user && req.user.role === 'demo');
+
+    // Check for Google Gemini API Key
+    if (GEMINI_API_KEY) {
+      try {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const sysPrompt = `
+You are Gemini AI Copilot, the intelligent, helpful AI assistant built directly into the Liberty Uniform Order Book Management System.
+Current System State:
+- Total Orders: ${orders.length}
+- Total Waitlist Entries: ${waitlist.length}
+- Total Supplier POs: ${vendorOrders.length}
+- Total Bulk Client Orders: ${bulkOrders.length}
+- Environment: ${isDemo ? 'Guest Demo Sandbox Mode' : 'Production Mode'}
+
+User Prompt: "${promptText}"
+
+Respond with a JSON object strictly matching this schema:
+{
+  "reply": "Your clear, friendly response to the user",
+  "action": "none | navigate | analytics | create_order | update_order | add_waitlist | create_po | create_co | create_backup | export_excel",
+  "actionData": {}
+}
+
+Supported pages for navigate action: "Dashboard", "New Order", "Orders", "Production Queue", "Stock Waitlist", "Restock & Bulk Orders", "Settings".
+`;
+        const aiResponse = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: sysPrompt }] }]
+          })
+        });
+
+        if (aiResponse.ok) {
+          const aiJson = await aiResponse.json();
+          const candidateText = aiJson?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          const jsonMatch = candidateText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            return res.json(parsed);
+          }
+        }
+      } catch (gErr) {
+        console.error("Gemini API error, falling back to local NLP engine:", gErr.message);
+      }
+    }
+
+    // 2. Intelligent NLP Fallback Engine (Runs when GEMINI_API_KEY is not set or API is offline)
+    
+    // NAVIGATION INTENTS
+    if (/(go to|open|navigate|take me to|show|view)\s+(dashboard|new order|orders|production queue|tailor|queue|waitlist|stock waitlist|restock|bulk|supplier|settings)/i.test(promptLower)) {
+      let page = "Dashboard";
+      if (/new order/i.test(promptLower)) page = "New Order";
+      else if (/production|tailor|queue/i.test(promptLower)) page = "Production Queue";
+      else if (/waitlist/i.test(promptLower)) page = "Stock Waitlist";
+      else if (/restock|bulk|supplier|po|co/i.test(promptLower)) page = "Restock & Bulk Orders";
+      else if (/settings/i.test(promptLower)) page = "Settings";
+      else if (/orders/i.test(promptLower)) page = "Orders";
+
+      return res.json({
+        reply: `Navigating you to **${page}** right away! 🧭`,
+        action: "navigate",
+        actionData: { page }
+      });
+    }
+
+    // ANALYTICS & REVENUE INTENTS
+    if (/(analytics|revenue|sales|total amount|unpaid|summary|stats|how much|financials)/i.test(promptLower)) {
+      const totalAmount = orders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+      const paidAmount = orders.filter(o => o.paymentStatus === "Paid").reduce((sum, o) => sum + Number(o.amount || 0), 0);
+      const unpaidAmount = totalAmount - paidAmount;
+      const pendingCount = orders.filter(o => o.status === "Pending").length;
+      const readyCount = orders.filter(o => o.status === "Ready").length;
+      const deliveredCount = orders.filter(o => o.status === "Delivered").length;
+
+      const schoolCounts = {};
+      orders.forEach(o => {
+        const sch = o.school || "Other";
+        schoolCounts[sch] = (schoolCounts[sch] || 0) + 1;
+      });
+      const topSchool = Object.entries(schoolCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "None";
+
+      return res.json({
+        reply: `📊 **Business Analytics & Revenue Summary**:\n\n- **Total Revenue**: ₹${totalAmount.toLocaleString('en-IN')}\n- **Collected (Paid)**: ₹${paidAmount.toLocaleString('en-IN')}\n- **Outstanding (Unpaid)**: ₹${unpaidAmount.toLocaleString('en-IN')}\n- **Total Tailoring Orders**: ${orders.length} (${pendingCount} Pending, ${readyCount} Ready, ${deliveredCount} Delivered)\n- **Top School**: ${topSchool}\n- **Supplier Restock POs**: ${vendorOrders.length}\n- **Commercial Client Orders**: ${bulkOrders.length}`,
+        action: "analytics",
+        actionData: { totalAmount, paidAmount, unpaidAmount, pendingCount, readyCount, deliveredCount, topSchool }
+      });
+    }
+
+    // EXCEL EXPORT INTENT
+    if (/(excel|export|download excel|report)/i.test(promptLower)) {
+      return res.json({
+        reply: "Exporting your orders to Excel CSV report... 📥",
+        action: "export_excel",
+        actionData: {}
+      });
+    }
+
+    // BACKUP INTENT
+    if (/(backup|create backup|database backup)/i.test(promptLower)) {
+      const backupInfo = await performBackup();
+      return res.json({
+        reply: `💾 Database backup successfully created: \`${backupInfo.filename}\``,
+        action: "create_backup",
+        actionData: { filename: backupInfo.filename }
+      });
+    }
+
+    // ORDER STATUS UPDATE INTENT
+    const statusMatch = promptLower.match(/(mark|set|change)\s+(order\s+)?#?(\w+)\s+(as\s+)?(delivered|ready|pending|paid|unpaid)/i);
+    if (statusMatch) {
+      const targetNum = statusMatch[3];
+      const newStatus = statusMatch[5];
+      
+      const targetOrder = orders.find(o => String(o.orderNumber).toLowerCase() === targetNum.toLowerCase());
+      if (targetOrder) {
+        let updateField = {};
+        if (["delivered", "ready", "pending"].includes(newStatus)) {
+          const capitalized = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+          targetOrder.status = capitalized;
+          updateField = { status: capitalized };
+        } else if (["paid", "unpaid"].includes(newStatus)) {
+          const capitalized = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+          targetOrder.paymentStatus = capitalized;
+          updateField = { paymentStatus: capitalized };
+        }
+
+        await Order.findByIdAndUpdate(targetOrder._id, updateField);
+        return res.json({
+          reply: `Updated **Order #${targetOrder.orderNumber}** (${targetOrder.customerName}) to **${newStatus.toUpperCase()}**! ✅`,
+          action: "update_order",
+          actionData: { orderNumber: targetOrder.orderNumber, updates: updateField }
+        });
+      }
+    }
+
+    // WEBSITE KNOWLEDGE / HELP INTENTS
+    if (/(how|what|explain|tell me|help|guide|feature|sandbox|demo|waitlist|queue|po|co|device)/i.test(promptLower)) {
+      let helpTopic = "";
+      if (/waitlist/i.test(promptLower)) {
+        helpTopic = "📋 **Stock Waitlist**: Stores requests for out-of-stock sizes. Customers can be notified via SMS/WhatsApp, and entries auto-expire after 7 days.";
+      } else if (/queue|tailor|production/i.test(promptLower)) {
+        helpTopic = "✂️ **Production Queue**: Automatically groups pending orders by garment category (e.g. H.S. Shirt, F.S. Shirt, NI Top, Coaty AT) so tailors can work in batches.";
+      } else if (/po|supplier|restock/i.test(promptLower)) {
+        helpTopic = "📦 **Supplier Restock POs**: Tracks raw fabric purchase orders with suppliers (e.g. Raymond, Vardhman) and logs delivery installment challans as stock arrives.";
+      } else if (/co|bulk|commercial/i.test(promptLower)) {
+        helpTopic = "🏢 **Commercial Bulk Orders (COs)**: Tracks corporate & institutional contracts (e.g. Reliance, Taj Hotels), front/back logo cost options, and dispatch logs.";
+      } else if (/device|session|security/i.test(promptLower)) {
+        helpTopic = "📱 **Active Logged-In Devices**: Shows real-time active JWT login sessions with exact device names, IP addresses, and 1-click remote device revocation.";
+      } else if (/demo|sandbox/i.test(promptLower)) {
+        helpTopic = "🟢 **Demo Sandbox Mode**: Runs in 100% database isolation using `order_book_demo`. Guest visitors can safely test creating, editing, and deleting items with zero risk to production data.";
+      } else {
+        helpTopic = "✨ **Liberty Uniform Order Book Features**:\n- **Orders**: Full tailoring orders with measurements, payment status, and delivery dates.\n- **Production Queue**: Tailor-wise batch grouping.\n- **Restock & Commercial Orders**: Supplier POs & client CO contracts.\n- **Stock Waitlist**: Customer notifications & 7-day expiration.\n- **Security & Backups**: Multi-device tracking, 11:59 PM IST Telegram backups, & isolated Guest Sandbox.";
+      }
+
+      return res.json({
+        reply: helpTopic,
+        action: "help_info",
+        actionData: {}
+      });
+    }
+
+    // DEFAULT FRIENDLY ASSISTANT RESPONSE
+    return res.json({
+      reply: `I'm **Gemini AI Copilot**! I can navigate the app for you, calculate sales analytics, update order statuses, manage waitlists, and answer any questions about features.\n\nTry asking me:\n- *"Take me to Production Queue"*\n- *"What is our total revenue and unpaid balance?"*\n- *"Mark Order #1 as Delivered"*\n- *"How does the Stock Waitlist work?"*`,
+      action: "none",
+      actionData: {}
+    });
+
+  } catch (err) {
+    console.error("AI Assistant error:", err.message);
+    res.status(500).json({ message: "AI Assistant error", error: err.message });
+  }
+});
+
 
 app.post("/api/backups/restore", authenticateJWT, async (req, res) => {
   try {
