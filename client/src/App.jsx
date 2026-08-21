@@ -5664,6 +5664,24 @@ return sortedOrders.slice(0, visibleCount)
               <div className="logout-dropdown">
                 <button
                   type="button"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    color: '#6366F1',
+                    fontWeight: '700',
+                    background: 'rgba(99, 102, 241, 0.08)'
+                  }}
+                  onClick={() => {
+                    setShowLogoutDropdown(false);
+                    setAiOpen(true);
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>✨</span>
+                  <span>Gemini AI Copilot</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     setShowLogoutDropdown(false);
                     setShowManageModal(true);
@@ -13208,40 +13226,10 @@ return sortedOrders.slice(0, visibleCount)
         </div>
       )}
       {/* ─────────────────────────────────────────────────────────────────────────────
-          GEMINI AI COPILOT FLOATING WIDGET
+          GEMINI AI COPILOT DRAWER WIDGET (Opened via AK Profile Menu)
          ───────────────────────────────────────────────────────────────────────────── */}
-      <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999 }}>
-        {!aiOpen ? (
-          <button
-            type="button"
-            onClick={() => setAiOpen(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              background: 'linear-gradient(135deg, #1E1B4B, #312E81)',
-              color: '#EEF2FF',
-              border: '1px solid rgba(129, 140, 248, 0.4)',
-              padding: '12px 20px',
-              borderRadius: '30px',
-              fontWeight: '700',
-              fontSize: '14px',
-              cursor: 'pointer',
-              boxShadow: '0 8px 24px rgba(49, 46, 129, 0.4)',
-              transition: 'all 0.25s ease'
-            }}
-          >
-            <span style={{ fontSize: '18px' }}>✨</span>
-            <span>Gemini AI Copilot</span>
-            <span style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#34D399',
-              boxShadow: '0 0 8px #34D399'
-            }} />
-          </button>
-        ) : (
+      {aiOpen && (
+        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999 }}>
           <div style={{
             width: '380px',
             maxWidth: 'calc(100vw - 32px)',
@@ -13473,8 +13461,8 @@ return sortedOrders.slice(0, visibleCount)
               </button>
             </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
