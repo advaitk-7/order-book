@@ -1,203 +1,214 @@
-# 📋 Liberty Uniform — Order Book Management System
+# 📋 Liberty Uniform — Order Book & ERP Management System
 
-> A full-stack, production-grade business management web application built for a school uniform tailoring business. Manages the complete lifecycle of custom orders — from customer intake and tailor production tracking to supplier procurement, bulk corporate orders, and financial reporting.
+<div align="center">
 
-**Live Demo:** [order-book on Render](https://order-book-2ku0.onrender.com) &nbsp;|&nbsp; **Stack:** React · Node.js · Express · MongoDB
+![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express.js-4.x-000000?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![JWT](https://img.shields.io/badge/Auth-JWT%20%26%20Bcrypt-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+![Render](https://img.shields.io/badge/Deployed-Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)
 
----
+**A full-stack, enterprise-grade business management and order lifecycle platform built for a commercial tailoring business.**  
+*Features 1-click sandboxed recruiter demo mode, real-time tailor production queues, supplier procurement, multi-device session security, and automated Telegram cloud backups.*
 
-## 📌 Overview
+[⚡ Launch Live App & Sandbox Demo](https://order-book-2ku0.onrender.com) · [Report Bug](https://github.com/advaitk-7/order-book/issues)
 
-Liberty Uniform Order Book is a real-world, deployed management tool used daily by a tailoring business. It replaces manual paper ledgers with a digital system that tracks every custom order from creation to delivery, manages the production pipeline, coordinates with fabric suppliers, handles stock waitlists, and produces professional exports.
-
-The application is **fully responsive**, supports **dark and light themes**, and is deployed on **Render** with **MongoDB Atlas** as the cloud database.
-
----
-
-## ✨ Key Features
-
-### 🛍️ Orders Management
-- Create, edit, and delete custom tailor orders
-- Per-order customer details: name, contact, school, grade, gender
-- Multi-item support per order — each item has its own type, quantity, size farma, and full measurement profile
-- **Item types supported:** Shirt, Kurta, Top, Blazer, Pant, Shorts, Pajama, Pina, Skirt, Frock
-- Measurement fields auto-adapt per item type (e.g. Shirt → Length, Chest, Shoulder, Sleeve, Neck)
-- Custom sleeve-tag detection (Half Sleeve / Full Sleeve) shown as contextual badges
-- Order status tracking: `Pending → Ready → Delivered`
-- Payment status tracking: `Unpaid / Paid`
-- Contact status tracking: `Not contacted / Contacted / Unable to contact`
-- Inline notes per order; smart order numbering with cycle management
-
-### 🔍 Search & Filtering
-- Real-time fuzzy search using Levenshtein distance across order number, customer name, and phone number
-- Filter by delivery date range, school, production status, payment status, item type
-- Sort by any column; sticky filters per section
-
-### 🧵 Production Queue (Tailor's View)
-- Dedicated tailor-facing view for in-production orders
-- Filter and sort by item type, delivery urgency, and production category
-- Per-item production category assignment with rate tracking
-- One-click status updates per item
-
-### 📊 Dashboard
-- Live summary stats: Total orders, Pending, Ready, Delivered, Pending Payments
-- Recent order activity feed
-
-### 📦 Stock Waitlist
-- Maintain a waitlist of customers waiting for specific items
-- Track request status: `Pending / Fulfilled`
-- School-based filtering; manage a school list for waitlist entries
-
-### 🏬 Supplier Restock & Purchase Orders
-- Create and track supplier Purchase Orders (POs) with full product breakdowns
-- Size-wise quantity breakdown per product
-- PO status: `Pending / Partially Received / Completed`
-- Stock receiving workflow with installment-based delivery tracking
-- Supplier (party) profile management
-- Auto-deletion of old completed POs after a configurable number of days
-
-### 🏢 Bulk / Corporate Orders
-- Manage large-volume orders from institutions (schools, corporates)
-- Client profile management; per-product size breakdown with pricing
-- Dispatch tracking with payment and quantity per dispatch
-
-### 📤 Export & Reporting
-- **PDF export:** Production queue as A4/A3 landscape PDF with print-optimised layout
-- **Excel/CSV export:** Full order data with all measurement columns
-- **WhatsApp integration:** One-tap pre-filled WhatsApp message to customer
-
-### ⚙️ Settings & Security
-- JWT-based authentication with bcrypt password hashing
-- OTP-based password reset via email
-- Session management: view all active logins with device/IP, remotely revoke any session
-- Admin credential update from settings panel
-- Dark / Light theme toggle with persistence
+</div>
 
 ---
 
-## 🛠️ Tech Stack
+## 📌 Executive Overview
 
-| Layer | Technology |
-|---|---|
-| **Frontend** | React 18, Vite, Vanilla CSS |
-| **Backend** | Node.js, Express.js |
-| **Database** | MongoDB with Mongoose ODM |
-| **Auth** | JWT (jsonwebtoken), bcryptjs |
-| **Deployment** | Render (full-stack), MongoDB Atlas |
-| **PDF Export** | Browser print with CSS print media queries |
-| **Emoji Support** | Custom canvas-based detection with per-device fallbacks |
+**Liberty Uniform Order Book** is a production-deployed, end-to-end ERP and order management platform used daily in business operations. It digitizes custom tailoring intake, sleeve/garment size breakdowns, tailor queue assignment, supplier procurement (POs), commercial corporate dispatches (COs), customer waitlists, and financial tracking.
+
+### 🌟 Key Highlights for Recruiters
+- **⚡ Zero-Friction 1-Click Guest Demo Mode**: Recruiters can test the full platform instantly without signing up or creating credentials.
+- **🛡️ Sandboxed Multi-Tenancy Architecture**: Built using Node.js `AsyncLocalStorage` and Mongoose model proxies for 100% database isolation (`order_book_demo` vs `order_book`).
+- **📱 Real-Time Device Session Tracking**: JWT-based session security with User-Agent parsing and hardware touch-point detection (iPadOS Safari Desktop mode vs MacBook/Mobile).
+- **💾 Automated Telegram Cloud Backups**: Nightly 11:59 PM IST Gzip-compressed database backups (`.json.gz`) automatically dispatched to a private Telegram Bot.
+- **🧵 Tailor Queue & Production Master**: Category-wise rate management, sleeve classification, and urgent delivery pipeline tracking.
 
 ---
 
-## 🏗️ Architecture
+## ✨ Core Features & Functional Architecture
+
+### 1. 🛍️ Customer Intake & Order Lifecycle
+- **Multi-Item Order Intake**: Capture customer contact info, school name, grade, and gender alongside unlimited garment items per order.
+- **Adaptive Measurements**: Dynamic form fields tailored per garment type (*Shirt, Kurta, Top, Blazer, Pant, Shorts, Pajama, Pina, Skirt, Frock*).
+- **Auto Sleeve Classification**: Intelligent parsing for Half Sleeve / Full Sleeve tags with visual indicators.
+- **Status Lifecycle Pipeline**:
+  - Production Status: `Pending ➔ Ready ➔ Delivered`
+  - Payment Status: `Unpaid ➔ Paid`
+  - Contact Status: `Not Contacted ➔ Contacted ➔ Unable to Contact`
+- **Smart Order Renumbering**: Cycle management with non-blocking background cleanup.
+
+### 2. ⚡ Sandboxed Recruiter Demo Mode
+- **Instant Access**: One-tap guest login bypasses password prompts.
+- **Database Isolation**: Requests execute in an isolated sandbox (`order_book_demo`), ensuring zero leakage into live customer data.
+- **Automated Seeding & Cleanup**: Instant sandbox database reset for fresh testing.
+- **Isolated Backups**: Demo backups remain strictly within `/backups_demo/` and bypass Telegram dispatches.
+
+### 3. 🧵 Tailor Production Queue & Rate Master
+- **Tailor-Facing Workstation**: Aggregates in-production items filtered by garment type, delivery urgency, and category.
+- **Category & Pricing Settings**: Manage custom production categories (*e.g., H.S. Shirt, Coaty AT*) with baseline rate tracking.
+- **One-Click Item Progress**: Update individual item statuses directly from the tailor view.
+
+### 4. 📦 Stock Waitlist & School Directory
+- Customer waitlist tracking for out-of-stock garment sizes (`Pending ➔ Fulfilled`).
+- Integrated school directory for rapid filter assignment.
+
+### 5. 🏬 Supplier Procurement (Purchase Orders - POs)
+- **Supplier Directory**: Manage vendor/party profiles and contact records.
+- **Product Size Breakdowns**: Size-wise item matrix per supplier PO.
+- **Installment Receiving**: Multi-stage delivery logging (`Pending ➔ Partially Received ➔ Completed`).
+- **Automated PO Maintenance**: Background purge for completed purchase orders.
+
+### 6. 🏢 Commercial & Corporate Orders (COs)
+- Enterprise B2B contract tracking for institutional clients (schools, corporations).
+- Partial dispatch logging with date, quantity, and payment milestone tracking.
+
+### 7. 🔒 Security, Session Management & Telegram Bot
+- **JWT & Bcrypt**: Hashed password storage with 24-hour JWT session tokens.
+- **Active Logged-In Devices**: Real-time session monitoring displaying IP address, location, and hardware device name (*Apple iPad, Apple iPhone, MacBook, Samsung Galaxy, Windows PC*). Remote 1-click session revocation.
+- **Telegram Bot Integration**:
+  - OTP password reset delivered directly to Telegram.
+  - Automatic nightly Gzip backups (`.json.gz`) uploaded directly to Telegram.
+  - Manual backup generation & point-in-time database restoration.
+
+### 8. 📊 Analytics, Reports & WhatsApp Dispatches
+- **Live Business Dashboard**: Real-time stats on pending revenue, ready deliveries, and order velocity.
+- **Print-Optimized PDF Export**: High-fidelity A4/A3 landscape rendering with custom margin and font scaling.
+- **Excel/CSV Export**: Complete measurement matrices for offline accounting.
+- **WhatsApp Integration**: One-click pre-filled customer readiness notifications.
+
+---
+
+## 🛠️ Tech Stack & Dependencies
+
+| Layer | Technology | Key Packages / APIs |
+|---|---|---|
+| **Frontend** | React 18 (Vite) | Custom Vanilla CSS, Canvas Emoji Engine |
+| **Backend** | Node.js (v20+) | Express.js, `AsyncLocalStorage`, `zlib` |
+| **Database** | MongoDB | Mongoose ODM, MongoDB Atlas Cloud |
+| **Authentication** | JWT & Bcrypt | `jsonwebtoken`, `bcryptjs` |
+| **Automations** | Telegram Bot API | `FormData`, Gzip Compression, Telegram Docs API |
+| **Deployment** | Render | Continuous Integration / Continuous Deployment (CI/CD) |
+
+---
+
+## 🏗️ System Architecture & Data Flow
 
 ```
-Order_Book/
-├── client/                  # React frontend (Vite)
-│   └── src/
-│       ├── App.jsx          # ~12,500 lines — entire SPA component tree
-│       ├── App.css          # ~66KB custom CSS with dark/light theming
-│       ├── emojiUtils.js    # Canvas-based emoji support detection
-│       └── main.jsx         # React entry point
-│
-└── server/
-    └── server.js            # ~2,900 lines — Express API + Mongoose models
+                              ┌──────────────────────────────────────┐
+                              │            React 18 SPA              │
+                              │   (Vite + Custom CSS + Context)      │
+                              └──────────────────┬───────────────────┘
+                                                 │ HTTPS / REST
+                                                 ▼
+                              ┌──────────────────────────────────────┐
+                              │       Express.js API Server          │
+                              │      (JWT Auth + User-Agent)         │
+                              └──────────────────┬───────────────────┘
+                                                 │
+                        ┌────────────────────────┴────────────────────────┐
+                        │ AsyncLocalStorage Context (IsDemo Flag Routing) │
+                        └──────────┬────────────────────────────┬─────────┘
+                                   │                            │
+                     IsDemo = false│                            │IsDemo = true
+                                   ▼                            ▼
+                      ┌────────────────────────┐    ┌────────────────────────┐
+                      │ Production Database    │    │ Sandbox Demo Database  │
+                      │ (`order_book`)         │    │ (`order_book_demo`)    │
+                      └────────────┬───────────┘    └────────────────────────┘
+                                   │
+                                   ▼ (Nightly 11:59 PM IST)
+                      ┌────────────────────────┐
+                      │  Telegram Cloud Bot    │
+                      │  (Gzip Backup Storage) │
+                      └────────────┬───────────┘
 ```
 
-### Frontend
-- Single-page application with no external UI library (pure custom CSS)
-- Client-side routing via state — no React Router needed
-- `useMemo` / `useDeferredValue` for performant filtering and search
-- Form state persistence: new order drafts survive section navigation
+---
 
-### Backend
-- RESTful API with 50+ endpoints across 7 resource domains
-- Mongoose schemas with embedded sub-documents (items, measurements, dispatches, installments)
-- Custom Levenshtein distance fuzzy search (server-side, no search index needed)
-- Session model tracks all active logins with device fingerprinting via User-Agent parsing
-- Background cleanup auto-purges oldest delivered orders at a configurable threshold
+## 🔌 Core API Endpoints
+
+| Module | Method | Endpoint | Description |
+|---|---|---|---|
+| **Auth** | `POST` | `/api/auth/login` | Authenticates admin & generates 24h JWT |
+| | `POST` | `/api/login/demo` | Generates sandboxed guest demo session |
+| | `GET` | `/api/auth/sessions` | Lists active device sessions |
+| | `DELETE` | `/api/auth/sessions/:id` | Revokes specific logged-in device |
+| **Orders** | `GET` | `/api/orders` | Search, filter, and page order ledger |
+| | `POST` | `/api/orders` | Creates new order with embedded measurements |
+| | `PATCH` | `/api/orders/:id` | Updates order details or lifecycle status |
+| **Procurement**| `GET` | `/api/vendor-orders` | Lists supplier purchase orders (POs) |
+| | `POST` | `/api/vendor-orders` | Creates PO with size breakdown |
+| **Commercial** | `GET` | `/api/bulk-orders` | Lists corporate contracts (COs) |
+| **Backups** | `POST` | `/api/backups/create` | Triggers manual database backup |
+| | `POST` | `/api/backups/restore` | Restores database from uploaded `.json.gz` |
 
 ---
 
-## 🔌 API Summary
+## 🚀 Local Development Setup
 
-| Resource | Endpoints |
+### Prerequisites
+- **Node.js**: v18.x or higher
+- **MongoDB**: Local MongoDB instance or MongoDB Atlas URI
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/advaitk-7/order-book.git
+   cd order-book
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm run install-all
+   ```
+
+3. **Configure Environment Variables**:
+   Create a `.env` file in the `server/` directory:
+   ```env
+   PORT=5001
+   MONGO_URI=mongodb://127.0.0.1:27017/order_book
+   JWT_SECRET=your_jwt_secret_key_here
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=adminpassword
+   TELEGRAM_BOT_TOKEN=your_telegram_bot_token (optional)
+   TELEGRAM_CHAT_ID=your_telegram_chat_id (optional)
+   ```
+
+4. **Start the Application**:
+   ```bash
+   # In terminal 1 (Backend Server):
+   npm start
+
+   # In terminal 2 (Frontend React App):
+   cd client && npm run dev
+   ```
+
+5. Access the app locally at `http://localhost:5173`.
+
+---
+
+## 📸 Section Preview
+
+| Section | Key Functionality |
 |---|---|
-| **Auth** | Login, Forgot Password, OTP Verify, Reset Password, Sessions CRUD |
-| **Orders** | CRUD, bulk delete, status patch, item-category patch, cleanup preview |
-| **Waitlist** | CRUD, bulk delete, school list CRUD |
-| **Supplier Restock (POs)** | CRUD, installments CRUD, PO renumber |
-| **Parties (Suppliers)** | CRUD |
-| **Bulk Orders (COs)** | CRUD, dispatches CRUD |
-| **Clients** | CRUD |
-| **Production Categories** | CRUD with default rate management |
+| **Dashboard** | Revenue analytics, ready order alerts, recent activity feed |
+| **New Order Intake** | Dynamic measurement form per garment type & sleeve detection |
+| **Orders Ledger** | Levenshtein fuzzy search, multi-filter date/school sorting |
+| **Production Queue** | Tailor workstation with urgent delivery sorting & rate tracking |
+| **Supplier Procurement** | Vendor PO creation, partial delivery logs, stock receiving |
+| **Device Security** | Real-time session monitoring & remote hardware logout |
 
 ---
 
-## 🚀 Local Setup
+## 👤 Author & Maintainer
 
-```bash
-# Clone the repository
-git clone https://github.com/advaitk-7/order-book.git
-cd order-book
-
-# Install all dependencies (client + server)
-npm run install-all
-
-# Create server/.env:
-# MONGO_URI=<your MongoDB connection string>
-# JWT_SECRET=<your secret>
-# ADMIN_USERNAME=<username>
-# ADMIN_PASSWORD=<password>
-
-# Start the backend
-npm start
-
-# In a new terminal — start the frontend
-cd client && npm run dev
-```
-
-Frontend: `http://localhost:5173` · Backend: `http://localhost:5001`
-
----
-
-## 🌐 Deployment
-
-Deployed as a **single service on Render**:
-- React app is built to `client/dist/` and served as static files by Express
-- MongoDB Atlas as cloud database
-- Auto-deploys on every push to `main`
-
----
-
-## 💡 Notable Engineering Decisions
-
-| Decision | Reason |
-|---|---|
-| No UI library (pure CSS) | Full design control, no dependency bloat |
-| Server-side Levenshtein search | No Elasticsearch or search index needed — keeps infra simple |
-| Non-blocking order cleanup check | Save is instant; threshold check fires in background to avoid UX delay |
-| Targeted emoji detection | Canvas detection runs only for known-problematic variation-selector emoji — never false-replaces supported ones |
-| Form state persistence | Order drafts survive section navigation, only cleared on Cancel or successful save |
-
----
-
-## 📸 Sections At a Glance
-
-| Section | Description |
-|---|---|
-| **Dashboard** | Stats overview + recent activity |
-| **New Order** | Full customer + measurement intake form |
-| **Orders** | Searchable, filterable, sortable order ledger |
-| **Production Queue** | Tailor's work view with delivery urgency sorting |
-| **Stock Waitlist** | Customer waiting list with school filters |
-| **Restock & Bulk Orders** | PO tracking + corporate CO management |
-| **Settings** | Sessions, credentials, theme |
-
----
-
-## 👤 Author
-
-Built and maintained by **Advait K** — passionate about building practical tools that solve real business problems.
-
-- GitHub: [@advaitk-7](https://github.com/advaitk-7)
+**Advait Karia**  
+- GitHub: [@advaitk-7](https://github.com/advaitk-7)  
+- LinkedIn: [Advait Karia](https://www.linkedin.com/in/advait-karia-884a872a1/)
