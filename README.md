@@ -13,7 +13,7 @@
 **A full-stack MERN application (MongoDB, Express.js, React, Node.js) built for a commercial tailoring business.**  
 *Features 1-click sandboxed recruiter demo mode, real-time tailor production queues, supplier procurement, multi-device session security, and automated Telegram cloud backups.*
 
-[⚡ Test Drive Live System (1-Click Recruiter Sandbox)](https://order-book-2ku0.onrender.com) · [Report Bug](https://github.com/advaitk-7/order-book/issues)
+[⚡ Test Drive Live System](https://order-book-2ku0.onrender.com) · [Report Bug](https://github.com/advaitk-7/order-book/issues)
 
 </div>
 
