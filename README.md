@@ -10,10 +10,15 @@
 ![JWT](https://img.shields.io/badge/Auth-JWT%20%26%20Bcrypt-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 ![Render](https://img.shields.io/badge/Deployed-Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)
 
+<br/>
+
 **A full-stack MERN application (MongoDB, Express.js, React, Node.js) built for a commercial tailoring business.**  
 *Features 1-click sandboxed recruiter demo mode, real-time tailor production queues, supplier procurement, multi-device session security, and automated Telegram cloud backups.*
 
-[⚡ Launch Live App & Sandbox Demo](https://order-book-2ku0.onrender.com) · [Report Bug](https://github.com/advaitk-7/order-book/issues)
+<br/>
+
+[![Try Live Demo](https://img.shields.io/badge/🚀_Test_Drive_Live_System-1--Click_Recruiter_Sandbox-0052CC?style=for-the-badge&logo=render&logoColor=white)](https://order-book-2ku0.onrender.com)
+[![GitHub Repository](https://img.shields.io/badge/⭐_View_Source_Code-GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/advaitk-7/order-book)
 
 </div>
 
