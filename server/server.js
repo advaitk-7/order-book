@@ -2854,8 +2854,58 @@ Supported pages for navigate action: "Dashboard", "New Order", "Orders", "Produc
       }
     }
 
-    // 2. Intelligent NLP Fallback Engine (Runs when GEMINI_API_KEY is not set or API is offline)
-    
+    // 0. SECURITY & CREDENTIAL MASKING SHIELD
+    if (/(password|secret|token|credential|jwt|env|mongo_uri|admin_password|hashed)/i.test(promptLower)) {
+      return res.json({
+        reply: "🔒 **Security Guard Alert**: Administrative credentials, passwords, JWT tokens, and system secrets are strictly encrypted and cannot be disclosed via AI Copilot.",
+        action: "none",
+        actionData: {}
+      });
+    }
+
+    // 0. DESTRUCTIVE BULK DELETE / FORMAT BLOCKADE
+    if (/(delete all|drop database|wipe database|format server|clear all orders|truncate)/i.test(promptLower)) {
+      return res.json({
+        reply: "⚠️ **Security Guard Alert**: Bulk database deletion and format commands are disabled via AI Copilot for safety. Individual items can be managed safely through the application table UI.",
+        action: "none",
+        actionData: {}
+      });
+    }
+
+    // WHATSAPP MESSAGE GENERATOR INTENT
+    const waMatch = promptLower.match(/(whatsapp|draft|message)\s+(order\s+)?#?(\w+)/i);
+    if (waMatch) {
+      const targetNum = waMatch[3];
+      const targetOrder = orders.find(o => String(o.orderNumber).toLowerCase() === targetNum.toLowerCase());
+      if (targetOrder) {
+        const cleanPhone = (targetOrder.contactNumber || '').replace(/\D/g, '');
+        const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+        const text = `Hello ${targetOrder.customerName}, your tailoring order #${targetOrder.orderNumber} at Liberty Uniform is ${targetOrder.status.toUpperCase()}. Total Amount: ₹${targetOrder.amount}. Thank you!`;
+        const waLink = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(text)}`;
+
+        return res.json({
+          reply: `💬 **WhatsApp Notification Ready** for **Order #${targetOrder.orderNumber}** (${targetOrder.customerName}):\n\n> "${text}"\n\n[Click Here to Send on WhatsApp](${waLink})`,
+          action: "whatsapp",
+          actionData: { waLink, phone: formattedPhone, message: text }
+        });
+      }
+    }
+
+    // DAILY MORNING BRIEFING INTENT
+    if (/(briefing|morning briefing|urgent|alerts|due today)/i.test(promptLower)) {
+      const unpaidOrders = orders.filter(o => o.paymentStatus === 'Unpaid');
+      const unpaidSum = unpaidOrders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+      const pendingOrders = orders.filter(o => o.status === 'Pending');
+      const readyOrders = orders.filter(o => o.status === 'Ready');
+      const oldWaitlist = waitlist.filter(w => w.status === 'Pending');
+
+      return res.json({
+        reply: `☀️ **Daily Business Briefing & Risk Radar**:\n\n- ✂️ **Pending Processing**: ${pendingOrders.length} orders awaiting tailor completion.\n- 🛍️ **Ready for Pickup**: ${readyOrders.length} orders prepared for collection.\n- 💰 **Payment Risk**: ₹${unpaidSum.toLocaleString('en-IN')} outstanding across ${unpaidOrders.length} unpaid orders.\n- 📋 **Waitlist Alerts**: ${oldWaitlist.length} customers currently waiting for stock notifications.`,
+        action: "analytics",
+        actionData: { pendingCount: pendingOrders.length, readyCount: readyOrders.length, unpaidSum }
+      });
+    }
+
     // NAVIGATION INTENTS
     if (/(go to|open|navigate|take me to|show|view)\s+(dashboard|new order|orders|production queue|tailor|queue|waitlist|stock waitlist|restock|bulk|supplier|settings)/i.test(promptLower)) {
       let page = "Dashboard";

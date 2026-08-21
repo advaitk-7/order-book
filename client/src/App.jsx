@@ -13272,6 +13272,25 @@ return sortedOrders.slice(0, visibleCount)
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
+                  onClick={() => setAiMessages([{
+                    sender: 'ai',
+                    text: "👋 Chat history reset! How can I assist you next?",
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  }])}
+                  title="Clear Chat History"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94A3B8',
+                    fontSize: '15px',
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                >
+                  🧹
+                </button>
+                <button
+                  type="button"
                   onClick={() => setAiSpeakerEnabled(!aiSpeakerEnabled)}
                   title={aiSpeakerEnabled ? "Voice output active" : "Voice output muted"}
                   style={{
@@ -13311,7 +13330,9 @@ return sortedOrders.slice(0, visibleCount)
               borderBottom: '1px solid rgba(255,255,255,0.05)'
             }}>
               {[
+                '☀️ Morning Briefing',
                 '📊 Sales Analytics',
+                '💬 WhatsApp Order #1',
                 '🧭 App Tour / Help',
                 '✂️ Production Queue',
                 '💾 Create Backup',
