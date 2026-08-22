@@ -9945,45 +9945,9 @@ return sortedOrders.slice(0, visibleCount)
                   <div className="settings-right-col">
                     {/* Timeline Audit Logs */}
                     <div className="settings-box" style={{ height: '100%' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                        <div>
-                          <p className="settings-box-title"><Icons.ClipboardIcon size={16} style={{ marginRight: 6 }} /> System Audit Logs &amp; Activity Trail</p>
-                          <p className="settings-box-desc">Granular trail of all creations, edits, field updates, dispatches, and deletions with zero unlisted actions.</p>
-                        </div>
-                        <button
-                          type="button"
-                          className="action-btn secondary"
-                          onClick={exportAuditLogsToCSV}
-                          style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                        >
-                          <Icons.DownloadIcon size={14} /> Export CSV Report
-                        </button>
-                      </div>
-
-                      {/* Category Pills Row */}
-                      <div className="audit-category-pills-row" style={{ display: 'flex', gap: '6px', margin: '12px 0 8px 0', overflowX: 'auto', paddingBottom: '4px' }}>
-                        {['All', 'ORDER', 'DISPATCH', 'WAITLIST', 'PURCHASE_ORDER', 'COMMERCIAL_ORDER', 'PRICING', 'AUTH', 'SYSTEM'].map(cat => (
-                          <button
-                            key={cat}
-                            type="button"
-                            className={`audit-cat-pill ${logCategoryFilter === cat ? 'active' : ''}`}
-                            onClick={() => setLogCategoryFilter(cat)}
-                            style={{
-                              padding: '4px 10px',
-                              borderRadius: '16px',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              border: '1px solid',
-                              background: logCategoryFilter === cat ? (theme === 'dark' ? '#2563EB' : '#1D4ED8') : (theme === 'dark' ? '#1E293B' : '#F1F5F9'),
-                              color: logCategoryFilter === cat ? '#FFFFFF' : (theme === 'dark' ? '#94A3B8' : '#475569'),
-                              borderColor: logCategoryFilter === cat ? '#2563EB' : (theme === 'dark' ? '#334155' : '#CBD5E1'),
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {cat === 'All' ? 'All Activity' : cat}
-                          </button>
-                        ))}
+                      <div style={{ marginBottom: '12px' }}>
+                        <p className="settings-box-title"><Icons.ClipboardIcon size={16} style={{ marginRight: 6 }} /> System Audit Logs &amp; Activity Trail</p>
+                        <p className="settings-box-desc">Granular trail of all creations, edits, field updates, dispatches, and deletions with zero unlisted actions.</p>
                       </div>
 
                       {/* Search and Filters Controls */}
@@ -10016,12 +9980,16 @@ return sortedOrders.slice(0, visibleCount)
                           />
                           <select
                             value={logTypeFilter}
-                            onChange={(e) => setLogTypeFilter(e.target.value)}
+                            onChange={(e) => {
+                              setLogTypeFilter(e.target.value);
+                              fetchAuditLogs(e.target.value, logDateFilter);
+                            }}
                             style={{
-                              width: '125px',
+                              width: '180px',
                               flexShrink: 0,
                               padding: '8px 10px',
                               fontSize: '12px',
+                              fontWeight: '600',
                               borderRadius: '8px',
                               minHeight: '34px',
                               background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
@@ -10029,13 +9997,17 @@ return sortedOrders.slice(0, visibleCount)
                               border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
                             }}
                           >
-                            <option value="All">All Types</option>
-                            <option value="Order">Orders</option>
-                            <option value="Waitlist">Waitlist</option>
-                            <option value="StatusChange">Status Changes</option>
-                            <option value="Delete">Deletions</option>
-                            <option value="System">System</option>
-                            <option value="Backup">Backups</option>
+                            <option value="All">All Activity Types</option>
+                            <option value="ORDER">Orders (Creation &amp; Edits)</option>
+                            <option value="DISPATCH">Dispatches &amp; Installments</option>
+                            <option value="WAITLIST">Waitlist Requests</option>
+                            <option value="PURCHASE_ORDER">Supplier Restock POs</option>
+                            <option value="COMMERCIAL_ORDER">Commercial Contracts</option>
+                            <option value="PRICING">Pricing &amp; Category Rates</option>
+                            <option value="AUTH">Auth &amp; Security Logs</option>
+                            <option value="StatusChange">Status &amp; Field Edits</option>
+                            <option value="Delete">Deletions Only</option>
+                            <option value="SYSTEM">System &amp; Backups</option>
                           </select>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

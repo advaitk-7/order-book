@@ -2765,15 +2765,16 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
     const { search, category, type, date } = req.query;
     const query = {};
 
-    if (category && category !== "All") {
+    if (type && type !== "All") {
+      if (["ORDER", "DISPATCH", "WAITLIST", "PURCHASE_ORDER", "COMMERCIAL_ORDER", "PRICING", "AUTH", "SYSTEM"].includes(type)) {
+        query.category = type;
+      } else if (type === "StatusChange") {
+        query.action = { $regex: /STATUS|CHANGE|UPDATE/i };
+      } else if (type === "Delete") {
+        query.action = { $regex: /DELETE/i };
+      }
+    } else if (category && category !== "All") {
       query.category = category;
-    } else if (type && type !== "All") {
-      if (type === "System") query.category = "SYSTEM";
-      else if (type === "Order") query.category = "ORDER";
-      else if (type === "Backup") query.action = { $in: ["Backup", "Restore"] };
-      else if (type === "Waitlist") query.category = "WAITLIST";
-      else if (type === "StatusChange") query.action = { $regex: /STATUS|CHANGE/i };
-      else if (type === "Delete") query.action = { $regex: /DELETE/i };
     }
 
     if (date) {
