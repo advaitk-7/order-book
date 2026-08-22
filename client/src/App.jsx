@@ -13434,7 +13434,7 @@ return sortedOrders.slice(0, visibleCount)
                       onClick={() => setShowGeminiSidebar(!showGeminiSidebar)}
                       title="Toggle Gemini Sidebar"
                     >
-                      ☰
+                      <Icons.MenuIcon size={18} />
                     </button>
                     <div className="demo-ai-avatar">✨</div>
                     <div>
@@ -13450,26 +13450,18 @@ return sortedOrders.slice(0, visibleCount)
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <button
                       type="button"
-                      className={`demo-ai-icon-btn ${demoAiVoiceActive ? 'active-voice' : ''}`}
-                      onClick={toggleVoiceRecognition}
-                      title="Voice Command Mode"
-                    >
-                      🎙️
-                    </button>
-                    <button
-                      type="button"
                       className="demo-ai-icon-btn"
                       onClick={() => handleOpenClearModal(null)}
                       title="Clear All History (Password Protected)"
                     >
-                      🧹
+                      <Icons.TrashIcon size={16} />
                     </button>
                     <button
                       type="button"
                       className="demo-ai-close-btn"
                       onClick={() => setShowDemoAiChat(false)}
                     >
-                      ✕
+                      <Icons.XIcon size={16} />
                     </button>
                   </div>
                 </div>
@@ -13538,11 +13530,20 @@ return sortedOrders.slice(0, visibleCount)
                     disabled={demoAiLoading}
                   />
                   <button
+                    type="button"
+                    className={`demo-ai-voice-input-btn ${demoAiVoiceActive ? 'active-voice' : ''}`}
+                    onClick={toggleVoiceRecognition}
+                    title="Voice Command Mode"
+                  >
+                    <Icons.MicIcon size={16} />
+                  </button>
+                  <button
                     type="submit"
                     className="demo-ai-send-btn"
                     disabled={!demoAiInput.trim() || demoAiLoading}
+                    title="Send Message"
                   >
-                    Send
+                    <Icons.SendIcon size={16} />
                   </button>
                 </form>
               </div>

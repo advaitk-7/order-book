@@ -262,3 +262,26 @@ export const LogOutIcon = ({ size=16, color, style, className }) => _baseSvg(siz
   <polyline points="16 17 21 12 16 7" />
   <line x1="21" y1="12" x2="9" y2="12" />
 </>);
+
+export const MicIcon = ({ size=16, color, style, className }) => _baseSvg(size, color, style, className, <>
+  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+  <line x1="12" y1="19" x2="12" y2="23" />
+  <line x1="8" y1="23" x2="16" y2="23" />
+</>);
+
+export const SendIcon = ({ size=16, color, style, className }) => _baseSvg(size, color, style, className, <>
+  <line x1="22" y1="2" x2="11" y2="13" />
+  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+</>);
+
+export const SparklesIcon = ({ size=16, color, style, className }) => _baseSvg(size, color, style, className, <>
+  <path d="M12 2l2.4 5.6L20 10l-5.6 2.4L12 18l-2.4-5.6L4 10l5.6-2.4z" />
+  <path d="M20 2l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" />
+</>);
+
+export const MenuIcon = ({ size=16, color, style, className }) => _baseSvg(size, color, style, className, <>
+  <line x1="3" y1="12" x2="21" y2="12" />
+  <line x1="3" y1="6" x2="21" y2="6" />
+  <line x1="3" y1="18" x2="21" y2="18" />
+</>);
