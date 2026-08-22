@@ -2828,8 +2828,67 @@ app.post("/api/demo/ai-assistant", authenticateJWT, async (req, res) => {
       return res.status(403).json({ message: "Access denied. AI Assistant is strictly for Guest Demo Mode." });
     }
 
-    const { prompt, undoPayload } = req.body;
-    const promptLower = String(prompt || '').trim().toLowerCase();
+    // 0. ORDINAL & NUMBER CONTEXT RESOLUTION (e.g. "answer 2nd question", "option 2", "2")
+    if (/(2nd|second|option 2|number 2|\b2\b)/i.test(promptLower) && !/(\d+)\s+orders?/i.test(promptLower)) {
+      return res.json({
+        reply: "🏗️ **Sandboxed Multi-Tenancy Architecture**:\nBuilt using Node.js `AsyncLocalStorage` and dynamic Mongoose connection model proxies. When a request carries a demo token (`role: 'demo'`), the context routes all database operations to `order_book_demo`, leaving live production data completely isolated.",
+        action: "help_info",
+        actionData: {}
+      });
+    }
+
+    if (/(1st|first|option 1|number 1|\b1\b)/i.test(promptLower) && !/(\d+)\s+orders?/i.test(promptLower)) {
+      const orders = await models.Order.find({});
+      const waitlist = await models.Waitlist.find({ status: "Pending" });
+      const totalRev = orders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+      const readyCount = orders.filter(o => o.status === 'Ready').length;
+      return res.json({
+        reply: `⚡ **Daily Executive Briefing**:\n\n- 📦 **Total Orders**: ${orders.length} (${readyCount} Ready for Pickup)\n- 💰 **Revenue Overview**: ₹${totalRev.toLocaleString('en-IN')}\n- ⏳ **Out-of-Stock Waitlist**: ${waitlist.length} pending size requests`,
+        action: "briefing",
+        actionData: {}
+      });
+    }
+
+    if (/(3rd|third|option 3|number 3|\b3\b)/i.test(promptLower)) {
+      return res.json({
+        reply: "📄 Opening print-optimized **PDF Live Preview Modal** right away!",
+        action: "generate_pdf",
+        actionData: {}
+      });
+    }
+
+    if (/(4th|fourth|option 4|number 4|\b4\b)/i.test(promptLower)) {
+      return res.json({
+        reply: "📥 Exporting **Production Queue** to CSV file...",
+        action: "export_csv",
+        actionData: { module: "tailor" }
+      });
+    }
+
+    // DYNAMIC CONVERSATIONAL & DEVELOPER / FEATURE QUESTIONS
+    if (/(who built|who created|developer|who are you|what can you do|help me|explain|features|capabilities|about app)/i.test(promptLower)) {
+      if (/who (built|created|made|developer)/i.test(promptLower)) {
+        return res.json({
+          reply: "👨‍💻 **Developer Spotlight**: Built by **Advait Karia** — a Full-Stack MERN Software Engineer specializing in high-performance Web Applications, Real-Time Architecture, and Cloud Security.",
+          action: "help_info",
+          actionData: {}
+        });
+      }
+
+      if (/what (can you do|capabilities|features)/i.test(promptLower)) {
+        return res.json({
+          reply: "🤖 **Gemini AI Copilot Capabilities**:\n\n1. ⚡ **Daily Executive Briefing**: Real-time sales, revenue, and queue stats.\n2. 📦 **Bulk Order Creation**: Say *'Add 20 dummy orders'* to generate test records.\n3. 📄 **PDF & CSV Reports**: Export live data with 1-click preview.\n4. ✅ **Order Lifecycle Updates**: Say *'Mark Order #1001 as Delivered'*.\n5. 🏗️ **Architecture Q&A**: Ask me how multi-tenancy or security is engineered!",
+          action: "help_info",
+          actionData: {}
+        });
+      }
+
+      return res.json({
+        reply: "👋 I am **Gemini AI Copilot** — your intelligent ERP assistant for Liberty Uniform Order Book!\n\nYou can ask me to run analytics, add dummy test orders, export reports, or ask questions about how the architecture was built.",
+        action: "help_info",
+        actionData: {}
+      });
+    }
 
     // 1. REFUSAL GUARD 1: CREDENTIAL & SECRETS SHIELD
     if (/(password|jwt_secret|env|telegram_bot|secret|credential|token|api_key)/i.test(promptLower) && !/how is this app built|architecture/i.test(promptLower)) {
