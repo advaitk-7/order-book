@@ -10115,8 +10115,14 @@ return sortedOrders.slice(0, visibleCount)
                                       {log.performedBy || 'Admin'}
                                     </span>
                                   </div>
-                                  <span style={{ fontSize: '11px', color: '#94A3B8' }}>
-                                    {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  <span style={{ fontSize: '11px', color: theme === 'dark' ? '#94A3B8' : '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <span style={{ opacity: 0.8, fontSize: '11px' }}>
+                                      {new Date(log.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
+                                    </span>
+                                    <span style={{ opacity: 0.5 }}>•</span>
+                                    <span style={{ fontWeight: 600 }}>
+                                      {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
                                   </span>
                                 </div>
 
