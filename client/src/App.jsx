@@ -13219,12 +13219,12 @@ return sortedOrders.slice(0, visibleCount)
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div className="demo-ai-avatar">✨</div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#F8FAFC' }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#F8FAFC', lineHeight: '1.2' }}>
                       Gemini AI Copilot
                     </div>
-                    <div style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34D399' }}></span>
-                      Active System Copilot (`order_book_demo`)
+                    <div style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px #34D399', display: 'inline-block' }}></span>
+                      Active System Copilot
                     </div>
                   </div>
                 </div>

@@ -3692,28 +3692,36 @@ tr.clickable-row.highlighted-row td {
 }
 
 .demo-ai-avatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #059669, #10B981);
+  background: linear-gradient(135deg, #4F46E5, #06B6D4, #10B981);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
 }
 
 .demo-ai-icon-btn {
-  background: #334155;
-  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: #F8FAFC;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.demo-ai-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
 }
 
 .demo-ai-icon-btn.active-voice {
@@ -3722,12 +3730,24 @@ tr.clickable-row.highlighted-row td {
 }
 
 .demo-ai-close-btn {
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: #94A3B8;
-  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 14px;
   cursor: pointer;
-  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.demo-ai-close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #F8FAFC;
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .demo-ai-pills-row {
