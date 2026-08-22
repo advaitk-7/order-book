@@ -437,6 +437,16 @@ function App() {
       })
 
       const data = await response.json()
+
+      if (!response.ok) {
+        setDemoAiMessages(prev => [...prev, {
+          sender: 'ai',
+          text: `❌ ${data.message || 'Error processing request.'}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }])
+        return
+      }
+
       const aiMsg = {
         sender: 'ai',
         text: data.reply || "Action completed.",
@@ -473,7 +483,7 @@ function App() {
     } catch (err) {
       setDemoAiMessages(prev => [...prev, {
         sender: 'ai',
-        text: "❌ Network error connecting to AI Assistant.",
+        text: "❌ Unable to connect to server. Please check your network.",
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }])
     } finally {
