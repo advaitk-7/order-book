@@ -13392,7 +13392,7 @@ return sortedOrders.slice(0, visibleCount)
                         className={`demo-gemini-thread-item ${activeThreadId === thread.id ? 'active' : ''}`}
                         onClick={() => setActiveThreadId(thread.id)}
                       >
-                        <span className="demo-gemini-thread-icon">💬</span>
+                        <Icons.MessageIcon size={14} style={{ color: '#94A3B8', flexShrink: 0 }} />
                         <span className="demo-gemini-thread-title" title={thread.title}>{thread.title}</span>
                         <button
                           type="button"
@@ -13403,7 +13403,7 @@ return sortedOrders.slice(0, visibleCount)
                           }}
                           title="Delete thread (Password Required)"
                         >
-                          🗑️
+                          <Icons.TrashIcon size={13} />
                         </button>
                       </div>
                     ))}
