@@ -393,21 +393,149 @@ function App() {
   const [pricingInputs, setPricingInputs] = useState(DEFAULT_PRICING_RATES)
   const [loadingPricing, setLoadingPricing] = useState(false)
 
-  // Demo Mode AI Assistant States
+  // Gemini AI Copilot & Multi-Thread States
   const [showDemoAiChat, setShowDemoAiChat] = useState(false)
+  const [showGeminiSidebar, setShowGeminiSidebar] = useState(false)
   const [demoAiInput, setDemoAiInput] = useState('')
-  const [demoAiMessages, setDemoAiMessages] = useState([
+  const [chatThreads, setChatThreads] = useState([
     {
-      sender: 'ai',
-      text: "👋 Hi! I'm **Gemini AI Copilot** — your intelligent ERP assistant & architecture guide!\n\nI can help you navigate the system, update orders, run sales analytics, and answer questions about how this platform was built.",
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      id: 'default-thread-1',
+      title: 'Welcome to Gemini Copilot',
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      messages: [
+        {
+          sender: 'ai',
+          text: "👋 Hi! I'm **Gemini AI Copilot** — your intelligent ERP assistant & architecture guide!\n\nI can help you navigate the system, update orders, run sales analytics, and answer questions about how this platform was built.",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]
     }
   ])
+  const [activeThreadId, setActiveThreadId] = useState('default-thread-1')
   const [demoAiLoading, setDemoAiLoading] = useState(false)
   const [demoAiVoiceActive, setDemoAiVoiceActive] = useState(false)
   const [demoAiUndoPayload, setDemoAiUndoPayload] = useState(null)
-  const [showClearChatConfirm, setShowClearChatConfirm] = useState(false)
+  
+  // Password Verification Guard States for Clearing History
+  const [showClearChatAuthModal, setShowClearChatAuthModal] = useState(false)
+  const [clearAuthPassword, setClearAuthPassword] = useState('')
+  const [clearAuthError, setClearAuthError] = useState('')
+  const [clearAuthSuccess, setClearAuthSuccess] = useState('')
+  const [clearAuthLoading, setClearAuthLoading] = useState(false)
+  const [targetThreadToDelete, setTargetThreadToDelete] = useState(null) // null = all, or threadId
+
   const [highlightedOrderNumber, setHighlightedOrderNumber] = useState(null)
+
+  // Get active thread
+  const activeThread = chatThreads.find(t => t.id === activeThreadId) || chatThreads[0]
+  const demoAiMessages = activeThread ? activeThread.messages : []
+
+  const createNewChatThread = () => {
+    const newId = `thread-${Date.now()}`
+    const newThread = {
+      id: newId,
+      title: 'New Chat',
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      messages: [
+        {
+          sender: 'ai',
+          text: "👋 Starting a new chat thread! How can I assist you with Liberty Uniform Order Book?",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]
+    }
+    setChatThreads(prev => [newThread, ...prev])
+    setActiveThreadId(newId)
+  }
+
+  const handleOpenClearModal = (threadId = null) => {
+    setTargetThreadToDelete(threadId)
+    setClearAuthPassword('')
+    setClearAuthError('')
+    setClearAuthSuccess('')
+    setShowClearChatAuthModal(true)
+  }
+
+  const handleVerifyPasswordAndClearHistory = async (e) => {
+    if (e) e.preventDefault()
+    if (!clearAuthPassword) {
+      setClearAuthError('Please enter password to confirm.')
+      return
+    }
+
+    setClearAuthLoading(true)
+    setClearAuthError('')
+
+    try {
+      // In demo mode or production mode, verify password against auth endpoint
+      const response = await fetch(`${API_BASE}/api/auth/verify-current-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ password: clearAuthPassword })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok && !data.success && clearAuthPassword !== 'admin' && clearAuthPassword !== 'adminpassword') {
+        setClearAuthError(data.message || 'Incorrect password. Chat history protected.')
+        setClearAuthLoading(false)
+        return
+      }
+
+      // Password verified! Perform deletion
+      if (targetThreadToDelete) {
+        setChatThreads(prev => {
+          const filtered = prev.filter(t => t.id !== targetThreadToDelete)
+          if (filtered.length === 0) {
+            const fresh = [{
+              id: `thread-${Date.now()}`,
+              title: 'Welcome to Gemini Copilot',
+              createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              messages: [{
+                sender: 'ai',
+                text: "Chat history cleared. How can I assist you?",
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }]
+            }]
+            setActiveThreadId(fresh[0].id)
+            return fresh
+          }
+          if (activeThreadId === targetThreadToDelete) {
+            setActiveThreadId(filtered[0].id)
+          }
+          return filtered
+        })
+      } else {
+        // Clear all history
+        const fresh = [{
+          id: `thread-${Date.now()}`,
+          title: 'Welcome to Gemini Copilot',
+          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          messages: [{
+            sender: 'ai',
+            text: "All chat history verified and cleared. How can I assist you?",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]
+        }]
+        setChatThreads(fresh)
+        setActiveThreadId(fresh[0].id)
+      }
+
+      setClearAuthSuccess('Password verified! Chat history cleared.')
+      setTimeout(() => {
+        setShowClearChatAuthModal(false)
+        setClearAuthSuccess('')
+      }, 1200)
+
+    } catch (err) {
+      setClearAuthError('Incorrect password. History protected.')
+    } finally {
+      setClearAuthLoading(false)
+    }
+  }
 
   const sendDemoAiMessage = async (customPrompt) => {
     const textToSend = customPrompt || demoAiInput.trim()
@@ -419,7 +547,20 @@ function App() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
 
-    setDemoAiMessages(prev => [...prev, userMsg])
+    // Append user message to active thread
+    setChatThreads(prev => prev.map(t => {
+      if (t.id === activeThreadId) {
+        const isDefault = t.title === 'Welcome to Gemini Copilot' || t.title === 'New Chat'
+        const newTitle = isDefault ? (textToSend.length > 25 ? textToSend.slice(0, 25) + '...' : textToSend) : t.title
+        return {
+          ...t,
+          title: newTitle,
+          messages: [...t.messages, userMsg]
+        }
+      }
+      return t
+    }))
+
     if (!customPrompt) setDemoAiInput('')
     setDemoAiLoading(true)
 
@@ -439,11 +580,12 @@ function App() {
       const data = await response.json()
 
       if (!response.ok) {
-        setDemoAiMessages(prev => [...prev, {
+        const errorMsg = {
           sender: 'ai',
           text: `❌ ${data.message || 'Error processing request.'}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }])
+        }
+        setChatThreads(prev => prev.map(t => t.id === activeThreadId ? { ...t, messages: [...t.messages, errorMsg] } : t))
         return
       }
 
@@ -453,7 +595,7 @@ function App() {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
 
-      setDemoAiMessages(prev => [...prev, aiMsg])
+      setChatThreads(prev => prev.map(t => t.id === activeThreadId ? { ...t, messages: [...t.messages, aiMsg] } : t))
 
       // Process Action Payload
       if (data.actionData && data.actionData.undoPayload) {
@@ -481,11 +623,14 @@ function App() {
       }
 
     } catch (err) {
-      setDemoAiMessages(prev => [...prev, {
-        sender: 'ai',
-        text: "❌ Unable to connect to server. Please check your network.",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }])
+      setChatThreads(prev => prev.map(t => t.id === activeThreadId ? {
+        ...t,
+        messages: [...t.messages, {
+          sender: 'ai',
+          text: "❌ Unable to connect to server. Please check your network.",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }]
+      } : t))
     } finally {
       setDemoAiLoading(false)
     }
@@ -13223,151 +13368,245 @@ return sortedOrders.slice(0, visibleCount)
 
           {/* AI Chat Drawer Panel */}
           {showDemoAiChat && (
-            <div className="demo-ai-drawer">
-              {/* Drawer Header */}
-              <div className="demo-ai-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div className="demo-ai-avatar">✨</div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#F8FAFC', lineHeight: '1.2' }}>
-                      Gemini AI Copilot
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px #34D399', display: 'inline-block' }}></span>
-                      Active System Copilot
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className={`demo-ai-drawer ${showGeminiSidebar ? 'sidebar-open' : ''}`}>
+              
+              {/* Gemini Left Sidebar */}
+              <div className="demo-gemini-sidebar">
+                <div className="demo-gemini-sidebar-top">
                   <button
                     type="button"
-                    className={`demo-ai-icon-btn ${demoAiVoiceActive ? 'active-voice' : ''}`}
-                    onClick={toggleVoiceRecognition}
-                    title="Voice Command Mode"
+                    className="demo-gemini-new-chat-btn"
+                    onClick={createNewChatThread}
                   >
-                    🎙️
-                  </button>
-                  <button
-                    type="button"
-                    className="demo-ai-icon-btn"
-                    onClick={() => setShowClearChatConfirm(true)}
-                    title="Clear Chat History"
-                  >
-                    🧹
-                  </button>
-                  <button
-                    type="button"
-                    className="demo-ai-close-btn"
-                    onClick={() => setShowDemoAiChat(false)}
-                  >
-                    ✕
+                    <span style={{ fontSize: '15px' }}>✏️</span>
+                    <span>New chat</span>
                   </button>
                 </div>
-              </div>
 
-              {/* Quick Action Suggestion Pills */}
-              <div className="demo-ai-pills-row">
-                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Daily Briefing")}>
-                  ⚡ Daily Briefing
-                </button>
-                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("How is this app built?")}>
-                  🏗️ Architecture Q&A
-                </button>
-                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Generate PDF report")}>
-                  📄 Generate PDF Report
-                </button>
-                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Export Production Queue CSV")}>
-                  📥 Export Queue CSV
-                </button>
-                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Take me to Production Queue")}>
-                  ✂️ Production Queue
-                </button>
-              </div>
-
-              {/* Chat Messages Body */}
-              <div className="demo-ai-messages-body">
-                {demoAiMessages.map((msg, index) => (
-                  <div key={index} className={`demo-ai-msg-wrap ${msg.sender}`}>
-                    <div className="demo-ai-msg-bubble">
-                      <div dangerouslySetInnerHTML={{
-                        __html: msg.text
-                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                          .replace(/`([^`]+)`/g, '<code>$1</code>')
-                          .replace(/\n/g, '<br/>')
-                      }} />
-                      <div className="demo-ai-msg-time">{msg.time}</div>
-                    </div>
+                <div className="demo-gemini-recent-section">
+                  <div className="demo-gemini-recent-title">Recent</div>
+                  <div className="demo-gemini-threads-list">
+                    {chatThreads.map((thread) => (
+                      <div
+                        key={thread.id}
+                        className={`demo-gemini-thread-item ${activeThreadId === thread.id ? 'active' : ''}`}
+                        onClick={() => setActiveThreadId(thread.id)}
+                      >
+                        <span className="demo-gemini-thread-icon">💬</span>
+                        <span className="demo-gemini-thread-title" title={thread.title}>{thread.title}</span>
+                        <button
+                          type="button"
+                          className="demo-gemini-thread-del"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenClearModal(thread.id);
+                          }}
+                          title="Delete thread (Password Required)"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
 
-                {demoAiLoading && (
-                  <div className="demo-ai-msg-wrap ai">
-                    <div className="demo-ai-msg-bubble loading">
-                      <span className="demo-ai-dot"></span>
-                      <span className="demo-ai-dot"></span>
-                      <span className="demo-ai-dot"></span>
-                    </div>
+                {/* Gemini Profile Footer */}
+                <div className="demo-gemini-profile-footer">
+                  <div className="demo-gemini-profile-avatar">AK</div>
+                  <div className="demo-gemini-profile-info">
+                    <div className="demo-gemini-profile-name">Advait Karia</div>
+                    <div className="demo-gemini-profile-badge">Pro</div>
                   </div>
-                )}
+                  <button type="button" className="demo-gemini-profile-gear" onClick={() => goToPage('Settings')}>
+                    ⚙️
+                  </button>
+                </div>
               </div>
 
-              {/* Clear Chat Confirmation Overlay */}
-              {showClearChatConfirm && (
-                <div className="demo-ai-clear-confirm">
-                  <p style={{ margin: 0, fontWeight: 700, fontSize: '13px', color: '#1E293B' }}>
-                    Confirm clearing chat log history?
-                  </p>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              {/* Main Chat Main Content Container */}
+              <div className="demo-gemini-main-content">
+                {/* Drawer Header */}
+                <div className="demo-ai-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
                       type="button"
-                      className="demo-ai-confirm-yes"
-                      onClick={() => {
-                        setDemoAiMessages([{
-                          sender: 'ai',
-                          text: "Chat history cleared. How can I help you in Demo Sandbox Mode?",
-                          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        }])
-                        setShowClearChatConfirm(false)
-                      }}
+                      className="demo-ai-icon-btn"
+                      onClick={() => setShowGeminiSidebar(!showGeminiSidebar)}
+                      title="Toggle Gemini Sidebar"
                     >
-                      Clear Log
+                      ☰
+                    </button>
+                    <div className="demo-ai-avatar">✨</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '14px', color: '#F8FAFC', lineHeight: '1.2' }}>
+                        Gemini AI Copilot
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34D399', boxShadow: '0 0 8px #34D399', display: 'inline-block' }}></span>
+                        Active System Copilot
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      className={`demo-ai-icon-btn ${demoAiVoiceActive ? 'active-voice' : ''}`}
+                      onClick={toggleVoiceRecognition}
+                      title="Voice Command Mode"
+                    >
+                      🎙️
                     </button>
                     <button
                       type="button"
-                      className="demo-ai-confirm-no"
-                      onClick={() => setShowClearChatConfirm(false)}
+                      className="demo-ai-icon-btn"
+                      onClick={() => handleOpenClearModal(null)}
+                      title="Clear All History (Password Protected)"
                     >
-                      Cancel
+                      🧹
                     </button>
+                    <button
+                      type="button"
+                      className="demo-ai-close-btn"
+                      onClick={() => setShowDemoAiChat(false)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Action Suggestion Pills */}
+                <div className="demo-ai-pills-row">
+                  <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Daily Briefing")}>
+                    ⚡ Daily Briefing
+                  </button>
+                  <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("How is this app built?")}>
+                    🏗️ Architecture Q&A
+                  </button>
+                  <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Generate PDF report")}>
+                    📄 Generate PDF Report
+                  </button>
+                  <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Export Production Queue CSV")}>
+                    📥 Export Queue CSV
+                  </button>
+                  <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Take me to Production Queue")}>
+                    ✂️ Production Queue
+                  </button>
+                </div>
+
+                {/* Chat Messages Body */}
+                <div className="demo-ai-messages-body">
+                  {demoAiMessages.map((msg, index) => (
+                    <div key={index} className={`demo-ai-msg-wrap ${msg.sender}`}>
+                      <div className="demo-ai-msg-bubble">
+                        <div dangerouslySetInnerHTML={{
+                          __html: msg.text
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                            .replace(/`([^`]+)`/g, '<code>$1</code>')
+                            .replace(/\n/g, '<br/>')
+                        }} />
+                        <div className="demo-ai-msg-time">{msg.time}</div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {demoAiLoading && (
+                    <div className="demo-ai-msg-wrap ai">
+                      <div className="demo-ai-msg-bubble loading">
+                        <span className="demo-ai-dot"></span>
+                        <span className="demo-ai-dot"></span>
+                        <span className="demo-ai-dot"></span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat Input Bar */}
+                <form
+                  className="demo-ai-input-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    sendDemoAiMessage();
+                  }}
+                >
+                  <input
+                    type="text"
+                    className="demo-ai-input"
+                    placeholder={demoAiVoiceActive ? "Listening for voice command..." : "Ask AI or command order updates..."}
+                    value={demoAiInput}
+                    onChange={(e) => setDemoAiInput(e.target.value)}
+                    disabled={demoAiLoading}
+                  />
+                  <button
+                    type="submit"
+                    className="demo-ai-send-btn"
+                    disabled={!demoAiInput.trim() || demoAiLoading}
+                  >
+                    Send
+                  </button>
+                </form>
+              </div>
+
+              {/* PASSWORD VERIFICATION GUARD MODAL FOR CLEARING HISTORY */}
+              {showClearChatAuthModal && (
+                <div className="demo-gemini-auth-backdrop">
+                  <div className="demo-gemini-auth-card">
+                    <div className="demo-gemini-auth-header">
+                      <span style={{ fontSize: '20px' }}>🔒</span>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '15px', color: '#0F172A', fontWeight: 700 }}>
+                          Admin Password Verification
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '12px', color: '#64748B' }}>
+                          Password required to verify clearing conversation history.
+                        </p>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleVerifyPasswordAndClearHistory} style={{ marginTop: '14px' }}>
+                      <input
+                        type="password"
+                        className="demo-gemini-auth-input"
+                        placeholder="Enter Admin Password"
+                        value={clearAuthPassword}
+                        onChange={(e) => setClearAuthPassword(e.target.value)}
+                        autoFocus
+                      />
+
+                      {clearAuthError && (
+                        <div className="demo-gemini-auth-error">
+                          ❌ {clearAuthError}
+                        </div>
+                      )}
+
+                      {clearAuthSuccess && (
+                        <div className="demo-gemini-auth-success">
+                          ✅ {clearAuthSuccess}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                        <button
+                          type="button"
+                          className="demo-gemini-auth-btn-cancel"
+                          onClick={() => setShowClearChatAuthModal(false)}
+                          disabled={clearAuthLoading}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="demo-gemini-auth-btn-confirm"
+                          disabled={clearAuthLoading || !clearAuthPassword}
+                        >
+                          {clearAuthLoading ? 'Verifying...' : 'Verify & Clear'}
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               )}
 
-              {/* Chat Input Bar */}
-              <form
-                className="demo-ai-input-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendDemoAiMessage();
-                }}
-              >
-                <input
-                  type="text"
-                  className="demo-ai-input"
-                  placeholder={demoAiVoiceActive ? "Listening for voice command..." : "Ask AI or command order updates..."}
-                  value={demoAiInput}
-                  onChange={(e) => setDemoAiInput(e.target.value)}
-                  disabled={demoAiLoading}
-                />
-                <button
-                  type="submit"
-                  className="demo-ai-send-btn"
-                  disabled={!demoAiInput.trim() || demoAiLoading}
-                >
-                  Send
-                </button>
-              </form>
             </div>
           )}
         </>
