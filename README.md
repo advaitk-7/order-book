@@ -83,6 +83,12 @@
 - **Excel/CSV Export**: Complete measurement matrices for offline accounting.
 - **WhatsApp Integration**: One-click pre-filled customer readiness notifications.
 
+### 9. 🛡️ System Audit Trail & Compliance Engine
+- **Granular Activity Tracking**: Real-time logging of all creations, field updates, status changes, dispatches, waitlist requests, supplier POs, corporate COs, rate changes, and auth events with zero unlisted actions.
+- **Interactive Tap-to-Inspect Inspection Modal**: Field-by-field diffs (`old ➔ new`), complete record snapshots, products & size breakdown tables, and direct record navigation shortcuts.
+- **Gold Standard Universal Search**: Deep multi-field search across order numbers, customer names, schools, IP addresses, device user-agents, and field diff values.
+- **Admin Oversight & Role Scoping**: Admins monitor both Admin and Demo recruiter sandbox logs in real-time, while Guest Demo sessions remain strictly role-isolated.
+
 ---
 
 ## 🛠️ Tech Stack & Dependencies
