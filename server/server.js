@@ -2818,6 +2818,230 @@ app.get("/api/backups/download/:filename", authenticateJWT, (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SANDBOXED DEMO AI ASSISTANT & RECRUITER ARCHITECTURE GUIDE
+// Zero connection to production database. Only executes against order_book_demo.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/api/demo/ai-assistant", authenticateJWT, async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'demo') {
+      return res.status(403).json({ message: "Access denied. AI Assistant is strictly for Guest Demo Mode." });
+    }
+
+    const { prompt, undoPayload } = req.body;
+    const promptLower = String(prompt || '').trim().toLowerCase();
+
+    // 1. REFUSAL GUARD 1: CREDENTIAL & SECRETS SHIELD
+    if (/(password|jwt_secret|env|telegram_bot|secret|credential|token|api_key)/i.test(promptLower) && !/how is this app built|architecture/i.test(promptLower)) {
+      return res.json({
+        reply: "🛡️ **Security Shield Active**: System passwords, JWT secret keys, and server environment variables cannot be disclosed or extracted.",
+        action: "refusal",
+        actionData: {}
+      });
+    }
+
+    // 2. REFUSAL GUARD 2: PRODUCTION DB ACCESS GUARD
+    if (/(real customer|production db|access production|real database|live database|main db|bypass demo)/i.test(promptLower)) {
+      return res.json({
+        reply: "🔒 **Restricted Access**: The AI Assistant operates exclusively within the isolated Demo Sandbox (`order_book_demo`). Real production database access is code-level restricted and impossible.",
+        action: "refusal",
+        actionData: {}
+      });
+    }
+
+    // 3. REFUSAL GUARD 3: DESTRUCTIVE ACTION GUARD
+    if (/(delete all|drop database|wipe all|clear audit logs|delete everything)/i.test(promptLower)) {
+      return res.json({
+        reply: "⚠️ **Action Guard**: Bulk deletion or dropping database collections is disabled in demo mode. You can edit, delete, or create individual demo items instead.",
+        action: "refusal",
+        actionData: {}
+      });
+    }
+
+    const conn = await getDemoConnection();
+    const models = buildDemoModels(conn);
+
+    // UNDO ENGINE
+    if (/(undo|revert|take back|cancel last)/i.test(promptLower) || undoPayload) {
+      if (undoPayload && undoPayload.type === 'update_order') {
+        const { orderId, orderNumber, previousUpdates } = undoPayload;
+        await models.Order.findByIdAndUpdate(orderId, previousUpdates);
+        return res.json({
+          reply: `↩️ **Successfully Reverted!** Restored **Order #${orderNumber}** back to its previous state.`,
+          action: "update_order",
+          actionData: { page: "Orders", highlightOrder: String(orderNumber) }
+        });
+      }
+      return res.json({
+        reply: "No recent reversible AI action found to undo. ℹ️",
+        action: "none",
+        actionData: {}
+      });
+    }
+
+    // EXECUTIVE DAILY BRIEFING
+    if (/(briefing|executive|daily summary|today's overview|overview|dashboard summary)/i.test(promptLower)) {
+      const orders = await models.Order.find({});
+      const waitlist = await models.Waitlist.find({ status: "Pending" });
+      const pos = await models.VendorOrder.find({});
+      const cos = await models.BulkOrder.find({});
+
+      const totalRev = orders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+      const paidRev = orders.filter(o => o.paymentStatus === 'Paid').reduce((sum, o) => sum + Number(o.amount || 0), 0);
+      const unpaidRev = totalRev - paidRev;
+      const readyCount = orders.filter(o => o.status === 'Ready').length;
+      const pendingCount = orders.filter(o => o.status === 'Pending').length;
+
+      return res.json({
+        reply: `⚡ **Daily Executive Briefing (Demo Sandbox)**:\n\n- 📦 **Total Orders**: ${orders.length} (${readyCount} Ready for Pickup, ${pendingCount} In Tailor Queue)\n- 💰 **Revenue Overview**: ₹${totalRev.toLocaleString('en-IN')} Total (₹${paidRev.toLocaleString('en-IN')} Collected, ₹${unpaidRev.toLocaleString('en-IN')} Unpaid)\n- ⏳ **Out-of-Stock Waitlist**: ${waitlist.length} pending size requests\n- 🏭 **Supplier Restock POs**: ${pos.length} purchase orders active\n- 🏢 **Commercial Contracts**: ${cos.length} institutional orders`,
+        action: "briefing",
+        actionData: {}
+      });
+    }
+
+    // RECRUITER ARCHITECTURE & KNOWLEDGE BASE
+    if (/(how is this (app|built)|architecture|tech stack|multi-tenancy|asynclocalstorage|mongoose|backup|device|security|fuzzy|levenshtein|sleeve|tailor)/i.test(promptLower)) {
+      let topicText = "";
+      if (/multi-tenancy|asynclocalstorage|sandbox|isolation|db/i.test(promptLower)) {
+        topicText = "🏗️ **Sandboxed Multi-Tenancy Architecture**:\nBuilt using Node.js `AsyncLocalStorage` and dynamic Mongoose connection model proxies. When a request carries a demo token (`role: 'demo'`), the context routes all database operations to `order_book_demo`, leaving live production data completely isolated.";
+      } else if (/backup|telegram/i.test(promptLower)) {
+        topicText = "💾 **Automated Cloud Backup System**:\nRuns every night at 11:59 PM IST. Compresses the entire database into `.json.gz` using Node `zlib` and uploads the document directly to a private Telegram Bot API.";
+      } else if (/device|security|session|ipad/i.test(promptLower)) {
+        topicText = "📱 **Hardware Device Detection & Security**:\nAnalyzes User-Agent and hardware touch-points (`navigator.maxTouchPoints > 1`) to distinguish iPadOS Safari Desktop mode from MacBooks and mobile phones. Displays active sessions with remote 1-click revocation.";
+      } else if (/fuzzy|search|levenshtein/i.test(promptLower)) {
+        topicText = "🔍 **Levenshtein Fuzzy Search Engine**:\nCustom server-side edit-distance algorithm allowing typo-tolerant instant search across customer names, phone numbers, and order numbers without external search infrastructure.";
+      } else {
+        topicText = "✨ **System Architecture & Tech Stack**:\n- **Frontend**: React 18, Vite, Custom Vanilla CSS, Canvas Emoji Engine.\n- **Backend**: Node.js, Express.js, `AsyncLocalStorage`, JWT, Bcrypt.\n- **Database**: MongoDB Atlas Cloud, Mongoose ODM.\n- **Integrations**: Telegram Bot API, WhatsApp Web API, Web Speech API.";
+      }
+
+      return res.json({
+        reply: topicText,
+        action: "help_info",
+        actionData: {}
+      });
+    }
+
+    // EXPORT PDF INTENT (FOR ALL MODULES)
+    if (/(export pdf|generate pdf|download pdf|pdf report|pdf)/i.test(promptLower)) {
+      return res.json({
+        reply: "📄 Opening print-optimized **PDF Live Preview Modal** right away! You can adjust orientation, font scaling, and margins before printing or downloading.",
+        action: "generate_pdf",
+        actionData: {}
+      });
+    }
+
+    // EXPORT CSV INTENT (SPECIFIC MODULES)
+    if (/(export csv|download excel|export excel|excel report|csv)/i.test(promptLower)) {
+      let moduleType = "orders";
+      if (/po|supplier|vendor/i.test(promptLower)) moduleType = "po";
+      else if (/co|commercial|bulk/i.test(promptLower)) moduleType = "co";
+      else if (/queue|tailor/i.test(promptLower)) moduleType = "tailor";
+
+      return res.json({
+        reply: `📥 Exporting **${moduleType.toUpperCase()}** report to CSV Excel file...`,
+        action: "export_csv",
+        actionData: { module: moduleType }
+      });
+    }
+
+    // NAVIGATION INTENTS
+    if (/(go to|open|show|navigate to)\s+(dashboard|new order|orders|production queue|stock waitlist|restock|bulk|settings)/i.test(promptLower) || /(production queue|stock waitlist|settings|dashboard)/i.test(promptLower)) {
+      let page = "Dashboard";
+      if (/new order/i.test(promptLower)) page = "New Order";
+      else if (/production queue|tailor/i.test(promptLower)) page = "Production Queue";
+      else if (/stock waitlist|waitlist/i.test(promptLower)) page = "Stock Waitlist";
+      else if (/restock|bulk|supplier/i.test(promptLower)) page = "Restock & Bulk Orders";
+      else if (/settings/i.test(promptLower)) page = "Settings";
+      else if (/orders/i.test(promptLower)) page = "Orders";
+
+      return res.json({
+        reply: `Navigating to **${page}** right away! 🧭`,
+        action: "navigate",
+        actionData: { page }
+      });
+    }
+
+    // ORDER INTAKE CREATION INTENT
+    const createMatch = promptLower.match(/create (an )?order for (customer )?([a-z\s]+),(.*)/i);
+    if (createMatch) {
+      const custName = createMatch[3].trim();
+      const newOrder = await models.Order.create({
+        orderNumber: Math.floor(1000 + Math.random() * 9000),
+        customerName: custName.charAt(0).toUpperCase() + custName.slice(1),
+        customerContact: "9876543210",
+        school: "St. Xavier School",
+        grade: "8",
+        gender: "Boy",
+        items: [{
+          product: "Shirt",
+          quantity: 1,
+          measurements: { length: "28", chest: "32", sleeve: "Half Sleeve" }
+        }],
+        amount: 450,
+        status: "Pending",
+        paymentStatus: "Unpaid",
+        createdAt: new Date()
+      });
+
+      return res.json({
+        reply: `✨ Created new order **#${newOrder.orderNumber}** for **${newOrder.customerName}** in demo database!`,
+        action: "create_order",
+        actionData: { orderNumber: newOrder.orderNumber, page: "Orders" }
+      });
+    }
+
+    // ORDER STATUS / PAYMENT UPDATE INTENT
+    const statusMatch = promptLower.match(/(mark|set|change)\s+(order\s+)?#?(\w+)\s+(as\s+)?(delivered|ready|pending|paid|unpaid)/i);
+    if (statusMatch) {
+      const targetNum = statusMatch[3];
+      const newStatus = statusMatch[5];
+      const orders = await models.Order.find({});
+      const targetOrder = orders.find(o => String(o.orderNumber).toLowerCase() === targetNum.toLowerCase());
+      
+      if (targetOrder) {
+        const previousStatus = targetOrder.status;
+        const previousPaymentStatus = targetOrder.paymentStatus;
+        let updateField = {};
+
+        if (["delivered", "ready", "pending"].includes(newStatus)) {
+          updateField = { status: newStatus.charAt(0).toUpperCase() + newStatus.slice(1) };
+        } else if (["paid", "unpaid"].includes(newStatus)) {
+          updateField = { paymentStatus: newStatus.charAt(0).toUpperCase() + newStatus.slice(1) };
+        }
+
+        await models.Order.findByIdAndUpdate(targetOrder._id, updateField);
+
+        return res.json({
+          reply: `Updated **Order #${targetOrder.orderNumber}** (${targetOrder.customerName}) to **${newStatus.toUpperCase()}**! ✅\n\n*(Say "undo" anytime to revert)*`,
+          action: "update_order",
+          actionData: {
+            orderNumber: targetOrder.orderNumber,
+            page: "Orders",
+            highlightOrder: String(targetOrder.orderNumber),
+            undoPayload: {
+              type: 'update_order',
+              orderId: targetOrder._id,
+              orderNumber: targetOrder.orderNumber,
+              previousUpdates: { status: previousStatus, paymentStatus: previousPaymentStatus }
+            }
+          }
+        });
+      }
+    }
+
+    // DEFAULT ASSISTANT HELP RESPONSE
+    return res.json({
+      reply: `I am your **Demo AI Assistant & Recruiter Architecture Guide**! 🤖\n\nTry asking me:\n- ⚡ *"Daily Briefing"* (Executive Overview)\n- 🏗️ *"How is sandboxed multi-tenancy built?"*\n- 📄 *"Generate PDF report"*\n- 📥 *"Export Production Queue CSV"*\n- ✅ *"Mark Order #101 as Delivered"*\n- 🧭 *"Take me to Production Queue"*\n- 🧹 *"Clear Chat History"*`,
+      action: "none",
+      actionData: {}
+    });
+
+  } catch (error) {
+    console.error("Demo AI Assistant Error:", error);
+    res.status(500).json({ message: "Failed to process AI assistant prompt", error: error.message });
+  }
+});
+
 
 app.post("/api/backups/restore", authenticateJWT, async (req, res) => {
   try {

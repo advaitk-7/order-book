@@ -393,6 +393,129 @@ function App() {
   const [pricingInputs, setPricingInputs] = useState(DEFAULT_PRICING_RATES)
   const [loadingPricing, setLoadingPricing] = useState(false)
 
+  // Demo Mode AI Assistant States
+  const [showDemoAiChat, setShowDemoAiChat] = useState(false)
+  const [demoAiInput, setDemoAiInput] = useState('')
+  const [demoAiMessages, setDemoAiMessages] = useState([
+    {
+      sender: 'ai',
+      text: "👋 Hi! I'm your **Demo AI Assistant & Architecture Guide**!\n\nI can help you navigate the system, update orders, run sales analytics, and answer questions about how this platform was built.",
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  ])
+  const [demoAiLoading, setDemoAiLoading] = useState(false)
+  const [demoAiVoiceActive, setDemoAiVoiceActive] = useState(false)
+  const [demoAiUndoPayload, setDemoAiUndoPayload] = useState(null)
+  const [showClearChatConfirm, setShowClearChatConfirm] = useState(false)
+  const [highlightedOrderNumber, setHighlightedOrderNumber] = useState(null)
+
+  const sendDemoAiMessage = async (customPrompt) => {
+    const textToSend = customPrompt || demoAiInput.trim()
+    if (!textToSend || demoAiLoading) return
+
+    const userMsg = {
+      sender: 'user',
+      text: textToSend,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+
+    setDemoAiMessages(prev => [...prev, userMsg])
+    if (!customPrompt) setDemoAiInput('')
+    setDemoAiLoading(true)
+
+    try {
+      const response = await fetch(`${API_BASE}/api/demo/ai-assistant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          prompt: textToSend,
+          undoPayload: textToSend.toLowerCase().includes('undo') ? demoAiUndoPayload : null
+        })
+      })
+
+      const data = await response.json()
+      const aiMsg = {
+        sender: 'ai',
+        text: data.reply || "Action completed.",
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+
+      setDemoAiMessages(prev => [...prev, aiMsg])
+
+      // Process Action Payload
+      if (data.actionData && data.actionData.undoPayload) {
+        setDemoAiUndoPayload(data.actionData.undoPayload)
+      }
+
+      if (data.action === 'navigate' && data.actionData.page) {
+        goToPage(data.actionData.page)
+      } else if (data.action === 'update_order') {
+        if (data.actionData.page) goToPage(data.actionData.page)
+        if (data.actionData.highlightOrder) {
+          setHighlightedOrderNumber(data.actionData.highlightOrder)
+          setTimeout(() => setHighlightedOrderNumber(null), 4000)
+        }
+        fetchOrders(searchQuery, schoolFilter, statusFilter, paymentFilter, itemTypeFilter, dateFromFilter, dateToFilter, 1)
+      } else if (data.action === 'create_order') {
+        if (data.actionData.page) goToPage(data.actionData.page)
+        fetchOrders(searchQuery, schoolFilter, statusFilter, paymentFilter, itemTypeFilter, dateFromFilter, dateToFilter, 1)
+      } else if (data.action === 'generate_pdf') {
+        setShowPdfModal(true)
+      } else if (data.action === 'export_csv') {
+        const mod = data.actionData.module || 'orders'
+        if (mod === 'tailor') exportTailorToCSV()
+        else exportOrdersToExcel()
+      }
+
+    } catch (err) {
+      setDemoAiMessages(prev => [...prev, {
+        sender: 'ai',
+        text: "❌ Network error connecting to AI Assistant.",
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }])
+    } finally {
+      setDemoAiLoading(false)
+    }
+  }
+
+  const toggleVoiceRecognition = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      alert("Voice speech recognition is not supported in your current browser. Please use Chrome, Edge, or Safari.")
+      return
+    }
+
+    if (demoAiVoiceActive) {
+      setDemoAiVoiceActive(false)
+      return
+    }
+
+    try {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.lang = 'en-US'
+
+      recognition.onstart = () => setDemoAiVoiceActive(true)
+      recognition.onend = () => setDemoAiVoiceActive(false)
+      recognition.onerror = () => setDemoAiVoiceActive(false)
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript
+        if (transcript) {
+          sendDemoAiMessage(transcript)
+        }
+      }
+
+      recognition.start()
+    } catch (e) {
+      setDemoAiVoiceActive(false)
+    }
+  }
+
   const handleReturnToLogin = () => {
     setIsForgotMode(false);
     setForgotStep(1);
@@ -13073,6 +13196,171 @@ return sortedOrders.slice(0, visibleCount)
             </div>
           </div>
         </div>
+      )}
+      {/* EXCLUSIVE GUEST DEMO MODE AI CHATBOT & RECRUITER GUIDE */}
+      {isDemoMode && (
+        <>
+          {/* Floating AI Launcher Toggle Button */}
+          <button
+            type="button"
+            className="demo-ai-launcher-btn"
+            onClick={() => setShowDemoAiChat(!showDemoAiChat)}
+            title="Open Demo AI Assistant & Architecture Guide"
+          >
+            <span className="demo-ai-sparkle">✨</span>
+            <span className="demo-ai-btn-text">Demo AI Assistant</span>
+          </button>
+
+          {/* AI Chat Drawer Panel */}
+          {showDemoAiChat && (
+            <div className="demo-ai-drawer">
+              {/* Drawer Header */}
+              <div className="demo-ai-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className="demo-ai-avatar">✨</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#F8FAFC' }}>
+                      Demo AI Assistant
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34D399' }}></span>
+                      Sandboxed Demo Mode (`order_book_demo`)
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className={`demo-ai-icon-btn ${demoAiVoiceActive ? 'active-voice' : ''}`}
+                    onClick={toggleVoiceRecognition}
+                    title="Voice Command Mode"
+                  >
+                    🎙️
+                  </button>
+                  <button
+                    type="button"
+                    className="demo-ai-icon-btn"
+                    onClick={() => setShowClearChatConfirm(true)}
+                    title="Clear Chat History"
+                  >
+                    🧹
+                  </button>
+                  <button
+                    type="button"
+                    className="demo-ai-close-btn"
+                    onClick={() => setShowDemoAiChat(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Action Suggestion Pills */}
+              <div className="demo-ai-pills-row">
+                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Daily Briefing")}>
+                  ⚡ Daily Briefing
+                </button>
+                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("How is this app built?")}>
+                  🏗️ Architecture Q&A
+                </button>
+                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Generate PDF report")}>
+                  📄 Generate PDF Report
+                </button>
+                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Export Production Queue CSV")}>
+                  📥 Export Queue CSV
+                </button>
+                <button type="button" className="demo-ai-pill" onClick={() => sendDemoAiMessage("Take me to Production Queue")}>
+                  ✂️ Production Queue
+                </button>
+              </div>
+
+              {/* Chat Messages Body */}
+              <div className="demo-ai-messages-body">
+                {demoAiMessages.map((msg, index) => (
+                  <div key={index} className={`demo-ai-msg-wrap ${msg.sender}`}>
+                    <div className="demo-ai-msg-bubble">
+                      <div dangerouslySetInnerHTML={{
+                        __html: msg.text
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                          .replace(/`([^`]+)`/g, '<code>$1</code>')
+                          .replace(/\n/g, '<br/>')
+                      }} />
+                      <div className="demo-ai-msg-time">{msg.time}</div>
+                    </div>
+                  </div>
+                ))}
+
+                {demoAiLoading && (
+                  <div className="demo-ai-msg-wrap ai">
+                    <div className="demo-ai-msg-bubble loading">
+                      <span className="demo-ai-dot"></span>
+                      <span className="demo-ai-dot"></span>
+                      <span className="demo-ai-dot"></span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Clear Chat Confirmation Overlay */}
+              {showClearChatConfirm && (
+                <div className="demo-ai-clear-confirm">
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: '13px', color: '#1E293B' }}>
+                    Confirm clearing chat log history?
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <button
+                      type="button"
+                      className="demo-ai-confirm-yes"
+                      onClick={() => {
+                        setDemoAiMessages([{
+                          sender: 'ai',
+                          text: "Chat history cleared. How can I help you in Demo Sandbox Mode?",
+                          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        }])
+                        setShowClearChatConfirm(false)
+                      }}
+                    >
+                      Clear Log
+                    </button>
+                    <button
+                      type="button"
+                      className="demo-ai-confirm-no"
+                      onClick={() => setShowClearChatConfirm(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Chat Input Bar */}
+              <form
+                className="demo-ai-input-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  sendDemoAiMessage();
+                }}
+              >
+                <input
+                  type="text"
+                  className="demo-ai-input"
+                  placeholder={demoAiVoiceActive ? "Listening for voice command..." : "Ask AI or command order updates..."}
+                  value={demoAiInput}
+                  onChange={(e) => setDemoAiInput(e.target.value)}
+                  disabled={demoAiLoading}
+                />
+                <button
+                  type="submit"
+                  className="demo-ai-send-btn"
+                  disabled={!demoAiInput.trim() || demoAiLoading}
+                >
+                  Send
+                </button>
+              </form>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
