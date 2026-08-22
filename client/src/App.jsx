@@ -13299,46 +13299,94 @@ return sortedOrders.slice(0, visibleCount)
               </div>
             )}
 
-            {/* Full Item Snapshot View (Deletions / Creations) */}
-            {selectedAuditLog.snapshot && (
+            {/* Full Item Snapshot View (Deletions / Creations / Waitlists) */}
+            {selectedAuditLog.snapshot ? (
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  📦 Preserved Object Snapshot
+                  📦 Complete Record Snapshot &amp; Specifications
                 </div>
-                <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px', padding: '12px', fontSize: '12px', color: '#78350F' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ background: theme === 'dark' ? '#1E293B' : '#FEF3C7', border: theme === 'dark' ? '1px solid #334155' : '1px solid #FCD34D', borderRadius: '10px', padding: '14px', fontSize: '12px', color: theme === 'dark' ? '#F8FAFC' : '#78350F' }}>
+                  {/* Grid Metadata */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
                     {selectedAuditLog.snapshot.customerName && (
-                      <div><strong>Customer:</strong> {selectedAuditLog.snapshot.customerName}</div>
-                    )}
-                    {selectedAuditLog.snapshot.school && (
-                      <div><strong>School:</strong> {selectedAuditLog.snapshot.school}</div>
+                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CUSTOMER NAME</span><strong>{selectedAuditLog.snapshot.customerName}</strong></div>
                     )}
                     {selectedAuditLog.snapshot.contactNumber && (
-                      <div><strong>Contact:</strong> {selectedAuditLog.snapshot.contactNumber}</div>
+                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CONTACT NUMBER</span><strong>{selectedAuditLog.snapshot.contactNumber}</strong></div>
+                    )}
+                    {selectedAuditLog.snapshot.school && (
+                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>SCHOOL &amp; GRADE</span><strong>{selectedAuditLog.snapshot.school} {selectedAuditLog.snapshot.grade ? `(Grade ${selectedAuditLog.snapshot.grade})` : ''}</strong></div>
+                    )}
+                    {selectedAuditLog.snapshot.schools && Array.isArray(selectedAuditLog.snapshot.schools) && selectedAuditLog.snapshot.schools.length > 0 && (
+                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>SCHOOLS</span><strong>{selectedAuditLog.snapshot.schools.join(', ')}</strong></div>
+                    )}
+                    {selectedAuditLog.snapshot.gender && (
+                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>GENDER</span><strong>{selectedAuditLog.snapshot.gender}</strong></div>
                     )}
                     {selectedAuditLog.snapshot.amount !== undefined && (
-                      <div><strong>Amount:</strong> ₹{selectedAuditLog.snapshot.amount}</div>
+                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>TOTAL AMOUNT</span><strong style={{ color: '#059669', fontSize: '13px' }}>₹{selectedAuditLog.snapshot.amount}</strong></div>
                     )}
                     {selectedAuditLog.snapshot.status && (
-                      <div><strong>Status:</strong> {selectedAuditLog.snapshot.status}</div>
+                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>STATUS</span><strong style={{ color: selectedAuditLog.snapshot.status === 'Delivered' || selectedAuditLog.snapshot.status === 'Ready' ? '#059669' : '#D97706' }}>{selectedAuditLog.snapshot.status}</strong></div>
                     )}
                     {selectedAuditLog.snapshot.paymentStatus && (
-                      <div><strong>Payment:</strong> {selectedAuditLog.snapshot.paymentStatus}</div>
+                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>PAYMENT STATUS</span><strong style={{ color: selectedAuditLog.snapshot.paymentStatus === 'Paid' ? '#059669' : '#DC2626' }}>{selectedAuditLog.snapshot.paymentStatus}</strong></div>
+                    )}
+                    {selectedAuditLog.snapshot.deliveryDate && (
+                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>DELIVERY DATE</span><strong>{selectedAuditLog.snapshot.deliveryDate}</strong></div>
                     )}
                   </div>
 
+                  {/* Items List Breakdown */}
                   {Array.isArray(selectedAuditLog.snapshot.items) && selectedAuditLog.snapshot.items.length > 0 && (
-                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #FDE68A' }}>
-                      <strong>Items List:</strong>
-                      <ul style={{ margin: '4px 0 0 0', paddingLeft: '18px' }}>
-                        {selectedAuditLog.snapshot.items.map((it, idx) => (
-                          <li key={idx}>
-                            {it.product || it.name || 'Item'} — {it.quantity || 1} pcs {it.measurements ? `(L:${it.measurements.length || ''}, C:${it.measurements.chest || ''}, S:${it.measurements.sleeve || ''})` : ''}
-                          </li>
-                        ))}
-                      </ul>
+                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
+                      <span style={{ opacity: 0.8, fontSize: '11px', fontWeight: 800, display: 'block', marginBottom: '6px' }}>ITEMS &amp; MEASUREMENTS BREAKDOWN</span>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '6px', overflow: 'hidden' }}>
+                        <thead>
+                          <tr style={{ background: theme === 'dark' ? '#334155' : '#FEF08A', textAlign: 'left', color: theme === 'dark' ? '#F8FAFC' : '#713F12' }}>
+                            <th style={{ padding: '6px 8px' }}>Product</th>
+                            <th style={{ padding: '6px 8px' }}>Qty</th>
+                            <th style={{ padding: '6px 8px' }}>Length</th>
+                            <th style={{ padding: '6px 8px' }}>Chest</th>
+                            <th style={{ padding: '6px 8px' }}>Sleeve</th>
+                            <th style={{ padding: '6px 8px' }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedAuditLog.snapshot.items.map((it, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.06)', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                              <td style={{ padding: '6px 8px', fontWeight: 700 }}>{it.product || it.name || 'Item'}</td>
+                              <td style={{ padding: '6px 8px' }}>{it.quantity || 1} pcs</td>
+                              <td style={{ padding: '6px 8px' }}>{it.measurements?.length || '-'}</td>
+                              <td style={{ padding: '6px 8px' }}>{it.measurements?.chest || '-'}</td>
+                              <td style={{ padding: '6px 8px' }}>{it.measurements?.sleeve || '-'}</td>
+                              <td style={{ padding: '6px 8px', fontWeight: 600, color: it.status === 'Notified' ? '#059669' : '#D97706' }}>{it.status || 'Pending'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
+
+                  {/* Notes / Special Instructions */}
+                  {selectedAuditLog.snapshot.notes && (
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(0, 0, 0, 0.1)', fontSize: '11px' }}>
+                      <strong>Notes / Special Instructions:</strong> {selectedAuditLog.snapshot.notes}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* Fallback Activity Detail Box for logs without explicit snapshot */
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  📋 Recorded Log Action Summary &amp; Details
+                </div>
+                <div style={{ background: theme === 'dark' ? '#1E293B' : '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px', fontSize: '13px', color: theme === 'dark' ? '#F8FAFC' : '#1E293B', lineHeight: '1.5' }}>
+                  <strong>Activity Description:</strong>
+                  <div style={{ marginTop: '4px', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+                    {selectedAuditLog.details || selectedAuditLog.summary || selectedAuditLog.action}
+                  </div>
                 </div>
               </div>
             )}

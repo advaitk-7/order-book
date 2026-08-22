@@ -1238,7 +1238,15 @@ app.post("/api/orders", async (req, res) => {
     });
 
     await newOrder.save();
-    logAudit(newOrder._id, newOrder.orderNumber, "Create", `Order created for customer '${newOrder.customerName}'`).catch(err => console.error("Audit log error:", err));
+    logAudit(newOrder._id, newOrder.orderNumber, "Create", `Order #${newOrder.orderNumber} created for customer '${newOrder.customerName}'`, "Admin", {
+      category: "ORDER",
+      action: "ORDER_CREATE",
+      entityType: "Order",
+      entityId: `Order #${newOrder.orderNumber}`,
+      summary: `Created Order #${newOrder.orderNumber} for ${newOrder.customerName} (${newOrder.school}) — ₹${newOrder.amount}`,
+      snapshot: newOrder.toObject(),
+      req
+    }).catch(err => console.error("Audit log error:", err));
     res.status(201).json({
       message: "Order saved successfully",
       order: newOrder
@@ -1452,7 +1460,15 @@ app.post('/api/orders/bulk-delete', async (req, res) => {
     const ordersToDelete = await Order.find({ _id: { $in: ids } });
     const result = await Order.deleteMany({ _id: { $in: ids } });
     for (const order of ordersToDelete) {
-      await logAudit(order._id, order.orderNumber, "Delete", `Order deleted for customer '${order.customerName}' (Bulk)`);
+      await logAudit(order._id, order.orderNumber, "Delete", `Order #${order.orderNumber} deleted for customer '${order.customerName}' (Bulk)`, "Admin", {
+        category: "ORDER",
+        action: "ORDER_DELETE",
+        entityType: "Order",
+        entityId: `Order #${order.orderNumber}`,
+        summary: `Deleted Order #${order.orderNumber} (Customer: ${order.customerName}, School: ${order.school}, Total: ₹${order.amount})`,
+        snapshot: order.toObject(),
+        req
+      });
     }
 
     res.json({ message: 'Bulk delete completed', deletedCount: result.deletedCount });
@@ -1470,7 +1486,15 @@ app.delete("/api/orders/:id", async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    await logAudit(order._id, order.orderNumber, "Delete", `Order deleted for customer '${order.customerName}'`);
+    await logAudit(order._id, order.orderNumber, "Delete", `Order #${order.orderNumber} deleted for customer '${order.customerName}'`, "Admin", {
+      category: "ORDER",
+      action: "ORDER_DELETE",
+      entityType: "Order",
+      entityId: `Order #${order.orderNumber}`,
+      summary: `Deleted Order #${order.orderNumber} (Customer: ${order.customerName}, School: ${order.school}, Total: ₹${order.amount})`,
+      snapshot: order.toObject(),
+      req
+    });
     res.json({ message: "Order deleted successfully" });
   } catch (error) {
     console.error("Error deleting order:", error.message);
@@ -1580,7 +1604,15 @@ app.post("/api/waitlist", authenticateJWT, async (req, res) => {
       notifiedAt
     });
 
-    await logAudit(newRequest._id, "System", "Waitlist Add", `Added waitlist request for customer '${customerName}' - ${cleanedItems.map(i => i.name).join(", ")}`);
+    await logAudit(newRequest._id, "System", "Waitlist Add", `Added waitlist request for customer '${customerName}' - ${cleanedItems.map(i => i.name).join(", ")}`, "Admin", {
+      category: "WAITLIST",
+      action: "WAITLIST_ADD",
+      entityType: "Waitlist",
+      entityId: `Waitlist: ${newRequest.customerName}`,
+      summary: `Added Waitlist Request for ${customerName} (Contact: ${cleanPhone}) — ${cleanedItems.map(i => i.name).join(", ")}`,
+      snapshot: newRequest.toObject(),
+      req
+    });
     res.status(201).json(newRequest);
   } catch (error) {
     res.status(500).json({ message: "Failed to create waitlist entry", error: error.message });
@@ -1640,7 +1672,15 @@ app.patch("/api/waitlist/:id", authenticateJWT, async (req, res) => {
 
     await request.save();
 
-    await logAudit(request._id, "System", "Waitlist Update", `Updated waitlist entry for customer '${request.customerName}'`);
+    await logAudit(request._id, "System", "Waitlist Update", `Updated waitlist entry for customer '${request.customerName}'`, "Admin", {
+      category: "WAITLIST",
+      action: "WAITLIST_UPDATE",
+      entityType: "Waitlist",
+      entityId: `Waitlist: ${request.customerName}`,
+      summary: `Updated Waitlist Entry for ${request.customerName}`,
+      snapshot: request.toObject(),
+      req
+    });
 
     res.json(request);
   } catch (error) {
@@ -1655,7 +1695,15 @@ app.delete("/api/waitlist/:id", authenticateJWT, async (req, res) => {
       return res.status(404).json({ message: "Waitlist entry not found" });
     }
 
-    await logAudit(request._id, "System", "Waitlist Delete", `Removed waitlist entry for customer '${request.customerName}'`);
+    await logAudit(request._id, "System", "Waitlist Delete", `Removed waitlist entry for customer '${request.customerName}'`, "Admin", {
+      category: "WAITLIST",
+      action: "WAITLIST_DELETE",
+      entityType: "Waitlist",
+      entityId: `Waitlist: ${request.customerName}`,
+      summary: `Deleted Waitlist Entry for ${request.customerName} (Contact: ${request.contactNumber})`,
+      snapshot: request.toObject(),
+      req
+    });
     res.json({ message: "Waitlist entry deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete waitlist entry", error: error.message });
@@ -1668,8 +1716,21 @@ app.post("/api/waitlist/bulk-delete", authenticateJWT, async (req, res) => {
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ message: "No waitlist items selected for deletion." });
     }
+    const waitlistsToDelete = await Waitlist.find({ _id: { $in: ids } });
     const result = await Waitlist.deleteMany({ _id: { $in: ids } });
-    await logAudit("System", "System", "Waitlist Bulk Delete", `Bulk deleted ${result.deletedCount} waitlist request(s)`);
+
+    for (const w of waitlistsToDelete) {
+      await logAudit(w._id, "System", "Waitlist Delete", `Removed waitlist entry for customer '${w.customerName}' (Bulk)`, "Admin", {
+        category: "WAITLIST",
+        action: "WAITLIST_DELETE",
+        entityType: "Waitlist",
+        entityId: `Waitlist: ${w.customerName}`,
+        summary: `Deleted Waitlist Entry for ${w.customerName} (Contact: ${w.contactNumber})`,
+        snapshot: w.toObject(),
+        req
+      });
+    }
+
     res.json({ message: `Successfully deleted ${result.deletedCount} waitlist request(s).` });
   } catch (error) {
     res.status(500).json({ message: "Failed to bulk delete waitlist items", error: error.message });
