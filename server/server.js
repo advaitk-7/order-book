@@ -2765,16 +2765,57 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
     const { search, category, type, date } = req.query;
     const query = {};
 
-    if (type && type !== "All") {
-      if (["ORDER", "DISPATCH", "WAITLIST", "PURCHASE_ORDER", "COMMERCIAL_ORDER", "PRICING", "AUTH", "SYSTEM"].includes(type)) {
-        query.category = type;
-      } else if (type === "StatusChange") {
-        query.action = { $regex: /STATUS|CHANGE|UPDATE/i };
-      } else if (type === "Delete") {
-        query.action = { $regex: /DELETE/i };
+    const targetFilter = (type && type !== "All" && type !== "") ? type : (category && category !== "All" && category !== "" ? category : null);
+
+    if (targetFilter) {
+      if (targetFilter === "ORDER") {
+        query.$or = [
+          { category: "ORDER" },
+          { entityType: "Order" },
+          { orderNumber: { $nin: ["System", null, ""] } },
+          { action: { $regex: /Create|Update|Status|Contact|Order/i } }
+        ];
+      } else if (targetFilter === "DISPATCH") {
+        query.$or = [
+          { category: "DISPATCH" },
+          { action: { $regex: /Dispatch|Installment/i } }
+        ];
+      } else if (targetFilter === "WAITLIST") {
+        query.$or = [
+          { category: "WAITLIST" },
+          { action: { $regex: /Waitlist/i } }
+        ];
+      } else if (targetFilter === "PURCHASE_ORDER") {
+        query.$or = [
+          { category: "PURCHASE_ORDER" },
+          { action: { $regex: /Supplier|Vendor|PO/i } }
+        ];
+      } else if (targetFilter === "COMMERCIAL_ORDER") {
+        query.$or = [
+          { category: "COMMERCIAL_ORDER" },
+          { action: { $regex: /Bulk|Client|Commercial/i } }
+        ];
+      } else if (targetFilter === "PRICING") {
+        query.$or = [
+          { category: "PRICING" },
+          { action: { $regex: /Pricing|Category|Rates/i } }
+        ];
+      } else if (targetFilter === "AUTH") {
+        query.$or = [
+          { category: "AUTH" },
+          { action: { $regex: /Login|Password|Credentials|Device|Session/i } }
+        ];
+      } else if (targetFilter === "SYSTEM") {
+        query.$or = [
+          { category: "SYSTEM" },
+          { orderNumber: "System" },
+          { action: { $regex: /Backup|Restore|System/i } }
+        ];
+      } else if (targetFilter === "StatusChange") {
+        query.action = { $regex: /Status|Contact|Change/i };
+      } else if (targetFilter === "Delete") {
+        query.action = { $regex: /Delete/i };
       }
-    } else if (category && category !== "All") {
-      query.category = category;
     }
 
     if (date) {

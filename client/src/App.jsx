@@ -1336,13 +1336,13 @@ function App() {
     }
   }
 
-  const fetchAuditLogs = async (type = logTypeFilter, date = logDateFilter, category = logCategoryFilter) => {
+  const fetchAuditLogs = async (type = logTypeFilter || 'All', date = logDateFilter || '') => {
     if (!token) return
     setLoadingAuditLogs(true)
     try {
-      let url = `${API_BASE}/api/audit-logs?type=${type}`;
-      if (date) url += `&date=${date}`;
-      if (category && category !== 'All') url += `&category=${category}`;
+      const activeType = (!type || type === '') ? 'All' : type;
+      let url = `${API_BASE}/api/audit-logs?type=${encodeURIComponent(activeType)}`;
+      if (date) url += `&date=${encodeURIComponent(date)}`;
       
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -3493,7 +3493,7 @@ function App() {
 
   useEffect(() => {
     if (activePage === 'Settings' && token) {
-      fetchAuditLogs('', logTypeFilter, logDateFilter)
+      fetchAuditLogs(logTypeFilter, logDateFilter)
     }
   }, [logTypeFilter, logDateFilter, activePage, token])
 
