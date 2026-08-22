@@ -399,7 +399,7 @@ function App() {
   const [demoAiMessages, setDemoAiMessages] = useState([
     {
       sender: 'ai',
-      text: "👋 Hi! I'm your **Demo AI Assistant & Architecture Guide**!\n\nI can help you navigate the system, update orders, run sales analytics, and answer questions about how this platform was built.",
+      text: "👋 Hi! I'm **Gemini AI Copilot** — your intelligent ERP assistant & architecture guide!\n\nI can help you navigate the system, update orders, run sales analytics, and answer questions about how this platform was built.",
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ])
@@ -13205,10 +13205,10 @@ return sortedOrders.slice(0, visibleCount)
             type="button"
             className="demo-ai-launcher-btn"
             onClick={() => setShowDemoAiChat(!showDemoAiChat)}
-            title="Open Demo AI Assistant & Architecture Guide"
+            title="Open Gemini AI Copilot & Architecture Guide"
           >
             <span className="demo-ai-sparkle">✨</span>
-            <span className="demo-ai-btn-text">Demo AI Assistant</span>
+            <span className="demo-ai-btn-text">Gemini AI Copilot</span>
           </button>
 
           {/* AI Chat Drawer Panel */}
@@ -13220,11 +13220,11 @@ return sortedOrders.slice(0, visibleCount)
                   <div className="demo-ai-avatar">✨</div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '14px', color: '#F8FAFC' }}>
-                      Demo AI Assistant
+                      Gemini AI Copilot
                     </div>
                     <div style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34D399' }}></span>
-                      Sandboxed Demo Mode (`order_book_demo`)
+                      Active System Copilot (`order_book_demo`)
                     </div>
                   </div>
                 </div>

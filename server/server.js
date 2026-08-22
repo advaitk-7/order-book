@@ -3031,7 +3031,7 @@ app.post("/api/demo/ai-assistant", authenticateJWT, async (req, res) => {
 
     // DEFAULT ASSISTANT HELP RESPONSE
     return res.json({
-      reply: `I am your **Demo AI Assistant & Recruiter Architecture Guide**! 🤖\n\nTry asking me:\n- ⚡ *"Daily Briefing"* (Executive Overview)\n- 🏗️ *"How is sandboxed multi-tenancy built?"*\n- 📄 *"Generate PDF report"*\n- 📥 *"Export Production Queue CSV"*\n- ✅ *"Mark Order #101 as Delivered"*\n- 🧭 *"Take me to Production Queue"*\n- 🧹 *"Clear Chat History"*`,
+      reply: `I am **Gemini AI Copilot** — your intelligent ERP assistant & architecture guide! 🤖\n\nTry asking me:\n- ⚡ *"Daily Briefing"* (Executive Overview)\n- 🏗️ *"How is sandboxed multi-tenancy built?"*\n- 📄 *"Generate PDF report"*\n- 📥 *"Export Production Queue CSV"*\n- ✅ *"Mark Order #101 as Delivered"*\n- 🧭 *"Take me to Production Queue"*\n- 🧹 *"Clear Chat History"*`,
       action: "none",
       actionData: {}
     });
