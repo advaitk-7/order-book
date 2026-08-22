@@ -13274,38 +13274,62 @@ return sortedOrders.slice(0, visibleCount)
               )}
             </div>
 
-            {/* Field-by-Field Diff Table */}
-            {Array.isArray(selectedAuditLog.changes) && selectedAuditLog.changes.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  🔄 Field Updates Diff ({selectedAuditLog.changes.length} fields changed)
-                </div>
-                <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '8px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead>
-                      <tr style={{ background: '#F1F5F9', color: '#334155', textAlign: 'left' }}>
-                        <th style={{ padding: '8px 12px', fontWeight: 700 }}>Field</th>
-                        <th style={{ padding: '8px 12px', fontWeight: 700 }}>Previous Value (Old)</th>
-                        <th style={{ padding: '8px 12px', fontWeight: 700 }}>Updated Value (New)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedAuditLog.changes.map((ch, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                          <td style={{ padding: '8px 12px', fontWeight: 700, color: '#0F172A' }}>{ch.field}</td>
-                          <td style={{ padding: '8px 12px', color: '#DC2626', background: '#FEF2F2' }}>
-                            {typeof ch.oldValue === 'object' ? JSON.stringify(ch.oldValue) : String(ch.oldValue ?? '-')}
-                          </td>
-                          <td style={{ padding: '8px 12px', color: '#059669', background: '#ECFDF5', fontWeight: 700 }}>
-                            {typeof ch.newValue === 'object' ? JSON.stringify(ch.newValue) : String(ch.newValue ?? '-')}
-                          </td>
+            {/* Field-by-Field Diff Table (Supports both structured changes & text-parsed diffs) */}
+            {(() => {
+              const activeDiffs = (Array.isArray(selectedAuditLog.changes) && selectedAuditLog.changes.length > 0)
+                ? selectedAuditLog.changes
+                : (() => {
+                    const text = selectedAuditLog.details || selectedAuditLog.summary || '';
+                    if (!text || typeof text !== 'string') return [];
+                    const diffs = [];
+                    const parts = text.split(/,\s*/);
+                    parts.forEach(p => {
+                      const match = p.match(/(.+) changed from ['"](.*?)['"] to ['"](.*?)['"]/i);
+                      if (match) {
+                        diffs.push({
+                          field: match[1].trim(),
+                          oldValue: match[2],
+                          newValue: match[3]
+                        });
+                      }
+                    });
+                    return diffs;
+                  })();
+
+              if (activeDiffs.length === 0) return null;
+
+              return (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    🔄 Field Updates Diff ({activeDiffs.length} exact change(s) recorded)
+                  </div>
+                  <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '10px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr style={{ background: '#F1F5F9', color: '#334155', textAlign: 'left' }}>
+                          <th style={{ padding: '8px 12px', fontWeight: 700 }}>Field Updated</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 700 }}>Previous Value (Old)</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 700 }}>Updated Value (New)</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {activeDiffs.map((ch, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                            <td style={{ padding: '8px 12px', fontWeight: 700, color: '#0F172A' }}>{ch.field}</td>
+                            <td style={{ padding: '8px 12px', color: '#DC2626', background: '#FEF2F2', fontWeight: 600 }}>
+                              {typeof ch.oldValue === 'object' ? JSON.stringify(ch.oldValue) : String(ch.oldValue ?? '-')}
+                            </td>
+                            <td style={{ padding: '8px 12px', color: '#059669', background: '#ECFDF5', fontWeight: 700 }}>
+                              {typeof ch.newValue === 'object' ? JSON.stringify(ch.newValue) : String(ch.newValue ?? '-')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Full Item Snapshot View (Deletions / Creations / Waitlists) */}
             {selectedAuditLog.snapshot ? (

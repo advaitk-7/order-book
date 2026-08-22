@@ -1323,7 +1323,16 @@ app.patch("/api/orders/:id/status", async (req, res) => {
 
     const order = await Order.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (status !== oldOrder.status) {
-      await logAudit(order._id, order.orderNumber, "Status Change", `Status changed from '${oldOrder.status}' to '${status}'`);
+      await logAudit(order._id, order.orderNumber, "Status Change", `Status changed from '${oldOrder.status}' to '${status}'`, "Admin", {
+        category: "ORDER",
+        action: "ORDER_STATUS_CHANGE",
+        entityType: "Order",
+        entityId: `Order #${order.orderNumber}`,
+        summary: `Order #${order.orderNumber} status changed from '${oldOrder.status}' to '${status}'`,
+        changes: [{ field: "Order Status", oldValue: oldOrder.status, newValue: status }],
+        snapshot: order.toObject(),
+        req
+      });
     }
 
     res.json(order);
@@ -1343,7 +1352,16 @@ app.patch("/api/orders/:id/contact-status", async (req, res) => {
 
     const order = await Order.findByIdAndUpdate(req.params.id, { contactStatus }, { new: true });
     if (contactStatus !== oldOrder.contactStatus) {
-      await logAudit(order._id, order.orderNumber, "Contact Change", `Contact status changed from '${oldOrder.contactStatus}' to '${contactStatus}'`);
+      await logAudit(order._id, order.orderNumber, "Contact Change", `Contact status changed from '${oldOrder.contactStatus}' to '${contactStatus}'`, "Admin", {
+        category: "ORDER",
+        action: "ORDER_CONTACT_CHANGE",
+        entityType: "Order",
+        entityId: `Order #${order.orderNumber}`,
+        summary: `Order #${order.orderNumber} contact status changed from '${oldOrder.contactStatus}' to '${contactStatus}'`,
+        changes: [{ field: "Contact Status", oldValue: oldOrder.contactStatus, newValue: contactStatus }],
+        snapshot: order.toObject(),
+        req
+      });
     }
 
     res.json(order);
@@ -1378,6 +1396,7 @@ app.patch("/api/orders/:id", async (req, res) => {
 
     const updates = {};
     const changeLogs = [];
+    const fieldDiffs = [];
 
     const ALLOWED_ORDER_FIELDS = [
       'orderNumber', 'customerName', 'contactNumber', 'gender', 'school',
@@ -1392,6 +1411,7 @@ app.patch("/api/orders/:id", async (req, res) => {
           if (trimmedOrderNumber !== oldOrder.orderNumber) {
             updates.orderNumber = trimmedOrderNumber;
             changeLogs.push(`Order Number changed from '${oldOrder.orderNumber}' to '${trimmedOrderNumber}'`);
+            fieldDiffs.push({ field: "Order Number", oldValue: oldOrder.orderNumber, newValue: trimmedOrderNumber });
           }
         } else if (field === 'deliveryDate') {
           const trimmedDate = String(payload.deliveryDate).trim();
@@ -1401,18 +1421,21 @@ app.patch("/api/orders/:id", async (req, res) => {
           if (trimmedDate !== oldOrder.deliveryDate) {
             updates.deliveryDate = trimmedDate;
             changeLogs.push(`Delivery Date changed from '${oldOrder.deliveryDate}' to '${trimmedDate}'`);
+            fieldDiffs.push({ field: "Delivery Date", oldValue: oldOrder.deliveryDate, newValue: trimmedDate });
           }
         } else if (field === 'amount') {
           const numAmt = Number(payload.amount || 0);
           if (numAmt !== oldOrder.amount) {
             updates.amount = numAmt;
             changeLogs.push(`Amount changed from '₹${oldOrder.amount}' to '₹${numAmt}'`);
+            fieldDiffs.push({ field: "Total Amount", oldValue: `₹${oldOrder.amount}`, newValue: `₹${numAmt}` });
           }
         } else if (field === 'status') {
           if (payload.status !== oldOrder.status) {
             updates.status = payload.status;
             updates.deliveredAt = payload.status === 'Delivered' ? new Date() : null;
             changeLogs.push(`Status changed from '${oldOrder.status}' to '${payload.status}'`);
+            fieldDiffs.push({ field: "Order Status", oldValue: oldOrder.status, newValue: payload.status });
           }
         } else if (field === 'items') {
           updates.items = (payload.items || []).map((item) => ({
@@ -1420,6 +1443,7 @@ app.patch("/api/orders/:id", async (req, res) => {
             quantity: Number(item.quantity || 0),
           }));
           changeLogs.push(`Order items and measurements updated`);
+          fieldDiffs.push({ field: "Items & Measurements", oldValue: `${oldOrder.items?.length || 0} item(s)`, newValue: `${payload.items?.length || 0} item(s)` });
         } else {
           // Handles grade, customerName, contactNumber, gender, school, contactStatus, notes, etc.
           const newVal = String(payload[field] ?? '').trim();
@@ -1428,6 +1452,7 @@ app.patch("/api/orders/:id", async (req, res) => {
             updates[field] = payload[field];
             const titleCaseField = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
             changeLogs.push(`${titleCaseField} changed from '${oldVal}' to '${newVal}'`);
+            fieldDiffs.push({ field: titleCaseField, oldValue: oldVal || "-", newValue: newVal || "-" });
           }
         }
       }
@@ -1436,7 +1461,16 @@ app.patch("/api/orders/:id", async (req, res) => {
     const order = await Order.findByIdAndUpdate(req.params.id, updates, { new: true });
 
     if (changeLogs.length > 0) {
-      logAudit(order._id, order.orderNumber, "Update", changeLogs.join(", ")).catch(err => console.error("Audit log error:", err));
+      logAudit(order._id, order.orderNumber, "Update", changeLogs.join(", "), "Admin", {
+        category: "ORDER",
+        action: "ORDER_UPDATE",
+        entityType: "Order",
+        entityId: `Order #${order.orderNumber}`,
+        summary: `Updated Order #${order.orderNumber} for customer '${order.customerName}' (${fieldDiffs.length} change(s))`,
+        changes: fieldDiffs,
+        snapshot: order.toObject(),
+        req
+      }).catch(err => console.error("Audit log error:", err));
     }
 
     res.json({ message: "Order updated successfully", order });
