@@ -2961,37 +2961,120 @@ app.post("/api/demo/ai-assistant", authenticateJWT, async (req, res) => {
       });
     }
 
-    // ORDER INTAKE CREATION INTENT
-    const createMatch = promptLower.match(/create (an )?order for (customer )?([a-z\s]+),(.*)/i);
-    if (createMatch) {
-      const custName = createMatch[3].trim();
+    // BULK DUMMY SEED / MULTI-ORDER GENERATION INTENT
+    if (/(add|create|generate|seed|populate|drop)\s*(\d+)?\s*(dummy|sample|test)?\s*orders?/i.test(promptLower) || /(dummy|sample|test)\s+orders?/i.test(promptLower)) {
+      const numMatch = promptLower.match(/\b(\d+)\b/);
+      const count = numMatch ? Math.min(parseInt(numMatch[1], 10), 50) : 10;
+
+      const sampleNames = [
+        "Aarav Sharma", "Ananya Verma", "Advait Karia", "Diya Patel", "Ethan Hunt",
+        "Rohan Mehta", "Priya Singh", "Dev Kapoor", "Kabir Joshi", "Vihaan Nair",
+        "Ishaan Gupta", "Meera Reddy", "Sanya Malhotra", "Arjun Das", "Neha Bhat",
+        "Rahul Saxena", "Srishti Rao", "Siddharth Jain", "Zara Khan", "Reyansh Choudhury"
+      ];
+
+      const sampleSchools = [
+        "St. Xavier High School", "Ryan International", "Delhi Public School",
+        "Army Public School", "Cathedral & John Connon", "Modern School", "Dhirubhai Ambani Intl"
+      ];
+
+      const sampleItems = ["Shirt", "Trouser", "Blazer", "Skirt", "Tie & Belt", "Sports Jersey"];
+      const statuses = ["Pending", "Ready", "Delivered"];
+      const payStatuses = ["Paid", "Unpaid"];
+
+      const newOrders = [];
+      const baseOrderNo = Math.floor(1000 + Math.random() * 8000);
+
+      for (let i = 0; i < count; i++) {
+        const cust = sampleNames[i % sampleNames.length];
+        const sch = sampleSchools[i % sampleSchools.length];
+        const item = sampleItems[i % sampleItems.length];
+        const qty = Math.floor(Math.random() * 3) + 1;
+        const amt = (Math.floor(Math.random() * 12) + 4) * 100;
+
+        newOrders.push({
+          orderNumber: baseOrderNo + i,
+          customerName: cust,
+          customerContact: `987${Math.floor(1000000 + Math.random() * 9000000)}`,
+          school: sch,
+          grade: `${Math.floor(Math.random() * 10) + 1}`,
+          gender: i % 2 === 0 ? "Boy" : "Girl",
+          items: [{
+            product: item,
+            quantity: qty,
+            measurements: { length: "28", chest: "32", sleeve: "Half Sleeve" }
+          }],
+          amount: amt,
+          status: statuses[i % statuses.length],
+          paymentStatus: payStatuses[i % payStatuses.length],
+          createdAt: new Date(Date.now() - i * 3600000)
+        });
+      }
+
+      await models.Order.insertMany(newOrders);
+
+      return res.json({
+        reply: `✨ **Bulk Generation Success!** Created and added **${count} dummy orders** to the system with school items, customer names, amounts, and statuses.\n\nNavigating to **Orders** page to display the live records...`,
+        action: "create_order",
+        actionData: { page: "Orders" }
+      });
+    }
+
+    // FLEXIBLE SINGLE ORDER CREATION INTENT
+    if (/(add|create|new)\s+(an\s+)?(order|entry)/i.test(promptLower) || /(create|add)\s+order/i.test(promptLower)) {
+      const nameMatch = promptLower.match(/(for|customer|name)\s+([a-z\s]+)/i);
+      const custName = nameMatch ? nameMatch[2].trim().replace(/(school|order|with|pcs|shirts?)/gi, '').trim() : "Rohan Verma";
+      const finalName = custName.length > 2 ? (custName.charAt(0).toUpperCase() + custName.slice(1)) : "Rohan Verma";
+
+      const schoolMatch = promptLower.match(/(at|for|school)\s+([a-z\s]+(school|academy|college))/i);
+      const schoolName = schoolMatch ? schoolMatch[2].trim() : "St. Xavier High School";
+
       const newOrder = await models.Order.create({
         orderNumber: Math.floor(1000 + Math.random() * 9000),
-        customerName: custName.charAt(0).toUpperCase() + custName.slice(1),
+        customerName: finalName,
         customerContact: "9876543210",
-        school: "St. Xavier School",
+        school: schoolName,
         grade: "8",
         gender: "Boy",
         items: [{
           product: "Shirt",
-          quantity: 1,
+          quantity: 2,
           measurements: { length: "28", chest: "32", sleeve: "Half Sleeve" }
         }],
-        amount: 450,
+        amount: 850,
         status: "Pending",
         paymentStatus: "Unpaid",
         createdAt: new Date()
       });
 
       return res.json({
-        reply: `✨ Created new order **#${newOrder.orderNumber}** for **${newOrder.customerName}** in demo database!`,
+        reply: `✨ Created new order **#${newOrder.orderNumber}** for **${newOrder.customerName}** (${newOrder.school})!`,
         action: "create_order",
         actionData: { orderNumber: newOrder.orderNumber, page: "Orders" }
       });
     }
 
+    // ORDER SEARCH & QUERY INTENT
+    if (/(find|search|show|get|list)\s+orders?/i.test(promptLower) || /(pending|ready|paid|unpaid)\s+orders/i.test(promptLower)) {
+      let filter = {};
+      if (/pending/i.test(promptLower)) filter.status = "Pending";
+      else if (/ready/i.test(promptLower)) filter.status = "Ready";
+      else if (/delivered/i.test(promptLower)) filter.status = "Delivered";
+      else if (/paid/i.test(promptLower)) filter.paymentStatus = "Paid";
+      else if (/unpaid/i.test(promptLower)) filter.paymentStatus = "Unpaid";
+
+      const matchedOrders = await models.Order.find(filter).limit(10);
+      const totalCount = await models.Order.countDocuments(filter);
+
+      return res.json({
+        reply: `🔍 **Search Results**: Found **${totalCount} orders** matching your request.\n\n${matchedOrders.map(o => `- **Order #${o.orderNumber}**: ${o.customerName} (${o.school}) — ₹${o.amount} [${o.status}]`).join('\n')}`,
+        action: "navigate",
+        actionData: { page: "Orders" }
+      });
+    }
+
     // ORDER STATUS / PAYMENT UPDATE INTENT
-    const statusMatch = promptLower.match(/(mark|set|change)\s+(order\s+)?#?(\w+)\s+(as\s+)?(delivered|ready|pending|paid|unpaid)/i);
+    const statusMatch = promptLower.match(/(mark|set|change|update)\s+(order\s+)?#?(\w+)\s+(as\s+)?(delivered|ready|pending|paid|unpaid)/i);
     if (statusMatch) {
       const targetNum = statusMatch[3];
       const newStatus = statusMatch[5];
@@ -3003,9 +3086,9 @@ app.post("/api/demo/ai-assistant", authenticateJWT, async (req, res) => {
         const previousPaymentStatus = targetOrder.paymentStatus;
         let updateField = {};
 
-        if (["delivered", "ready", "pending"].includes(newStatus)) {
+        if (["delivered", "ready", "pending"].includes(newStatus.toLowerCase())) {
           updateField = { status: newStatus.charAt(0).toUpperCase() + newStatus.slice(1) };
-        } else if (["paid", "unpaid"].includes(newStatus)) {
+        } else if (["paid", "unpaid"].includes(newStatus.toLowerCase())) {
           updateField = { paymentStatus: newStatus.charAt(0).toUpperCase() + newStatus.slice(1) };
         }
 
