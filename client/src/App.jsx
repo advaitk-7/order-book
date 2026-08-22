@@ -1390,8 +1390,12 @@ function App() {
   const filteredAuditLogs = useMemo(() => {
     let result = auditLogs;
 
-    if (logCategoryFilter && logCategoryFilter !== 'All') {
-      result = result.filter(log => log.category === logCategoryFilter);
+    if (logTypeFilter && logTypeFilter !== 'All') {
+      result = result.filter(log => {
+        if (logTypeFilter === 'StatusChange') return /status|contact|change/i.test(log.action);
+        if (logTypeFilter === 'Delete') return /delete/i.test(log.action);
+        return log.category === logTypeFilter || log.action === logTypeFilter;
+      });
     }
 
     if (!logSearch || logSearch.trim() === '') return result;
@@ -1405,14 +1409,24 @@ function App() {
     return result.filter(log => {
       const orderNum = String(log.orderNumber || log.entityId || '').trim().toLowerCase();
       const action = String(log.action || '').trim().toLowerCase();
-      const details = String(log.details || log.summary || '').trim().toLowerCase();
+      const summary = String(log.summary || log.details || '').trim().toLowerCase();
       const username = String(log.performedBy || '').trim().toLowerCase();
+      const role = String(log.userRole || '').trim().toLowerCase();
       const ip = String(log.ipAddress || '').trim().toLowerCase();
+      const device = String(log.deviceInfo || '').trim().toLowerCase();
 
-      const targetText = `${orderNum} ${action} ${details} ${username} ${ip}`;
-      return queryTokens.every(token => targetText.includes(token));
+      const changesStr = Array.isArray(log.changes)
+        ? log.changes.map(c => `${c.field} ${c.oldValue} ${c.newValue}`).join(' ').toLowerCase()
+        : '';
+
+      const snapshotStr = log.snapshot
+        ? JSON.stringify(log.snapshot).toLowerCase()
+        : '';
+
+      const fullText = `${orderNum} ${action} ${summary} ${username} ${role} ${ip} ${device} ${changesStr} ${snapshotStr}`;
+      return queryTokens.every(token => fullText.includes(token));
     });
-  }, [auditLogs, logSearch, logCategoryFilter]);
+  }, [auditLogs, logSearch, logTypeFilter]);
 
   const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter, school = waitlistSchoolFilter, silent = false) => {
     if (!token) return

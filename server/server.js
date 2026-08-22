@@ -2791,9 +2791,13 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
     let logs = await AuditLog.find(query).sort({ createdAt: -1 }).lean();
 
     if (search && search.trim()) {
-      const q = search.trim().toLowerCase();
+      const q = search.trim().toLowerCase().replace(/^#/, '');
       logs = logs.filter(log => {
-        const text = `${log.summary || ''} ${log.details || ''} ${log.action || ''} ${log.performedBy || ''} ${log.entityId || ''} ${log.orderNumber || ''} ${log.ipAddress || ''}`.toLowerCase();
+        const changesStr = Array.isArray(log.changes)
+          ? log.changes.map(c => `${c.field} ${c.oldValue} ${c.newValue}`).join(' ').toLowerCase()
+          : '';
+        const snapshotStr = log.snapshot ? JSON.stringify(log.snapshot).toLowerCase() : '';
+        const text = `${log.summary || ''} ${log.details || ''} ${log.action || ''} ${log.performedBy || ''} ${log.userRole || ''} ${log.entityId || ''} ${log.orderNumber || ''} ${log.ipAddress || ''} ${log.deviceInfo || ''} ${changesStr} ${snapshotStr}`.toLowerCase();
         return text.includes(q);
       });
     }
