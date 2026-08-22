@@ -385,6 +385,10 @@ function App() {
   const [loadingBackups, setLoadingBackups] = useState(false)
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false)
 
+  // Audit Log Detail Inspection Modal States
+  const [selectedAuditLog, setSelectedAuditLog] = useState(null)
+  const [logCategoryFilter, setLogCategoryFilter] = useState('All')
+
   // Production Categories & Pricing Settings States
   const [productionCategories, setProductionCategories] = useState(PRODUCTION_CATEGORIES)
   const [newCatName, setNewCatName] = useState('')
@@ -1332,14 +1336,14 @@ function App() {
     }
   }
 
-  const fetchAuditLogs = async (search = '', type = logTypeFilter, date = logDateFilter) => {
+  const fetchAuditLogs = async (type = logTypeFilter, date = logDateFilter, category = logCategoryFilter) => {
     if (!token) return
     setLoadingAuditLogs(true)
     try {
       let url = `${API_BASE}/api/audit-logs?type=${type}`;
-      if (date) {
-        url += `&date=${date}`;
-      }
+      if (date) url += `&date=${date}`;
+      if (category && category !== 'All') url += `&category=${category}`;
+      
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -1354,25 +1358,61 @@ function App() {
     }
   }
 
+  const exportAuditLogsToCSV = () => {
+    if (filteredAuditLogs.length === 0) {
+      alert("No audit logs available to export.")
+      return
+    }
+
+    const headers = ["Timestamp", "Category", "Action", "Entity ID", "Performed By", "Role", "IP Address", "Summary", "Details"]
+    const rows = filteredAuditLogs.map(log => [
+      `"${new Date(log.createdAt).toLocaleString()}"`,
+      `"${log.category || 'ORDER'}"`,
+      `"${log.action || ''}"`,
+      `"${log.entityId || log.orderNumber || ''}"`,
+      `"${log.performedBy || 'Admin'}"`,
+      `"${log.userRole || 'admin'}"`,
+      `"${log.ipAddress || ''}"`,
+      `"${(log.summary || '').replace(/"/g, '""')}"`,
+      `"${(log.details || '').replace(/"/g, '""')}"`
+    ])
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `audit_logs_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const filteredAuditLogs = useMemo(() => {
-    if (!logSearch || logSearch.trim() === '') return auditLogs
+    let result = auditLogs;
 
-    const rawQuery = logSearch.trim().toLowerCase()
-    const cleanQuery = rawQuery.replace(/^#/, '').trim()
-    const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
+    if (logCategoryFilter && logCategoryFilter !== 'All') {
+      result = result.filter(log => log.category === logCategoryFilter);
+    }
 
-    if (queryTokens.length === 0) return auditLogs
+    if (!logSearch || logSearch.trim() === '') return result;
 
-    return auditLogs.filter(log => {
-      const orderNum = String(log.orderNumber || '').trim().toLowerCase()
-      const action = String(log.action || '').trim().toLowerCase()
-      const details = String(log.details || log.message || '').trim().toLowerCase()
-      const username = String(log.performedBy || log.username || '').trim().toLowerCase()
+    const rawQuery = logSearch.trim().toLowerCase();
+    const cleanQuery = rawQuery.replace(/^#/, '').trim();
+    const queryTokens = cleanQuery.split(/\s+/).filter(Boolean);
 
-      const targetText = `${orderNum} ${action} ${details} ${username}`
-      return queryTokens.every(token => targetText.includes(token))
-    })
-  }, [auditLogs, logSearch])
+    if (queryTokens.length === 0) return result;
+
+    return result.filter(log => {
+      const orderNum = String(log.orderNumber || log.entityId || '').trim().toLowerCase();
+      const action = String(log.action || '').trim().toLowerCase();
+      const details = String(log.details || log.summary || '').trim().toLowerCase();
+      const username = String(log.performedBy || '').trim().toLowerCase();
+      const ip = String(log.ipAddress || '').trim().toLowerCase();
+
+      const targetText = `${orderNum} ${action} ${details} ${username} ${ip}`;
+      return queryTokens.every(token => targetText.includes(token));
+    });
+  }, [auditLogs, logSearch, logCategoryFilter]);
 
   const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter, school = waitlistSchoolFilter, silent = false) => {
     if (!token) return
@@ -9905,8 +9945,46 @@ return sortedOrders.slice(0, visibleCount)
                   <div className="settings-right-col">
                     {/* Timeline Audit Logs */}
                     <div className="settings-box" style={{ height: '100%' }}>
-                      <p className="settings-box-title"><Icons.ClipboardIcon size={16} style={{ marginRight: 6 }} /> System Audit Logs</p>
-                      <p className="settings-box-desc">Real-time trail of edits, creations, deletions, and status changes made to your data.</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          <p className="settings-box-title"><Icons.ClipboardIcon size={16} style={{ marginRight: 6 }} /> System Audit Logs &amp; Activity Trail</p>
+                          <p className="settings-box-desc">Granular trail of all creations, edits, field updates, dispatches, and deletions with zero unlisted actions.</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="action-btn secondary"
+                          onClick={exportAuditLogsToCSV}
+                          style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Icons.DownloadIcon size={14} /> Export CSV Report
+                        </button>
+                      </div>
+
+                      {/* Category Pills Row */}
+                      <div className="audit-category-pills-row" style={{ display: 'flex', gap: '6px', margin: '12px 0 8px 0', overflowX: 'auto', paddingBottom: '4px' }}>
+                        {['All', 'ORDER', 'DISPATCH', 'WAITLIST', 'PURCHASE_ORDER', 'COMMERCIAL_ORDER', 'PRICING', 'AUTH', 'SYSTEM'].map(cat => (
+                          <button
+                            key={cat}
+                            type="button"
+                            className={`audit-cat-pill ${logCategoryFilter === cat ? 'active' : ''}`}
+                            onClick={() => setLogCategoryFilter(cat)}
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: '16px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              border: '1px solid',
+                              background: logCategoryFilter === cat ? (theme === 'dark' ? '#2563EB' : '#1D4ED8') : (theme === 'dark' ? '#1E293B' : '#F1F5F9'),
+                              color: logCategoryFilter === cat ? '#FFFFFF' : (theme === 'dark' ? '#94A3B8' : '#475569'),
+                              borderColor: logCategoryFilter === cat ? '#2563EB' : (theme === 'dark' ? '#334155' : '#CBD5E1'),
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {cat === 'All' ? 'All Activity' : cat}
+                          </button>
+                        ))}
+                      </div>
 
                       {/* Search and Filters Controls */}
                       <div className="log-filters-container" style={{
@@ -9921,7 +9999,7 @@ return sortedOrders.slice(0, visibleCount)
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <input
                             type="search"
-                            placeholder="Search log messages..."
+                            placeholder="Search by order #, customer, action, IP..."
                             value={logSearch}
                             onChange={(e) => setLogSearch(e.target.value)}
                             style={{
@@ -9977,13 +10055,14 @@ return sortedOrders.slice(0, visibleCount)
                               border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
                             }}
                           />
-                          {Boolean(logSearch || logTypeFilter !== 'All' || logDateFilter) && (
+                          {Boolean(logSearch || logTypeFilter !== 'All' || logCategoryFilter !== 'All' || logDateFilter) && (
                             <button
                               type="button"
                               className="ghost-btn"
                               onClick={() => {
                                 setLogSearch('');
                                 setLogTypeFilter('All');
+                                setLogCategoryFilter('All');
                                 setLogDateFilter('');
                               }}
                               style={{ fontSize: '11px', padding: '4px 8px', color: '#EF4444', borderColor: '#FCA5A5', display: 'flex', alignItems: 'center', gap: '4px', height: '32px' }}
@@ -9995,30 +10074,79 @@ return sortedOrders.slice(0, visibleCount)
                         </div>
                       </div>
 
-                      <div className="audit-timeline" style={{ maxHeight: '620px', overflowY: 'auto' }}>
+                      {/* Interactive Log List (Tap to Inspect) */}
+                      <div className="audit-timeline" style={{ maxHeight: '580px', overflowY: 'auto', marginTop: '10px' }}>
                         {loadingAuditLogs ? (
                           <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '16px 0' }}>Loading audit trail...</p>
                         ) : filteredAuditLogs.length === 0 ? (
                           <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '16px 0' }}>No matching log entries found.</p>
                         ) : (
-                          filteredAuditLogs.map((log) => (
-                            <div key={log._id} className="audit-card">
-                              <div className="audit-header">
-                                <span className={`audit-action ${log.action.toLowerCase().replace(' ', '-')}`}>
-                                  {log.action}
-                                </span>
-                                <span className="audit-time">
-                                  {new Date(log.createdAt).toLocaleString()}
-                                </span>
+                          filteredAuditLogs.map((log) => {
+                            const catName = log.category || 'ORDER'
+                            const isDelete = /delete/i.test(log.action)
+                            const isUpdate = /update|status|contact|change/i.test(log.action)
+                            
+                            let badgeBg = '#3B82F6'
+                            if (isDelete) badgeBg = '#EF4444'
+                            else if (catName === 'PRICING') badgeBg = '#8B5CF6'
+                            else if (catName === 'WAITLIST') badgeBg = '#F59E0B'
+                            else if (catName === 'AUTH') badgeBg = '#10B981'
+                            else if (catName === 'DISPATCH') badgeBg = '#06B6D4'
+                            else if (isUpdate) badgeBg = '#EC4899'
+
+                            return (
+                              <div
+                                key={log._id}
+                                className="audit-card interactive-log-item"
+                                onClick={() => setSelectedAuditLog(log)}
+                                style={{
+                                  cursor: 'pointer',
+                                  padding: '10px 14px',
+                                  borderRadius: '10px',
+                                  marginBottom: '8px',
+                                  background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                                  border: theme === 'dark' ? '1px solid #334155' : '1px solid #E2E8F0',
+                                  transition: 'all 0.15s ease',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '4px'
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{
+                                      background: badgeBg,
+                                      color: '#FFFFFF',
+                                      fontSize: '10px',
+                                      fontWeight: 800,
+                                      padding: '2px 8px',
+                                      borderRadius: '12px',
+                                      letterSpacing: '0.4px'
+                                    }}>
+                                      {log.action}
+                                    </span>
+                                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
+                                      {log.performedBy || 'Admin'}
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: '11px', color: '#94A3B8' }}>
+                                    {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: theme === 'dark' ? '#F8FAFC' : '#0F172A', marginTop: '2px' }}>
+                                  {log.summary || log.details || log.action}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', fontSize: '11px', color: '#64748B' }}>
+                                  <span>{log.entityId || log.orderNumber ? `Entity: ${log.entityId || 'Order #' + log.orderNumber}` : ''}</span>
+                                  <span style={{ color: '#2563EB', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    Tap for details ➔
+                                  </span>
+                                </div>
                               </div>
-                              <p className="audit-detail">
-                                {log.orderNumber && log.orderNumber !== 'System' && (
-                                  <span className="audit-order-num">#{log.orderNumber}</span>
-                                )}
-                                {log.details}
-                              </p>
-                            </div>
-                          ))
+                            )
+                          })
                         )}
                       </div>
                     </div>
@@ -13072,6 +13200,186 @@ return sortedOrders.slice(0, visibleCount)
                   )
                 })()}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* AUDIT LOG DETAILED INSPECTION MODAL */}
+      {selectedAuditLog && (
+        <div className="pdf-modal-backdrop" onClick={() => setSelectedAuditLog(null)}>
+          <div
+            className="pdf-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '650px', width: '92%', borderRadius: '16px', padding: '24px' }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #E2E8F0', paddingBottom: '14px', marginBottom: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{
+                    background: /delete/i.test(selectedAuditLog.action) ? '#EF4444' : '#2563EB',
+                    color: '#FFFFFF',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    padding: '3px 10px',
+                    borderRadius: '14px'
+                  }}>
+                    {selectedAuditLog.category || 'ORDER'}
+                  </span>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
+                    {selectedAuditLog.action}
+                  </span>
+                </div>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#334155' }}>
+                  {selectedAuditLog.summary || selectedAuditLog.details}
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="manage-modal-close"
+                onClick={() => setSelectedAuditLog(null)}
+                style={{ position: 'static', fontSize: '18px' }}
+              >
+                <Icons.XIcon size={18} />
+              </button>
+            </div>
+
+            {/* Metadata Info Card */}
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px', marginBottom: '16px', fontSize: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                <div>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>PERFORMED BY</span>
+                  <span style={{ fontWeight: 700, color: '#0F172A' }}>{selectedAuditLog.performedBy || 'Admin'}</span>
+                  <span style={{ fontSize: '10px', color: '#2563EB', background: '#DBEAFE', padding: '1px 6px', borderRadius: '8px', marginLeft: '6px', fontWeight: 700 }}>
+                    {selectedAuditLog.userRole || 'admin'}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>IP ADDRESS</span>
+                  <span style={{ fontWeight: 700, color: '#0F172A' }}>{selectedAuditLog.ipAddress || 'Internal Network'}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>TIMESTAMP</span>
+                  <span style={{ fontWeight: 700, color: '#0F172A' }}>{new Date(selectedAuditLog.createdAt).toLocaleString()}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>ENTITY ID</span>
+                  <span style={{ fontWeight: 700, color: '#059669' }}>{selectedAuditLog.entityId || selectedAuditLog.orderNumber || 'System'}</span>
+                </div>
+              </div>
+              {selectedAuditLog.deviceInfo && (
+                <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #E2E8F0', fontSize: '11px', color: '#64748B' }}>
+                  <strong>Device User-Agent:</strong> {selectedAuditLog.deviceInfo}
+                </div>
+              )}
+            </div>
+
+            {/* Field-by-Field Diff Table */}
+            {Array.isArray(selectedAuditLog.changes) && selectedAuditLog.changes.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  🔄 Field Updates Diff ({selectedAuditLog.changes.length} fields changed)
+                </div>
+                <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '8px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: '#F1F5F9', color: '#334155', textAlign: 'left' }}>
+                        <th style={{ padding: '8px 12px', fontWeight: 700 }}>Field</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 700 }}>Previous Value (Old)</th>
+                        <th style={{ padding: '8px 12px', fontWeight: 700 }}>Updated Value (New)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedAuditLog.changes.map((ch, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                          <td style={{ padding: '8px 12px', fontWeight: 700, color: '#0F172A' }}>{ch.field}</td>
+                          <td style={{ padding: '8px 12px', color: '#DC2626', background: '#FEF2F2' }}>
+                            {typeof ch.oldValue === 'object' ? JSON.stringify(ch.oldValue) : String(ch.oldValue ?? '-')}
+                          </td>
+                          <td style={{ padding: '8px 12px', color: '#059669', background: '#ECFDF5', fontWeight: 700 }}>
+                            {typeof ch.newValue === 'object' ? JSON.stringify(ch.newValue) : String(ch.newValue ?? '-')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Full Item Snapshot View (Deletions / Creations) */}
+            {selectedAuditLog.snapshot && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  📦 Preserved Object Snapshot
+                </div>
+                <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px', padding: '12px', fontSize: '12px', color: '#78350F' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', marginBottom: '8px' }}>
+                    {selectedAuditLog.snapshot.customerName && (
+                      <div><strong>Customer:</strong> {selectedAuditLog.snapshot.customerName}</div>
+                    )}
+                    {selectedAuditLog.snapshot.school && (
+                      <div><strong>School:</strong> {selectedAuditLog.snapshot.school}</div>
+                    )}
+                    {selectedAuditLog.snapshot.contactNumber && (
+                      <div><strong>Contact:</strong> {selectedAuditLog.snapshot.contactNumber}</div>
+                    )}
+                    {selectedAuditLog.snapshot.amount !== undefined && (
+                      <div><strong>Amount:</strong> ₹{selectedAuditLog.snapshot.amount}</div>
+                    )}
+                    {selectedAuditLog.snapshot.status && (
+                      <div><strong>Status:</strong> {selectedAuditLog.snapshot.status}</div>
+                    )}
+                    {selectedAuditLog.snapshot.paymentStatus && (
+                      <div><strong>Payment:</strong> {selectedAuditLog.snapshot.paymentStatus}</div>
+                    )}
+                  </div>
+
+                  {Array.isArray(selectedAuditLog.snapshot.items) && selectedAuditLog.snapshot.items.length > 0 && (
+                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #FDE68A' }}>
+                      <strong>Items List:</strong>
+                      <ul style={{ margin: '4px 0 0 0', paddingLeft: '18px' }}>
+                        {selectedAuditLog.snapshot.items.map((it, idx) => (
+                          <li key={idx}>
+                            {it.product || it.name || 'Item'} — {it.quantity || 1} pcs {it.measurements ? `(L:${it.measurements.length || ''}, C:${it.measurements.chest || ''}, S:${it.measurements.sleeve || ''})` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions Footer */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '14px', borderTop: '1px solid #E2E8F0' }}>
+              {(selectedAuditLog.orderNumber || selectedAuditLog.entityId) && selectedAuditLog.orderNumber !== 'System' && (
+                <button
+                  type="button"
+                  className="action-btn primary"
+                  onClick={() => {
+                    const targetNum = String(selectedAuditLog.orderNumber || selectedAuditLog.entityId).replace(/[^0-9]/g, '')
+                    setSelectedAuditLog(null)
+                    goToPage('Orders')
+                    if (targetNum) {
+                      setSearchQuery(targetNum)
+                      fetchOrders(targetNum, 'All', 'All', 'All', 'All', '', '', 1)
+                    }
+                  }}
+                  style={{ fontSize: '12px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Icons.EyeIcon size={14} /> Go to Order #{selectedAuditLog.orderNumber || selectedAuditLog.entityId}
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="action-btn secondary"
+                onClick={() => setSelectedAuditLog(null)}
+                style={{ fontSize: '12px', padding: '6px 14px', marginLeft: 'auto' }}
+              >
+                Close Inspection
+              </button>
             </div>
           </div>
         </div>

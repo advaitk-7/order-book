@@ -274,9 +274,28 @@ const Admin = mongoose.model("Admin", adminSchema);
 const auditLogSchema = new mongoose.Schema({
   orderId: mongoose.Schema.Types.ObjectId,
   orderNumber: String,
+  category: { 
+    type: String, 
+    enum: ["ORDER", "DISPATCH", "WAITLIST", "PURCHASE_ORDER", "COMMERCIAL_ORDER", "PRICING", "AUTH", "SYSTEM", "SUPPLIER", "CLIENT"],
+    default: "ORDER"
+  },
   action: { type: String, required: true },
+  entityType: { type: String, default: "Order" },
+  entityId: { type: String, default: "" },
+  summary: { type: String, default: "" },
   details: String,
-  performedBy: { type: String, default: "Admin" }
+  performedBy: { type: String, default: "Admin" },
+  userRole: { type: String, default: "admin" },
+  ipAddress: { type: String, default: "" },
+  deviceInfo: { type: String, default: "" },
+  changes: [
+    {
+      field: String,
+      oldValue: mongoose.Schema.Types.Mixed,
+      newValue: mongoose.Schema.Types.Mixed
+    }
+  ],
+  snapshot: mongoose.Schema.Types.Mixed
 }, { timestamps: true });
 const RawAuditLog = mongoose.model("AuditLog", auditLogSchema);
 
@@ -881,15 +900,59 @@ const validateOrderPayload = (payload) => {
   return null;
 };
 
-// Audit Log logging helper
-const logAudit = async (orderId, orderNumber, action, details, performedBy = "Admin") => {
+// Enhanced Audit Log logging helper with rich metadata, category classification & diff support
+const logAudit = async (orderId, orderNumber, action, details, performedBy = "Admin", extraMeta = {}) => {
   try {
+    let category = extraMeta.category || "ORDER";
+    let entityType = extraMeta.entityType || "Order";
+    let entityId = extraMeta.entityId || (orderNumber && orderNumber !== "System" ? `Order #${orderNumber}` : "System");
+    let summary = extraMeta.summary || details || action;
+    let changes = extraMeta.changes || [];
+    let snapshot = extraMeta.snapshot || null;
+    let req = extraMeta.req || null;
+
+    let ipAddress = extraMeta.ipAddress || "";
+    let deviceInfo = extraMeta.deviceInfo || "";
+    let userRole = extraMeta.userRole || "admin";
+
+    if (req) {
+      const store = asyncLocalStorage.getStore();
+      if (store && store.isDemo) userRole = "demo";
+      else if (req.user && req.user.role) userRole = req.user.role;
+
+      if (userRole === "demo") performedBy = "Demo Recruiter";
+      else if (req.user && req.user.username) performedBy = req.user.username;
+
+      ipAddress = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || "").split(',')[0].trim();
+      deviceInfo = String(req.headers['user-agent'] || "").slice(0, 150);
+    }
+
+    // Determine category automatically if not supplied
+    if (!extraMeta.category) {
+      if (/waitlist/i.test(action) || /waitlist/i.test(details)) category = "WAITLIST";
+      else if (/supplier|vendor/i.test(action) || /po|vendor/i.test(action)) category = "PURCHASE_ORDER";
+      else if (/bulk|commercial|client/i.test(action)) category = "COMMERCIAL_ORDER";
+      else if (/dispatch/i.test(action) || /installment/i.test(action)) category = "DISPATCH";
+      else if (/pricing|category|rates/i.test(action)) category = "PRICING";
+      else if (/login|password|credentials|session|logout|device/i.test(action) || /login|password/i.test(details)) category = "AUTH";
+      else if (/backup|restore|system/i.test(action) || /system/i.test(details)) category = "SYSTEM";
+    }
+
     await AuditLog.create({
       orderId,
-      orderNumber,
+      orderNumber: String(orderNumber || entityId || ""),
+      category,
       action,
+      entityType,
+      entityId: String(entityId || ""),
+      summary,
       details,
-      performedBy
+      performedBy,
+      userRole,
+      ipAddress,
+      deviceInfo,
+      changes,
+      snapshot
     });
   } catch (err) {
     console.error("Failed to save audit log:", err.message);
@@ -2699,23 +2762,18 @@ app.delete("/api/bulk-orders/:id/dispatches/:dispatchId", authenticateJWT, async
 // Audit Logs Endpoint
 app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
   try {
-    const { search, type, date } = req.query;
+    const { search, category, type, date } = req.query;
     const query = {};
 
-    if (type && type !== "All") {
-      if (type === "System") {
-        query.orderNumber = "System";
-      } else if (type === "Order") {
-        query.orderNumber = { $ne: "System" };
-      } else if (type === "Backup") {
-        query.action = { $in: ["Backup", "Restore"] };
-      } else if (type === "Waitlist") {
-        query.action = { $regex: /WAITLIST/i };
-      } else if (type === "StatusChange") {
-        query.action = { $in: ["STATUS CHANGE", "CONTACT CHANGE", "Status Change", "Contact Change"] };
-      } else if (type === "Delete") {
-        query.action = { $regex: /DELETE/i };
-      }
+    if (category && category !== "All") {
+      query.category = category;
+    } else if (type && type !== "All") {
+      if (type === "System") query.category = "SYSTEM";
+      else if (type === "Order") query.category = "ORDER";
+      else if (type === "Backup") query.action = { $in: ["Backup", "Restore"] };
+      else if (type === "Waitlist") query.category = "WAITLIST";
+      else if (type === "StatusChange") query.action = { $regex: /STATUS|CHANGE/i };
+      else if (type === "Delete") query.action = { $regex: /DELETE/i };
     }
 
     if (date) {
@@ -2729,7 +2787,16 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
       };
     }
 
-    const logs = await AuditLog.find(query).sort({ createdAt: -1 }).lean();
+    let logs = await AuditLog.find(query).sort({ createdAt: -1 }).lean();
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      logs = logs.filter(log => {
+        const text = `${log.summary || ''} ${log.details || ''} ${log.action || ''} ${log.performedBy || ''} ${log.entityId || ''} ${log.orderNumber || ''} ${log.ipAddress || ''}`.toLowerCase();
+        return text.includes(q);
+      });
+    }
+
     res.json(logs);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch audit logs", error: error.message });
