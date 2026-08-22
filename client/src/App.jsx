@@ -623,14 +623,56 @@ function App() {
       }
 
     } catch (err) {
-      setChatThreads(prev => prev.map(t => t.id === activeThreadId ? {
-        ...t,
-        messages: [...t.messages, {
-          sender: 'ai',
-          text: "❌ Unable to connect to server. Please check your network.",
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }]
-      } : t))
+      // Local Client-Side Action Fallback if server is deploying/restarting on Render
+      const promptLower = textToSend.toLowerCase();
+      let fallbackText = "";
+      let executedAction = false;
+
+      if (/(generate pdf|pdf report|pdf|download pdf)/i.test(promptLower)) {
+        setShowPdfModal(true);
+        fallbackText = "📄 Opening print-optimized **PDF Live Preview Modal** right away! You can adjust orientation, font scaling, and margins before printing or downloading.";
+        executedAction = true;
+      } else if (/(export csv|export excel|excel report|csv)/i.test(promptLower)) {
+        if (/tailor|queue/i.test(promptLower)) exportTailorToCSV();
+        else exportOrdersToExcel();
+        fallbackText = "📥 Exporting production queue & order reports to CSV file...";
+        executedAction = true;
+      } else if (/(production queue|tailor)/i.test(promptLower)) {
+        goToPage("Production Queue");
+        fallbackText = "Navigating to **Production Queue** right away! 🧭";
+        executedAction = true;
+      } else if (/(stock waitlist|waitlist)/i.test(promptLower)) {
+        goToPage("Stock Waitlist");
+        fallbackText = "Navigating to **Stock Waitlist** right away! 🧭";
+        executedAction = true;
+      } else if (/(settings)/i.test(promptLower)) {
+        goToPage("Settings");
+        fallbackText = "Navigating to **Settings** right away! 🧭";
+        executedAction = true;
+      } else if (/(briefing|summary|overview)/i.test(promptLower)) {
+        fallbackText = `⚡ **Daily Executive Briefing**:\n\n- 📦 **Total Live Orders**: ${orders.length}\n- 💰 **Revenue Overview**: ₹${orders.reduce((sum, o) => sum + Number(o.amount || 0), 0).toLocaleString('en-IN')}\n- ⏳ **Out-of-Stock Waitlist**: ${waitlistRequests.length} pending size requests`;
+        executedAction = true;
+      }
+
+      if (executedAction) {
+        setChatThreads(prev => prev.map(t => t.id === activeThreadId ? {
+          ...t,
+          messages: [...t.messages, {
+            sender: 'ai',
+            text: fallbackText,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]
+        } : t));
+      } else {
+        setChatThreads(prev => prev.map(t => t.id === activeThreadId ? {
+          ...t,
+          messages: [...t.messages, {
+            sender: 'ai',
+            text: "⚡ **Server Updating**: Backend container is updating on Render. Please re-send your command in a moment!",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }]
+        } : t));
+      }
     } finally {
       setDemoAiLoading(false)
     }
