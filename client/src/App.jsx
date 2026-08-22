@@ -10016,7 +10016,7 @@ return sortedOrders.slice(0, visibleCount)
                             <option value="DISPATCH">Dispatches &amp; Installments</option>
                             <option value="WAITLIST">Waitlist Requests</option>
                             <option value="PURCHASE_ORDER">Supplier Restock POs</option>
-                            <option value="COMMERCIAL_ORDER">Commercial Contracts</option>
+                            <option value="COMMERCIAL_ORDER">Corporate and Bulk Orders COs</option>
                             <option value="PRICING">Pricing &amp; Category Rates</option>
                             <option value="AUTH">Auth &amp; Security Logs</option>
                             <option value="StatusChange">Status &amp; Field Edits</option>
@@ -10072,6 +10072,14 @@ return sortedOrders.slice(0, visibleCount)
                             const isDelete = /delete/i.test(log.action)
                             const isUpdate = /update|status|contact|change/i.test(log.action)
                             
+                            let actionText = log.action || 'Log Action'
+                            if (actionText === 'Bulk Order Updated') actionText = 'CO Updated'
+                            else if (actionText === 'Bulk Order Created') actionText = 'CO Created'
+                            else if (actionText === 'Bulk Order Deleted') actionText = 'CO Deleted'
+                            else if (actionText === 'Supplier Restock PO Updated') actionText = 'PO Updated'
+                            else if (actionText === 'Supplier Restock PO Created') actionText = 'PO Created'
+                            else if (actionText === 'Vendor Order Deleted') actionText = 'PO Deleted'
+
                             let badgeBg = '#3B82F6'
                             if (isDelete) badgeBg = '#EF4444'
                             else if (catName === 'PRICING') badgeBg = '#8B5CF6'
@@ -10109,7 +10117,7 @@ return sortedOrders.slice(0, visibleCount)
                                       borderRadius: '12px',
                                       letterSpacing: '0.4px'
                                     }}>
-                                      {log.action}
+                                      {actionText}
                                     </span>
                                     <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
                                       {log.performedBy || 'Admin'}

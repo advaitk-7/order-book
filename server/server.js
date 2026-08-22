@@ -2232,7 +2232,15 @@ app.post("/api/vendor-orders", authenticateJWT, async (req, res) => {
     recalculateOrderQuantities(newOrder);
     await newOrder.save();
 
-    await logAudit(null, "System", "Supplier Restock PO Created", `Order ${poNumber} placed with '${partyName.trim()}' with ${cleanProducts.length} product(s)`);
+    await logAudit(newOrder._id, newOrder.poNumber, "PO Created", `Order ${poNumber} placed with '${partyName.trim()}' with ${cleanProducts.length} product(s)`, "Admin", {
+      category: "PURCHASE_ORDER",
+      action: "PO Created",
+      entityType: "PurchaseOrder",
+      entityId: `Order ${poNumber}`,
+      summary: `Supplier Restock PO ${poNumber} placed with '${partyName.trim()}'`,
+      snapshot: newOrder.toObject(),
+      req
+    });
     res.status(201).json(newOrder);
   } catch (error) {
     res.status(500).json({ message: "Failed to create supplier order", error: error.message });
@@ -2311,7 +2319,15 @@ app.patch("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
     }
 
     await order.save();
-    await logAudit(null, "System", "Supplier Restock PO Updated", `Order ${order.poNumber} updated`);
+    await logAudit(order._id, order.poNumber, "PO Updated", `Supplier Restock PO ${order.poNumber} updated`, "Admin", {
+      category: "PURCHASE_ORDER",
+      action: "PO Updated",
+      entityType: "PurchaseOrder",
+      entityId: `Order ${order.poNumber}`,
+      summary: `Updated Supplier Restock PO ${order.poNumber} (${order.partyName})`,
+      snapshot: order.toObject(),
+      req
+    });
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: "Failed to update supplier order", error: error.message });
@@ -2324,7 +2340,15 @@ app.delete("/api/vendor-orders/:id", authenticateJWT, async (req, res) => {
     if (!order) {
       return res.status(404).json({ message: "Supplier order not found" });
     }
-    await logAudit(null, "System", "Vendor Order Deleted", `Order ${order.poNumber} deleted`);
+    await logAudit(order._id, order.poNumber, "PO Deleted", `Supplier Restock PO ${order.poNumber} deleted`, "Admin", {
+      category: "PURCHASE_ORDER",
+      action: "PO Deleted",
+      entityType: "PurchaseOrder",
+      entityId: `Order ${order.poNumber}`,
+      summary: `Deleted Supplier Restock PO ${order.poNumber} (${order.partyName})`,
+      snapshot: order.toObject(),
+      req
+    });
     res.json({ message: "Supplier order deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete supplier order", error: error.message });
@@ -2631,7 +2655,15 @@ app.post("/api/bulk-orders", authenticateJWT, async (req, res) => {
     recalculateBulkOrderQuantities(newOrder);
     await newOrder.save();
 
-    await logAudit(null, "System", "Bulk Order Created", `Order ${boNumber} created for client '${clientName.trim()}'`);
+    await logAudit(newOrder._id, newOrder.boNumber, "CO Created", `Corporate / Bulk Order ${boNumber} created for client '${clientName.trim()}'`, "Admin", {
+      category: "COMMERCIAL_ORDER",
+      action: "CO Created",
+      entityType: "CommercialOrder",
+      entityId: `Order ${boNumber}`,
+      summary: `Corporate / Bulk Order ${boNumber} created for client '${clientName.trim()}'`,
+      snapshot: newOrder.toObject(),
+      req
+    });
     res.status(201).json(newOrder);
   } catch (error) {
     res.status(500).json({ message: "Failed to create bulk order", error: error.message });
@@ -2715,7 +2747,15 @@ app.patch("/api/bulk-orders/:id", authenticateJWT, async (req, res) => {
     recalculateBulkOrderQuantities(order);
     await order.save();
 
-    await logAudit(null, "System", "Bulk Order Updated", `Updated Bulk Order ${order.boNumber}`);
+    await logAudit(order._id, order.boNumber, "CO Updated", `Corporate / Bulk Order ${order.boNumber} updated`, "Admin", {
+      category: "COMMERCIAL_ORDER",
+      action: "CO Updated",
+      entityType: "CommercialOrder",
+      entityId: `Order ${order.boNumber}`,
+      summary: `Updated Corporate / Bulk Order ${order.boNumber} (${order.clientName})`,
+      snapshot: order.toObject(),
+      req
+    });
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: "Failed to update bulk order", error: error.message });
@@ -2729,7 +2769,15 @@ app.delete("/api/bulk-orders/:id", authenticateJWT, async (req, res) => {
       return res.status(404).json({ message: "Bulk order not found" });
     }
 
-    await logAudit(null, "System", "Bulk Order Deleted", `Deleted Bulk Order ${order.boNumber}`);
+    await logAudit(order._id, order.boNumber, "CO Deleted", `Corporate / Bulk Order ${order.boNumber} deleted`, "Admin", {
+      category: "COMMERCIAL_ORDER",
+      action: "CO Deleted",
+      entityType: "CommercialOrder",
+      entityId: `Order ${order.boNumber}`,
+      summary: `Deleted Corporate / Bulk Order ${order.boNumber} (${order.clientName})`,
+      snapshot: order.toObject(),
+      req
+    });
     res.json({ message: "Bulk order deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete bulk order", error: error.message });
