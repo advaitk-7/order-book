@@ -665,6 +665,17 @@ app.post("/api/login/demo", async (req, res) => {
         userAgent: `[Demo] ${userAgent}`,
         ipAddress
       });
+      await logAudit(null, "System", "Demo Login", `Guest Recruiter session started from ${userAgent} (IP: ${ipAddress})`, "Guest Recruiter", {
+        category: "AUTH",
+        action: "DEMO_LOGIN",
+        entityType: "Session",
+        entityId: "Demo Session",
+        summary: `Guest Demo Login Success from ${userAgent} (IP: ${ipAddress})`,
+        userRole: "demo",
+        ipAddress,
+        deviceInfo: userAgent,
+        req
+      });
     } catch (sErr) {
       console.error("Session creation error for demo:", sErr.message);
     }
@@ -938,7 +949,7 @@ const logAudit = async (orderId, orderNumber, action, details, performedBy = "Ad
       else if (/backup|restore|system/i.test(action) || /system/i.test(details)) category = "SYSTEM";
     }
 
-    await AuditLog.create({
+    const logDoc = {
       orderId,
       orderNumber: String(orderNumber || entityId || ""),
       category,
@@ -953,7 +964,15 @@ const logAudit = async (orderId, orderNumber, action, details, performedBy = "Ad
       deviceInfo,
       changes,
       snapshot
-    });
+    };
+
+    // Always record to main production database (RawAuditLog) so Admins have full audit visibility over demo activity
+    await RawAuditLog.create(logDoc);
+
+    // If demo mode active, also record to demo DB audit log
+    if (userRole === 'demo' && demoModelsCache && demoModelsCache.AuditLog) {
+      await demoModelsCache.AuditLog.create(logDoc).catch(() => {});
+    }
   } catch (err) {
     console.error("Failed to save audit log:", err.message);
   }
@@ -2890,7 +2909,16 @@ app.get("/api/audit-logs", authenticateJWT, async (req, res) => {
       };
     }
 
-    let logs = await AuditLog.find(query).sort({ createdAt: -1 }).lean();
+    // Role-based visibility scoping:
+    // If request comes from Guest Demo session, strictly scope logs to demo activity only.
+    // If request comes from Admin session, query main RawAuditLog without role restrictions to give Admin full oversight over both Admin & Demo activity!
+    let logs = [];
+    if (req.user && req.user.role === 'demo') {
+      query.userRole = 'demo';
+      logs = await RawAuditLog.find(query).sort({ createdAt: -1 }).lean();
+    } else {
+      logs = await RawAuditLog.find(query).sort({ createdAt: -1 }).lean();
+    }
 
     if (search && search.trim()) {
       const q = search.trim().toLowerCase().replace(/^#/, '');
