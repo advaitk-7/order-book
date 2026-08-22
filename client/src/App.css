@@ -3663,25 +3663,6 @@ tr.clickable-row.highlighted-row td {
   border-color: #34D399;
 }
 
-.demo-ai-drawer {
-  position: fixed;
-  bottom: 80px;
-  right: 24px;
-  width: 380px;
-  max-width: calc(100vw - 32px);
-  height: 520px;
-  max-height: calc(100vh - 110px);
-  background: #0F172A;
-  border: 1px solid #334155;
-  border-radius: 18px;
-  z-index: 2600;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-  animation: fadeInModal 0.2s ease-out;
-}
-
 .demo-ai-header {
   background: #1E293B;
   padding: 12px 16px;
@@ -3869,21 +3850,22 @@ tr.clickable-row.highlighted-row td {
   right: 24px;
   width: 420px;
   max-width: calc(100vw - 32px);
-  height: 560px;
-  max-height: calc(100vh - 110px);
+  height: 580px;
+  max-height: calc(100vh - 100px);
   background: #0F172A;
   border: 1px solid #334155;
   border-radius: 20px;
   z-index: 2600;
-  display: flex;
+  display: flex !important;
+  flex-direction: row !important;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
   overflow: hidden;
   animation: fadeInModal 0.2s ease-out;
-  transition: width 0.25s ease;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .demo-ai-drawer.sidebar-open {
-  width: 660px;
+  width: 680px;
 }
 
 /* GEMINI LEFT SIDEBAR PANEL */
@@ -3894,12 +3876,29 @@ tr.clickable-row.highlighted-row td {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.25s ease;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
+  height: 100%;
 }
 
 .demo-ai-drawer.sidebar-open .demo-gemini-sidebar {
-  width: 230px;
+  width: 240px;
+}
+
+@media (max-width: 640px) {
+  .demo-ai-drawer {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    width: auto !important;
+    max-width: none;
+    height: calc(100vh - 75px);
+    max-height: none;
+    border-radius: 16px;
+  }
+  .demo-ai-drawer.sidebar-open .demo-gemini-sidebar {
+    width: 180px;
+  }
 }
 
 .demo-gemini-sidebar-top {
