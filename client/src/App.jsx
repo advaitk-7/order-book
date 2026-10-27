@@ -763,9 +763,6 @@ function App() {
   const loadStep = 20
   const [selectedIds, setSelectedIds] = useState([])
   const [selectedWaitlistIds, setSelectedWaitlistIds] = useState([])
-  const [now, setNow] = useState(Date.now())
-  const [timerAlertOrder, setTimerAlertOrder] = useState(null)
-  const [timerAlertWaitlist, setTimerAlertWaitlist] = useState(null)
   const [highlightedOrderId, setHighlightedOrderId] = useState(null)
   const [originalFormData, setOriginalFormData] = useState(null)
 
@@ -913,13 +910,6 @@ function App() {
   }, [editingOrderId, formData, originalFormData])
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(Date.now())
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
     if (!highlightedOrderId) return undefined
 
     const handleClear = () => {
@@ -934,22 +924,6 @@ function App() {
       window.removeEventListener('mousedown', handleClear)
     }
   }, [highlightedOrderId])
-
-  useEffect(() => {
-    if (!timerAlertOrder) return undefined
-    const timeout = setTimeout(() => {
-      setTimerAlertOrder(null)
-    }, 5000)
-    return () => clearTimeout(timeout)
-  }, [timerAlertOrder])
-
-  useEffect(() => {
-    if (!timerAlertWaitlist) return undefined
-    const timeout = setTimeout(() => {
-      setTimerAlertWaitlist(null)
-    }, 5000)
-    return () => clearTimeout(timeout)
-  }, [timerAlertWaitlist])
 
   useEffect(() => {
     if (!message) return undefined
@@ -969,9 +943,7 @@ function App() {
   }, [selectedOrder, shouldScrollToDetails])
 
 
-  const currentTimerAlertOrder = timerAlertOrder
-    ? orders.find((o) => o._id === timerAlertOrder._id) || timerAlertOrder
-    : null
+
 
   const tableWrapRef = useRef(null)
   const tailorTableWrapRef = useRef(null)
@@ -3688,10 +3660,7 @@ function App() {
 
   const unselectAll = () => setSelectedIds([])
 
-  const handleStatusTap = async (order) => {
-    // 75-day auto delete timer popup removed in favor of 100-block rolling cycle cleanup
-    return
-  }
+
 
   const startEditingOrder = (order) => {
     setSelectedOrder(order)
@@ -3759,7 +3728,6 @@ function App() {
 
   const goToPage = (page) => {
     setMessage('')
-    setTimerAlertOrder(null)
     setFormError('')
 
     if (page === 'Restock & Bulk Orders' || page === 'Supplier Restock') {
@@ -4161,61 +4129,7 @@ function App() {
     [],
   )
 
-  const computeTimeLeftDescription = (deliveredAt, updatedAt, createdAt) => {
-    const timestamp = deliveredAt || updatedAt || createdAt
-    if (!timestamp) return 'unknown'
-    const timeLeftMs = new Date(timestamp).getTime() + 75 * 24 * 60 * 60 * 1000 - now
-    if (timeLeftMs <= 0) {
-      return 'Due for deletion'
-    }
 
-    const oneSecond = 1000
-    const oneMinute = 60 * 1000
-    const oneHour = 60 * 60 * 1000
-    const oneDay = 24 * 60 * 60 * 1000
-
-    if (timeLeftMs < oneHour) {
-      const minutes = Math.floor(timeLeftMs / oneMinute)
-      const seconds = Math.floor((timeLeftMs % oneMinute) / oneSecond)
-      return `${minutes} minute${minutes === 1 ? '' : 's'} ${seconds} second${seconds === 1 ? '' : 's'}`
-    }
-    if (timeLeftMs < oneDay) {
-      const hours = Math.floor(timeLeftMs / oneHour)
-      const minutes = Math.floor((timeLeftMs % oneHour) / oneMinute)
-      const seconds = Math.floor((timeLeftMs % oneMinute) / oneSecond)
-      return `${hours} hour${hours === 1 ? '' : 's'} ${minutes} minute${minutes === 1 ? '' : 's'} ${seconds} second${seconds === 1 ? '' : 's'}`
-    }
-    const days = Math.ceil(timeLeftMs / oneDay)
-    return `${days} day${days === 1 ? '' : 's'}`
-  }
-
-  const computeWaitlistTimeLeftDescription = (notifiedAt, updatedAt, createdAt) => {
-    const timestamp = notifiedAt || updatedAt || createdAt
-    if (!timestamp) return 'unknown'
-    const timeLeftMs = new Date(timestamp).getTime() + 7 * 24 * 60 * 60 * 1000 - now
-    if (timeLeftMs <= 0) {
-      return 'Due for deletion'
-    }
-
-    const oneSecond = 1000
-    const oneMinute = 60 * 1000
-    const oneHour = 60 * 60 * 1000
-    const oneDay = 24 * 60 * 60 * 1000
-
-    if (timeLeftMs < oneHour) {
-      const minutes = Math.floor(timeLeftMs / oneMinute)
-      const seconds = Math.floor((timeLeftMs % oneMinute) / oneSecond)
-      return `${minutes} minute${minutes === 1 ? '' : 's'} ${seconds} second${seconds === 1 ? '' : 's'}`
-    }
-    if (timeLeftMs < oneDay) {
-      const hours = Math.floor(timeLeftMs / oneHour)
-      const minutes = Math.floor((timeLeftMs % oneHour) / oneMinute)
-      const seconds = Math.floor((timeLeftMs % oneMinute) / oneSecond)
-      return `${hours} hour${hours === 1 ? '' : 's'} ${minutes} minute${minutes === 1 ? '' : 's'} ${seconds} second${seconds === 1 ? '' : 's'}`
-    }
-    const days = Math.ceil(timeLeftMs / oneDay)
-    return `${days} day${days === 1 ? '' : 's'}`
-  }
 
 
 
@@ -5206,24 +5120,7 @@ return sortedOrders.slice(0, visibleCount)
     }
   }, [activePage, orders, isEditing])
 
-  useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (timerAlertOrder) {
-        if (e.target.closest('.status-badge') || e.target.closest('.timer-popup')) {
-          return
-        }
-        setTimerAlertOrder(null)
-      }
-      if (timerAlertWaitlist) {
-        if (e.target.closest('.status-badge') || e.target.closest('.timer-popup')) {
-          return
-        }
-        setTimerAlertWaitlist(null)
-      }
-    }
-    document.addEventListener('click', handleOutsideClick)
-    return () => document.removeEventListener('click', handleOutsideClick)
-  }, [timerAlertOrder, timerAlertWaitlist])
+
 
   if (!token) {
     return (
@@ -6374,9 +6271,7 @@ return sortedOrders.slice(0, visibleCount)
                             setShouldScrollToDetails(true)
                           }}
                           style={{
-                            cursor: 'pointer',
-                            position: (timerAlertOrder && timerAlertOrder._id === order._id) ? 'relative' : 'static',
-                            zIndex: (timerAlertOrder && timerAlertOrder._id === order._id) ? 10 : 'auto'
+                            cursor: 'pointer'
                           }}
                         >
                           <td>
@@ -6400,61 +6295,9 @@ return sortedOrders.slice(0, visibleCount)
                             </span>
                           </td>
                           <td>
-                            <div style={{ display: 'inline-block', position: 'relative' }}>
-                              <span
-                                className={`status-badge ${order.status === 'Delivered' ? 'clickable' : ''} ${order.status.toLowerCase()}`}
-                                onClick={(e) => {
-                                  if (order.status === 'Delivered') {
-                                    e.stopPropagation();
-                                    handleStatusTap(order)
-                                  }
-                                }}
-                              >
-                                {statusLabel[order.status] || order.status}
-                              </span>
-
-                              {timerAlertOrder && timerAlertOrder._id === order._id && (
-                                <div
-                                  className="timer-popup"
-                                  style={{
-                                    position: 'absolute',
-                                    bottom: '100%',
-                                    left: '50%',
-                                    transform: 'translateX(-50%) translateY(-8px)',
-                                    background: '#1E293B',
-                                    color: 'white',
-                                    padding: '10px 14px',
-                                    borderRadius: '12px',
-                                    boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
-                                    zIndex: 100,
-                                    fontSize: '13px',
-                                    fontWeight: '500',
-                                    whiteSpace: 'nowrap',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    pointerEvents: 'none'
-                                  }}
-                                >
-                                  <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
-                                  <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
-                                    {computeTimeLeftDescription(order.deliveredAt, order.updatedAt, order.createdAt)}
-                                  </span>
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    left: '50%',
-                                    transform: 'translateX(-50%)',
-                                    width: 0,
-                                    height: 0,
-                                    borderLeft: '6px solid transparent',
-                                    borderRight: '6px solid transparent',
-                                    borderTop: '6px solid #1E293B'
-                                  }} />
-                                </div>
-                              )}
-                            </div>
+                            <span className={`status-badge ${order.status.toLowerCase()}`}>
+                              {statusLabel[order.status] || order.status}
+                            </span>
                           </td>
                           <td>
                             {order.contactStatus || 'Not contacted'}
@@ -6517,58 +6360,9 @@ return sortedOrders.slice(0, visibleCount)
                         </span>
                       )}
                     </div>
-                    <span
-                      className={`status-badge ${selectedOrder.status === 'Delivered' ? 'clickable' : ''} ${selectedOrder.status.toLowerCase()}`}
-                      onClick={() => {
-                        if (selectedOrder.status === 'Delivered') {
-                          handleStatusTap(selectedOrder)
-                        }
-                      }}
-                    >
+                    <span className={`status-badge ${selectedOrder.status.toLowerCase()}`}>
                       {selectedOrder.status}
                     </span>
-
-                    {timerAlertOrder && timerAlertOrder._id === selectedOrder._id && (
-                      <div
-                        className="timer-popup"
-                        style={{
-                          position: 'absolute',
-                          bottom: '100%',
-                          right: '24px',
-                          transform: 'translateY(-4px)',
-                          background: '#1E293B',
-                          color: 'white',
-                          padding: '10px 14px',
-                          borderRadius: '12px',
-                          boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
-                          zIndex: 100,
-                          fontSize: '13px',
-                          fontWeight: '500',
-                          whiteSpace: 'nowrap',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '4px',
-                          pointerEvents: 'none'
-                        }}
-                      >
-                        <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
-                        <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
-                          {computeTimeLeftDescription(selectedOrder.deliveredAt, selectedOrder.updatedAt, selectedOrder.createdAt)}
-                        </span>
-                        <div style={{
-                          position: 'absolute',
-                          top: '100%',
-                          right: '48px',
-                          transform: 'translateX(50%)',
-                          width: 0,
-                          height: 0,
-                          borderLeft: '6px solid transparent',
-                          borderRight: '6px solid transparent',
-                          borderTop: '6px solid #1E293B'
-                        }} />
-                      </div>
-                    )}
                   </div>
                   <div className="details-grid">
                     <div>
@@ -6636,12 +6430,7 @@ return sortedOrders.slice(0, visibleCount)
                         </span>
                       </p>
                     </div>
-                    {selectedOrder.status === 'Delivered' && (
-                      <div>
-                        <p className="details-label">Auto-delete in</p>
-                        <p>{computeTimeLeftDescription(selectedOrder.deliveredAt, selectedOrder.updatedAt, selectedOrder.createdAt)}</p>
-                      </div>
-                    )}
+
                     <div>
                       <p className="details-label">Contact Status</p>
                       {selectedOrder.status === 'Ready' ? (
@@ -7142,58 +6931,9 @@ return sortedOrders.slice(0, visibleCount)
                         </span>
                       )}
                     </div>
-                    <span
-                      className={`status-badge ${selectedOrder.status === 'Delivered' ? 'clickable' : ''} ${selectedOrder.status.toLowerCase()}`}
-                      onClick={() => {
-                        if (selectedOrder.status === 'Delivered') {
-                          handleStatusTap(selectedOrder)
-                        }
-                      }}
-                    >
+                    <span className={`status-badge ${selectedOrder.status.toLowerCase()}`}>
                       {selectedOrder.status}
                     </span>
-
-                    {timerAlertOrder && timerAlertOrder._id === selectedOrder._id && (
-                      <div
-                        className="timer-popup"
-                        style={{
-                          position: 'absolute',
-                          bottom: '100%',
-                          right: '24px',
-                          transform: 'translateY(-4px)',
-                          background: '#1E293B',
-                          color: 'white',
-                          padding: '10px 14px',
-                          borderRadius: '12px',
-                          boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
-                          zIndex: 100,
-                          fontSize: '13px',
-                          fontWeight: '500',
-                          whiteSpace: 'nowrap',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '4px',
-                          pointerEvents: 'none'
-                        }}
-                      >
-                        <span style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Auto-deletes in</span>
-                        <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '700', color: '#38BDF8' }}>
-                          {computeTimeLeftDescription(selectedOrder.deliveredAt, selectedOrder.updatedAt, selectedOrder.createdAt)}
-                        </span>
-                        <div style={{
-                          position: 'absolute',
-                          top: '100%',
-                          right: '48px',
-                          transform: 'translateX(50%)',
-                          width: 0,
-                          height: 0,
-                          borderLeft: '6px solid transparent',
-                          borderRight: '6px solid transparent',
-                          borderTop: '6px solid #1E293B'
-                        }} />
-                      </div>
-                    )}
                   </div>
                   <div className="details-grid">
                     <div>
@@ -7261,12 +7001,7 @@ return sortedOrders.slice(0, visibleCount)
                         </span>
                       </p>
                     </div>
-                    {selectedOrder.status === 'Delivered' && (
-                      <div>
-                        <p className="details-label">Auto-delete in</p>
-                        <p>{computeTimeLeftDescription(selectedOrder.deliveredAt, selectedOrder.updatedAt, selectedOrder.createdAt)}</p>
-                      </div>
-                    )}
+
                     <div>
                       <p className="details-label">Contact Status</p>
                       {selectedOrder.status === 'Ready' ? (
@@ -7473,9 +7208,7 @@ return sortedOrders.slice(0, visibleCount)
                           <tr
                             key={request._id}
                             style={{
-                              borderBottom: '1px solid var(--border-color, #E5E7EB)',
-                              position: (timerAlertWaitlist && timerAlertWaitlist._id === request._id) ? 'relative' : 'static',
-                              zIndex: (timerAlertWaitlist && timerAlertWaitlist._id === request._id) ? 10 : 'auto'
+                              borderBottom: '1px solid var(--border-color, #E5E7EB)'
                             }}
                           >
                             <td style={{ padding: '12px 16px' }}>
