@@ -7333,12 +7333,64 @@ return sortedOrders.slice(0, visibleCount)
                             <td style={{ padding: '12px 16px' }}>
                               {(() => {
                                 const allNotified = request.items && request.items.length > 0 && request.items.every(i => i.status === 'Notified');
+                                if (!allNotified) {
+                                  return (
+                                    <span className="status-badge pending">
+                                      Pending
+                                    </span>
+                                  );
+                                }
+
+                                const rawDate = request.notifiedAt || request.updatedAt || request.createdAt;
+                                const notifiedDate = rawDate ? new Date(rawDate) : new Date();
+                                const isValidDate = !isNaN(notifiedDate.getTime());
+                                const expiryDate = isValidDate ? new Date(notifiedDate.getTime() + 7 * 24 * 60 * 60 * 1000) : null;
+                                const diffMs = expiryDate ? (expiryDate.getTime() - Date.now()) : 0;
+
+                                let countdownText = '';
+                                if (!expiryDate || diffMs <= 0) {
+                                  countdownText = 'Due for auto-delete';
+                                } else {
+                                  const oneHour = 60 * 60 * 1000;
+                                  const oneDay = 24 * 60 * 60 * 1000;
+                                  if (diffMs < oneDay) {
+                                    const hours = Math.floor(diffMs / oneHour);
+                                    const minutes = Math.floor((diffMs % oneHour) / (60 * 1000));
+                                    countdownText = hours > 0 ? `${hours}h ${minutes}m left` : `${minutes}m left`;
+                                  } else {
+                                    const days = Math.ceil(diffMs / oneDay);
+                                    countdownText = `${days} ${days === 1 ? 'day' : 'days'} left`;
+                                  }
+                                }
+
+                                const notifiedDateStr = isValidDate ? formatDateToDMY(notifiedDate.toISOString().split('T')[0]) : '-';
+                                const expiryDateStr = (expiryDate && !isNaN(expiryDate.getTime())) ? formatDateToDMY(expiryDate.toISOString().split('T')[0]) : '-';
+                                const tooltipTitle = `Customer notified on ${notifiedDateStr}. Scheduled for automatic deletion on ${expiryDateStr} (7-day retention).`;
+
                                 return (
-                                  <div style={{ display: 'inline-block', position: 'relative' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                                    <span className="status-badge ready">
+                                      Notified
+                                    </span>
                                     <span
-                                      className={`status-badge ${allNotified ? 'ready' : 'pending'}`}
+                                      title={tooltipTitle}
+                                      style={{
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        padding: '3px 8px',
+                                        borderRadius: '12px',
+                                        background: theme === 'dark' ? '#1E293B' : '#F1F5F9',
+                                        color: theme === 'dark' ? '#38BDF8' : '#0369A1',
+                                        border: theme === 'dark' ? '1px solid #334155' : '1px solid #BAE6FD',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        whiteSpace: 'nowrap',
+                                        cursor: 'help'
+                                      }}
                                     >
-                                      {allNotified ? 'Notified' : 'Pending'}
+                                      <Icons.TimerIcon size={12} style={{ flexShrink: 0 }} />
+                                      {countdownText}
                                     </span>
                                   </div>
                                 );
