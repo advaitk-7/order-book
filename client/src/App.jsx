@@ -1488,7 +1488,7 @@ function App() {
         setEditingSchoolNameInput('')
         fetchWaitlistSchools()
         fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
-        fetchOrders(searchTerm)
+        fetchOrders('')
         if (oldName && formData.school === oldName) {
           setFormData(prev => ({ ...prev, school: newName.trim() }))
         }
@@ -3543,7 +3543,7 @@ function App() {
           alert('Database restored successfully!')
           fetchBackups()
           fetchAuditLogs()
-          fetchOrders(searchTerm)
+          fetchOrders('')
         } else {
           alert('Restore failed: ' + (data.message || 'Unknown error'))
         }
@@ -3978,7 +3978,7 @@ function App() {
         resetForm()
         setSelectedOrder(data.order)
         setActivePage('Orders')
-        fetchOrders(searchTerm)
+        fetchOrders('')
       } else {
         setFormError(data.message || data.error || 'Unable to save order')
         setMessage('')
@@ -13540,8 +13540,8 @@ return sortedOrders.slice(0, visibleCount)
                     setSelectedAuditLog(null)
                     goToPage('Orders')
                     if (targetNum) {
-                      setSearchQuery(targetNum)
-                      fetchOrders(targetNum, 'All', 'All', 'All', 'All', '', '', 1)
+                      setSearchTerm(targetNum)
+                      fetchOrders('')
                     }
                   }}
                   style={{ fontSize: '12px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
