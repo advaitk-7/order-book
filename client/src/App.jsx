@@ -4345,14 +4345,15 @@ return sortedOrders.slice(0, visibleCount)
     const regex = new RegExp(`(${escaped})`, 'gi')
     const parts = String(text).split(regex)
     return parts.map((part, i) =>
-      regex.test(part) ? (
+      part.toLowerCase() === cleanQ.toLowerCase() ? (
         <mark
           key={i}
           style={{
             backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.35)' : '#FEF08A',
             color: theme === 'dark' ? '#FDE047' : '#854D0E',
-            borderRadius: '3px',
-            padding: '1px 3px',
+            borderRadius: '2px',
+            padding: '1px 0',
+            margin: 0,
             fontWeight: '700'
           }}
         >
