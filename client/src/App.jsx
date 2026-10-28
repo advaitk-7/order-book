@@ -731,6 +731,7 @@ function App() {
   const [waitlist, setWaitlist] = useState([])
   const [loadingWaitlist, setLoadingWaitlist] = useState(false)
   const [waitlistSearch, setWaitlistSearch] = useState('')
+  const [waitlistSearchFocused, setWaitlistSearchFocused] = useState(false)
   const [waitlistStatusFilter, setWaitlistStatusFilter] = useState('All')
   const [showWaitlistModal, setShowWaitlistModal] = useState(false)
   const [selectedWaitlistRequest, setSelectedWaitlistRequest] = useState(null)
@@ -902,6 +903,7 @@ function App() {
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
   const deferredTailorSearchTerm = useDeferredValue(tailorSearchTerm)
+  const deferredWaitlistSearch = useDeferredValue(waitlistSearch)
   const [tailorSortKey, setTailorSortKey] = useState('deliveryDate')
   const [tailorSortOrder, setTailorSortOrder] = useState('asc')
 
@@ -1040,7 +1042,7 @@ function App() {
         fetchOrders(''),
         fetchPricingRates(),
         fetchCurrentUser(),
-        fetchWaitlist('', 'All', 'All', true),
+        fetchWaitlist('All', 'All', true),
         fetchWaitlistSchools(),
         fetchParties(),
         fetchVendorOrders('', 'All', 'All', true),
@@ -1401,11 +1403,11 @@ function App() {
     });
   }, [auditLogs, logSearch, logTypeFilter]);
 
-  const fetchWaitlist = async (search = waitlistSearch, status = waitlistStatusFilter, school = waitlistSchoolFilter, silent = false) => {
+  const fetchWaitlist = async (status = waitlistStatusFilter, school = waitlistSchoolFilter, silent = false) => {
     if (!token) return
     if (!silent && waitlist.length === 0) setLoadingWaitlist(true)
     try {
-      const response = await fetch(`${API_BASE}/api/waitlist?search=${encodeURIComponent(search)}&status=${status}&school=${school}`, {
+      const response = await fetch(`${API_BASE}/api/waitlist?status=${encodeURIComponent(status)}&school=${encodeURIComponent(school)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.status === 401 || response.status === 403) {
@@ -1487,7 +1489,7 @@ function App() {
         setEditingSchoolId(null)
         setEditingSchoolNameInput('')
         fetchWaitlistSchools()
-        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
+        fetchWaitlist(waitlistStatusFilter, waitlistSchoolFilter, true)
         fetchOrders('')
         if (oldName && formData.school === oldName) {
           setFormData(prev => ({ ...prev, school: newName.trim() }))
@@ -1512,7 +1514,7 @@ function App() {
 
       if (response.ok) {
         fetchWaitlistSchools()
-        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
+        fetchWaitlist(waitlistStatusFilter, waitlistSchoolFilter, true)
         setWaitlistFormData(prev => ({
           ...prev,
           schools: (prev.schools || []).filter(s => s.toLowerCase() !== name.toLowerCase())
@@ -1582,7 +1584,7 @@ function App() {
       if (response.ok) {
         setMessage(`Waitlist request for '${data.customerName}' saved successfully.`)
         handleCloseWaitlistModal()
-        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
+        fetchWaitlist(waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         alert(data.message || 'Failed to save waitlist entry')
       }
@@ -1610,7 +1612,7 @@ function App() {
       }
 
       if (response.ok) {
-        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
+        fetchWaitlist(waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to toggle status')
@@ -1636,7 +1638,7 @@ function App() {
 
       if (response.ok) {
         setMessage(`Waitlist entry removed.`)
-        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
+        fetchWaitlist(waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to delete waitlist entry')
@@ -1675,7 +1677,7 @@ function App() {
         const data = await response.json()
         setMessage(data.message || `Deleted ${selectedWaitlistIds.length} waitlist entry(s).`)
         setSelectedWaitlistIds([])
-        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
+        fetchWaitlist(waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to bulk delete waitlist entries.')
@@ -1730,7 +1732,7 @@ function App() {
         body: JSON.stringify({ items: updatedItems })
       })
       if (response.ok) {
-        fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, true)
+        fetchWaitlist(waitlistStatusFilter, waitlistSchoolFilter, true)
       } else {
         const data = await response.json()
         alert(data.message || 'Failed to update item status')
@@ -3440,9 +3442,9 @@ function App() {
 
   useEffect(() => {
     if (activePage === 'Stock Waitlist' && token) {
-      fetchWaitlist(waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, waitlist.length > 0)
+      fetchWaitlist(waitlistStatusFilter, waitlistSchoolFilter, waitlist.length > 0)
     }
-  }, [waitlistSearch, waitlistStatusFilter, waitlistSchoolFilter, activePage, token])
+  }, [waitlistStatusFilter, waitlistSchoolFilter, activePage, token])
 
   useEffect(() => {
     if (activePage === 'Stock Waitlist' && token) {
@@ -4338,14 +4340,65 @@ return sortedOrders.slice(0, visibleCount)
     return waitlistSchools.filter((s) => s.name && s.name.toLowerCase().includes(q))
   }, [waitlistSchools, schoolSearchQuery])
 
+  const filteredWaitlist = useMemo(() => {
+    const rawQuery = (deferredWaitlistSearch || '').trim().toLowerCase()
+    const cleanQuery = rawQuery.replace(/^#/, '').trim()
+    const queryTokens = cleanQuery.split(/\s+/).filter(Boolean)
+
+    if (queryTokens.length === 0) return waitlist
+
+    const scored = []
+    waitlist.forEach(req => {
+      const custName = String(req.customerName || '').trim().toLowerCase()
+      const phone = String(req.contactNumber || '').replace(/\D/g, '')
+      const schools = [
+        ...(req.schools || []).map(s => String(s || '').toLowerCase()),
+        String(req.school || '').toLowerCase()
+      ].filter(Boolean)
+      const items = [
+        ...(req.items || []).map(i => {
+          if (typeof i === 'string') return i.toLowerCase()
+          return String(i?.name || '').toLowerCase()
+        }),
+        String(req.itemDetails || '').toLowerCase()
+      ].filter(Boolean)
+      const notes = String(req.notes || '').toLowerCase()
+
+      let totalScore = 0
+      let allMatched = true
+
+      for (const token of queryTokens) {
+        const tokenDigits = token.replace(/\D/g, '')
+        let tokenScore = 0
+
+        if (custName === token) { tokenScore += 100 }
+        else if (custName.startsWith(token)) { tokenScore += 80 }
+        else if (custName.includes(token)) { tokenScore += 50 }
+
+        if (schools.some(s => s.includes(token))) { tokenScore += 40 }
+        if (items.some(i => i.includes(token))) { tokenScore += 35 }
+        if (notes.includes(token)) { tokenScore += 20 }
+        if (tokenDigits.length >= 3 && phone.includes(tokenDigits)) { tokenScore += 30 }
+
+        if (tokenScore === 0) { allMatched = false; break }
+        totalScore += tokenScore
+      }
+
+      if (allMatched) scored.push({ req, score: totalScore })
+    })
+
+    scored.sort((a, b) => b.score - a.score)
+    return scored.map(s => s.req)
+  }, [waitlist, deferredWaitlistSearch])
+
   const renderHighlightedText = (text, query) => {
     if (!query || !query.trim() || !text) return text
-    const cleanQ = query.trim()
-    const escaped = cleanQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const regex = new RegExp(`(${escaped})`, 'gi')
+    const cleanTokens = query.trim().split(/\s+/).filter(Boolean).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    if (cleanTokens.length === 0) return text
+    const regex = new RegExp(`(${cleanTokens.join('|')})`, 'gi')
     const parts = String(text).split(regex)
     return parts.map((part, i) =>
-      part.toLowerCase() === cleanQ.toLowerCase() ? (
+      cleanTokens.some(t => part.toLowerCase() === t.toLowerCase()) ? (
         <mark
           key={i}
           style={{
@@ -6088,14 +6141,37 @@ return sortedOrders.slice(0, visibleCount)
                 </div>
               )}
               <div className="orders-toolbar">
-                <div className="orders-search-bar">
+                <div className="orders-search-bar" style={{ position: 'relative' }}>
                   <span className="topbar-search-icon"><Icons.SearchIcon size={16} /></span>
                   <input
                     type="search"
                     placeholder="Search by order, customer or school..."
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') setSearchTerm('')
+                    }}
                   />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#94A3B8',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginLeft: 'auto'
+                      }}
+                      title="Clear search (Esc)"
+                    >
+                      <Icons.XIcon size={14} />
+                    </button>
+                  )}
                 </div>
                 <div className="orders-toolbar-actions">
                   <label className="orders-filter-select">
@@ -6718,14 +6794,37 @@ return sortedOrders.slice(0, visibleCount)
             <section className="page-panel page-tailor-panel">
               {/* Filter bar container */}
               <div className="orders-toolbar tailor-toolbar">
-                <div className="orders-search-bar">
+                <div className="orders-search-bar" style={{ position: 'relative' }}>
                   <span className="topbar-search-icon"><Icons.SearchIcon size={16} /></span>
                   <input
                     type="search"
                     placeholder="Search by order or customer..."
                     value={tailorSearchTerm}
                     onChange={(e) => setTailorSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setTailorSearchTerm('')
+                    }}
                   />
+                  {tailorSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setTailorSearchTerm('')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#94A3B8',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginLeft: 'auto'
+                      }}
+                      title="Clear search (Esc)"
+                    >
+                      <Icons.XIcon size={14} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="orders-toolbar-actions tailor-toolbar-actions" style={{ flexWrap: 'wrap', gap: '10px' }}>
@@ -7318,14 +7417,89 @@ return sortedOrders.slice(0, visibleCount)
                   flexWrap: 'wrap',
                   alignItems: 'center'
                 }}>
-                  <div className="table-search" style={{ flex: 1, minWidth: '200px' }}>
+                  <div
+                    style={{
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      flex: 1,
+                      minWidth: '240px',
+                      background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                      borderRadius: '10px',
+                      border: waitlistSearchFocused
+                        ? '1px solid #2563EB'
+                        : `1px solid ${theme === 'dark' ? '#334155' : '#CBD5E1'}`,
+                      boxShadow: waitlistSearchFocused
+                        ? '0 0 0 3px rgba(37, 99, 235, 0.2)'
+                        : '0 1px 3px rgba(0,0,0,0.05)',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span style={{ position: 'absolute', left: '14px', color: waitlistSearchFocused ? '#2563EB' : '#94A3B8', fontSize: '15px', pointerEvents: 'none', transition: 'color 0.2s' }}>
+                      <Icons.SearchIcon size={15} />
+                    </span>
                     <input
                       type="text"
                       placeholder="Search name, phone number, school or item..."
                       value={waitlistSearch}
+                      onFocus={() => setWaitlistSearchFocused(true)}
+                      onBlur={() => setWaitlistSearchFocused(false)}
                       onChange={(e) => setWaitlistSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.preventDefault()
+                        if (e.key === 'Escape') setWaitlistSearch('')
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 38px 10px 38px',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
+                        borderRadius: '10px'
+                      }}
                     />
+                    <div style={{ position: 'absolute', right: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {waitlistSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setWaitlistSearch('')}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#94A3B8',
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Clear search (Esc)"
+                        >
+                          <Icons.XIcon size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  {waitlistSearch && (
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      color: '#2563EB',
+                      background: theme === 'dark' ? 'rgba(37, 99, 235, 0.2)' : '#EFF6FF',
+                      border: '1px solid rgba(37, 99, 235, 0.3)',
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      display: 'inline-flex',
+                      alignItems: 'center'
+                    }}>
+                      {filteredWaitlist.length} {filteredWaitlist.length === 1 ? 'match' : 'matches'}
+                    </span>
+                  )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#94A3B8' : '#64748B' }}>Notification Status:</span>
                     <select
@@ -7397,6 +7571,20 @@ return sortedOrders.slice(0, visibleCount)
                     <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>Loading waitlist...</div>
                   ) : waitlist.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>No waitlist entries found.</div>
+                  ) : filteredWaitlist.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '48px 24px', color: '#64748B' }}>
+                      <Icons.SearchIcon size={28} style={{ opacity: 0.4, marginBottom: '8px' }} />
+                      <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '6px' }}>No matches found for "{waitlistSearch}"</div>
+                      <div style={{ fontSize: '12px', marginBottom: '14px' }}>Try searching by customer name, 10-digit phone number, school, or item.</div>
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        onClick={() => setWaitlistSearch('')}
+                        style={{ fontSize: '12px', padding: '6px 14px' }}
+                      >
+                        Clear Search
+                      </button>
+                    </div>
                   ) : (
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                       <thead>
@@ -7404,10 +7592,10 @@ return sortedOrders.slice(0, visibleCount)
                           <th style={{ padding: '12px 16px', borderBottom: '2px solid var(--border-color, #E5E7EB)' }}>
                             <input
                               type="checkbox"
-                              checked={waitlist.length > 0 && waitlist.every((w) => selectedWaitlistIds.includes(w._id))}
+                              checked={filteredWaitlist.length > 0 && filteredWaitlist.every((w) => selectedWaitlistIds.includes(w._id))}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedWaitlistIds(waitlist.map((w) => w._id))
+                                  setSelectedWaitlistIds(filteredWaitlist.map((w) => w._id))
                                 } else {
                                   setSelectedWaitlistIds([])
                                 }
@@ -7423,7 +7611,7 @@ return sortedOrders.slice(0, visibleCount)
                         </tr>
                       </thead>
                       <tbody>
-                        {waitlist.map((request) => (
+                        {filteredWaitlist.map((request) => (
                           <tr
                             key={request._id}
                             style={{
@@ -7439,11 +7627,18 @@ return sortedOrders.slice(0, visibleCount)
                               />
                             </td>
                             <td style={{ padding: '12px 16px' }}>
-                              <div style={{ fontWeight: '600' }}>{request.customerName}</div>
-                              <div style={{ fontSize: '12px', color: '#64748B' }}>{request.contactNumber}</div>
+                              <div style={{ fontWeight: '600' }}>{renderHighlightedText(request.customerName, waitlistSearch)}</div>
+                              <div style={{ fontSize: '12px', color: '#64748B' }}>{renderHighlightedText(request.contactNumber, waitlistSearch)}</div>
                             </td>
                             <td style={{ padding: '12px 16px', color: (request.schools && request.schools.length > 0) ? 'inherit' : '#94A3B8' }}>
-                              {(request.schools && request.schools.length > 0) ? request.schools.join(", ") : 'General'}
+                              {(request.schools && request.schools.length > 0)
+                                ? request.schools.map((s, idx) => (
+                                    <span key={idx}>
+                                      {idx > 0 && ', '}
+                                      {renderHighlightedText(s, waitlistSearch)}
+                                    </span>
+                                  ))
+                                : 'General'}
                             </td>
                             <td style={{ padding: '12px 16px' }}>
                               {request.items && request.items.length > 0 ? (
@@ -7452,7 +7647,7 @@ return sortedOrders.slice(0, visibleCount)
                                     {request.items.map((item, idx) => (
                                       <li key={idx} style={{ marginBottom: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                          <span style={{ fontWeight: '500' }}>{item.name}</span>
+                                          <span style={{ fontWeight: '500' }}>{renderHighlightedText(item.name, waitlistSearch)}</span>
                                           <span
                                             className={`status-badge ${item.status === 'Pending' ? 'pending' : 'ready'}`}
                                             style={{ fontSize: '10px', padding: '2px 6px', height: '18px', display: 'inline-flex', alignItems: 'center' }}
@@ -7543,11 +7738,11 @@ return sortedOrders.slice(0, visibleCount)
                                   )}
                                 </>
                               ) : (
-                                <span style={{ fontWeight: '500' }}>{request.itemDetails}</span>
+                                <span style={{ fontWeight: '500' }}>{renderHighlightedText(request.itemDetails, waitlistSearch)}</span>
                               )}
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748B' }}>
-                              {request.notes || '-'}
+                              {request.notes ? renderHighlightedText(request.notes, waitlistSearch) : '-'}
                             </td>
                             <td style={{ padding: '12px 16px' }}>
                               {(() => {
@@ -9978,24 +10173,58 @@ return sortedOrders.slice(0, visibleCount)
                         borderRadius: '12px',
                         border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid #E2E8F0'
                       }}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <input
-                            type="search"
-                            placeholder="Search by order #, customer, action, IP..."
-                            value={logSearch}
-                            onChange={(e) => setLogSearch(e.target.value)}
-                            style={{
-                              flex: 1,
-                              minWidth: 0,
-                              padding: '8px 12px',
-                              fontSize: '12px',
-                              borderRadius: '8px',
-                              minHeight: '34px',
-                              background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                              color: 'inherit',
-                              border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1'
-                            }}
-                          />
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <div style={{
+                            position: 'relative',
+                            flex: 1,
+                            minWidth: 0,
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            <span style={{ position: 'absolute', left: '10px', color: '#94A3B8', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+                              <Icons.SearchIcon size={14} />
+                            </span>
+                            <input
+                              type="search"
+                              placeholder="Search by order #, customer, action, IP..."
+                              value={logSearch}
+                              onChange={(e) => setLogSearch(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') setLogSearch('')
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '8px 30px 8px 32px',
+                                fontSize: '12px',
+                                borderRadius: '8px',
+                                minHeight: '34px',
+                                background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
+                                color: 'inherit',
+                                border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #CBD5E1',
+                                outline: 'none'
+                              }}
+                            />
+                            {logSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setLogSearch('')}
+                                style={{
+                                  position: 'absolute',
+                                  right: '8px',
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#94A3B8',
+                                  cursor: 'pointer',
+                                  padding: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                                title="Clear log search"
+                              >
+                                <Icons.XIcon size={12} />
+                              </button>
+                            )}
+                          </div>
                           <select
                             value={logTypeFilter}
                             onChange={(e) => {

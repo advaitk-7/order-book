@@ -93,7 +93,7 @@ const DEFAULT_PRICING_RATES = DEFAULT_PRODUCTION_CATEGORIES.reduce((acc, cat) =>
 }, {});
 
 // High-Precision Gold Standard Matcher for Search Bar
-function checkFuzzyMatch(searchQuery, order) {
+function checkFuzzyMatch(searchQuery, orderOrFields) {
   if (!searchQuery || searchQuery.trim() === "") return true;
 
   const rawQuery = searchQuery.trim().toLowerCase();
@@ -102,6 +102,26 @@ function checkFuzzyMatch(searchQuery, order) {
 
   if (queryTokens.length === 0) return true;
 
+  // Support both an array of strings and a full order object
+  let searchableStrings;
+  if (Array.isArray(orderOrFields)) {
+    searchableStrings = orderOrFields.map(f => String(f || '').trim().toLowerCase());
+    const phoneFields = orderOrFields.map(f => String(f || '').replace(/\D/g, ''));
+
+    for (const token of queryTokens) {
+      const tokenDigits = token.replace(/\D/g, '');
+      const tokenLower = token.toLowerCase();
+      let tokenMatch = searchableStrings.some(s => s.includes(tokenLower));
+      if (!tokenMatch && tokenDigits.length >= 3) {
+        tokenMatch = phoneFields.some(p => p.includes(tokenDigits));
+      }
+      if (!tokenMatch) return false;
+    }
+    return true;
+  }
+
+  // Legacy: called with a full order object
+  const order = orderOrFields;
   const orderNum = String(order.orderNumber || '').trim().toLowerCase();
   const custName = String(order.customerName || '').trim().toLowerCase();
   const phone = String(order.contactNumber || '').replace(/\D/g, '');
