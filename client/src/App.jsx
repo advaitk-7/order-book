@@ -738,6 +738,7 @@ function App() {
   const [waitlistSchools, setWaitlistSchools] = useState([])
   const [waitlistSchoolFilter, setWaitlistSchoolFilter] = useState('All')
   const [showSchoolManager, setShowSchoolManager] = useState(false)
+  const [schoolSearchQuery, setSchoolSearchQuery] = useState('')
   const [newSchoolNameInput, setNewSchoolNameInput] = useState('')
   const [editingSchoolId, setEditingSchoolId] = useState(null)
   const [editingSchoolNameInput, setEditingSchoolNameInput] = useState('')
@@ -4331,6 +4332,38 @@ return sortedOrders.slice(0, visibleCount)
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [waitlistSchools])
 
+  const filteredWaitlistSchools = useMemo(() => {
+    if (!schoolSearchQuery || !schoolSearchQuery.trim()) return waitlistSchools
+    const q = schoolSearchQuery.trim().toLowerCase()
+    return waitlistSchools.filter((s) => s.name && s.name.toLowerCase().includes(q))
+  }, [waitlistSchools, schoolSearchQuery])
+
+  const renderHighlightedText = (text, query) => {
+    if (!query || !query.trim() || !text) return text
+    const cleanQ = query.trim()
+    const escaped = cleanQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regex = new RegExp(`(${escaped})`, 'gi')
+    const parts = String(text).split(regex)
+    return parts.map((part, i) =>
+      regex.test(part) ? (
+        <mark
+          key={i}
+          style={{
+            backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.35)' : '#FEF08A',
+            color: theme === 'dark' ? '#FDE047' : '#854D0E',
+            borderRadius: '3px',
+            padding: '1px 3px',
+            fontWeight: '700'
+          }}
+        >
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    )
+  }
+
   const tailorAvailableCategories = useMemo(() => {
     const catsMap = new Map()
     let hasUncategorized = false
@@ -5608,18 +5641,23 @@ return sortedOrders.slice(0, visibleCount)
                             gridColumn: '1 / -1',
                             background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
                             border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E2E8F0',
-                            borderRadius: '8px',
-                            padding: '12px',
-                            marginBottom: '10px'
+                            borderRadius: '10px',
+                            padding: '14px',
+                            marginBottom: '10px',
+                            boxShadow: theme === 'dark' ? '0 4px 12px rgba(0, 0, 0, 0.3)' : '0 4px 12px rgba(0, 0, 0, 0.04)'
                           }}>
                             <div style={{ fontSize: '12px', fontWeight: '700', color: theme === 'dark' ? '#93C5FD' : '#1D4ED8', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span>School Directory Manager</span>
-                              <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 'normal' }}>Add, rename or remove registered schools</span>
+                              <span>School / Firm Directory Manager</span>
+                              <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 'normal' }}>
+                                {waitlistSchools.length} {waitlistSchools.length === 1 ? 'school' : 'schools'}
+                              </span>
                             </div>
-                            <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+
+                            {/* Add School Row */}
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                               <input
                                 type="text"
-                                placeholder="Type new school name..."
+                                placeholder="Type new school / firm name..."
                                 value={newSchoolNameInput}
                                 onChange={(e) => setNewSchoolNameInput(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveWaitlistSchool(e) }}
@@ -5637,21 +5675,60 @@ return sortedOrders.slice(0, visibleCount)
                                 type="button"
                                 onClick={handleSaveWaitlistSchool}
                                 className="primary-btn"
-                                style={{ padding: '0 12px', fontSize: '11px', height: '28px', minWidth: 'auto', display: 'flex', alignItems: 'center' }}
+                                style={{ padding: '0 12px', fontSize: '11px', height: '28px', minWidth: 'auto', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                Add
+                                <Icons.PlusIcon size={12} /> Add
                               </button>
                             </div>
+
+                            {/* Search Box */}
+                            <div className="directory-search-box" style={{ marginBottom: '8px', padding: '5px 8px' }}>
+                              <Icons.SearchIcon size={13} color={theme === 'dark' ? '#94A3B8' : '#64748B'} style={{ flexShrink: 0 }} />
+                              <input
+                                type="text"
+                                placeholder="Search directory..."
+                                value={schoolSearchQuery}
+                                onChange={(e) => setSchoolSearchQuery(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Escape') setSchoolSearchQuery('') }}
+                                style={{ fontSize: '12px' }}
+                              />
+                              {schoolSearchQuery && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSchoolSearchQuery('')}
+                                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#94A3B8', display: 'flex', alignItems: 'center' }}
+                                  title="Clear search"
+                                >
+                                  <Icons.XIcon size={12} />
+                                </button>
+                              )}
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: '700',
+                                padding: '1px 6px',
+                                borderRadius: '6px',
+                                background: schoolSearchQuery ? (theme === 'dark' ? 'rgba(59, 130, 246, 0.25)' : '#DBEAFE') : (theme === 'dark' ? '#1E293B' : '#F1F5F9'),
+                                color: schoolSearchQuery ? (theme === 'dark' ? '#93C5FD' : '#1D4ED8') : '#64748B',
+                                flexShrink: 0
+                              }}>
+                                {schoolSearchQuery ? `${filteredWaitlistSchools.length}/${waitlistSchools.length}` : `${waitlistSchools.length}`}
+                              </span>
+                            </div>
+
+                            {/* Schools List */}
                             <div style={{ maxHeight: '140px', overflowY: 'auto', paddingRight: '4px' }}>
                               {waitlistSchools.length === 0 ? (
                                 <p style={{ fontSize: '11px', color: '#64748B', textAlign: 'center', margin: '8px 0' }}>No registered schools yet in directory.</p>
+                              ) : filteredWaitlistSchools.length === 0 ? (
+                                <p style={{ fontSize: '11px', color: '#64748B', textAlign: 'center', margin: '8px 0' }}>No schools match "{schoolSearchQuery}".</p>
                               ) : (
-                                waitlistSchools.map((s) => (
+                                filteredWaitlistSchools.map((s) => (
                                   <div key={s._id} style={{
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
-                                    padding: '6px 0',
+                                    padding: '6px 4px',
+                                    borderRadius: '4px',
                                     borderBottom: '1px solid var(--border-color, #E5E7EB)'
                                   }}>
                                     {editingSchoolId === s._id ? (
@@ -5660,12 +5737,17 @@ return sortedOrders.slice(0, visibleCount)
                                           type="text"
                                           value={editingSchoolNameInput}
                                           onChange={(e) => setEditingSchoolNameInput(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleRenameWaitlistSchool(s._id, editingSchoolNameInput);
+                                            if (e.key === 'Escape') { setEditingSchoolId(null); setEditingSchoolNameInput(''); }
+                                          }}
+                                          autoFocus
                                           style={{ flex: 1, padding: '4px 6px', fontSize: '12px', borderRadius: '4px', border: '1px solid #2563EB', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
                                         />
                                         <button
                                           type="button"
                                           onClick={() => handleRenameWaitlistSchool(s._id, editingSchoolNameInput)}
-                                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', color: '#10B981' }}
                                           title="Save Rename"
                                         >
                                           <Icons.SaveIcon size={14} />
@@ -5673,7 +5755,7 @@ return sortedOrders.slice(0, visibleCount)
                                         <button
                                           type="button"
                                           onClick={() => { setEditingSchoolId(null); setEditingSchoolNameInput(''); }}
-                                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', color: '#EF4444' }}
                                           title="Cancel"
                                         >
                                           <Icons.XIcon size={14} />
@@ -5681,12 +5763,14 @@ return sortedOrders.slice(0, visibleCount)
                                       </div>
                                     ) : (
                                       <>
-                                        <span style={{ fontSize: '12px', fontWeight: '500' }}>{s.name}</span>
+                                        <span style={{ fontSize: '12px', fontWeight: '500' }}>
+                                          {renderHighlightedText(s.name, schoolSearchQuery)}
+                                        </span>
                                         <div style={{ display: 'flex', gap: '8px' }}>
                                           <button
                                             type="button"
                                             onClick={() => { setEditingSchoolId(s._id); setEditingSchoolNameInput(s.name); }}
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', color: '#2563EB' }}
                                             title="Rename School"
                                           >
                                             <Icons.PencilIcon size={14} />
@@ -5694,7 +5778,7 @@ return sortedOrders.slice(0, visibleCount)
                                           <button
                                             type="button"
                                             onClick={() => handleDeleteWaitlistSchool(s._id, s.name)}
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', color: '#EF4444' }}
                                             title="Delete School"
                                           >
                                             <Icons.TrashIcon size={14} />
@@ -6129,64 +6213,196 @@ return sortedOrders.slice(0, visibleCount)
                 <div style={{
                   background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
                   border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E2E8F0',
-                  borderRadius: '12px',
-                  padding: '14px 16px',
-                  marginBottom: '16px'
+                  borderRadius: '14px',
+                  padding: '16px 18px',
+                  marginBottom: '16px',
+                  boxShadow: theme === 'dark' ? '0 10px 25px -5px rgba(0, 0, 0, 0.4)' : '0 10px 25px -5px rgba(0, 0, 0, 0.05)'
                 }}>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: theme === 'dark' ? '#93C5FD' : '#1D4ED8', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>School / Firm Directory Manager</span>
-                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 'normal' }}>Add, rename or remove registered school choices</span>
+                  {/* Header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '8px',
+                        background: theme === 'dark' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(37, 99, 235, 0.1)',
+                        color: theme === 'dark' ? '#60A5FA' : '#2563EB'
+                      }}>
+                        <Icons.StoreIcon size={16} />
+                      </span>
+                      <span style={{ fontSize: '14px', fontWeight: '800', color: theme === 'dark' ? '#F8FAFC' : '#0F172A', letterSpacing: '-0.01em' }}>
+                        School / Firm Directory Manager
+                      </span>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        background: theme === 'dark' ? '#1E293B' : '#E2E8F0',
+                        color: theme === 'dark' ? '#94A3B8' : '#475569'
+                      }}>
+                        {waitlistSchools.length} {waitlistSchools.length === 1 ? 'school' : 'schools'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '11px', color: '#64748B' }}>
+                        Add, rename or remove registered school choices
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => { setShowSchoolManager(false); setSchoolSearchQuery(''); }}
+                        className="ghost-btn"
+                        style={{ padding: '3px 8px', fontSize: '11px', height: '26px', borderRadius: '6px' }}
+                        title="Close Directory"
+                      >
+                        <Icons.XIcon size={12} style={{ marginRight: 3 }} /> Close
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Add New School Row */}
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                     <input
                       type="text"
-                      placeholder="Type new school name..."
+                      placeholder="Type new school / firm name to add..."
                       value={newSchoolNameInput}
                       onChange={(e) => setNewSchoolNameInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveWaitlistSchool(e) }}
                       style={{
                         flex: 1,
-                        padding: '8px 12px',
+                        padding: '9px 12px',
                         fontSize: '13px',
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #CBD5E1',
                         background: theme === 'dark' ? '#1E293B' : '#FFFFFF',
-                        color: 'inherit'
+                        color: 'inherit',
+                        outline: 'none',
+                        transition: 'border-color 0.2s'
                       }}
                     />
                     <button
                       type="button"
                       onClick={handleSaveWaitlistSchool}
                       className="primary-btn"
-                      style={{ padding: '0 16px', fontSize: '12px', height: '36px', minWidth: 'auto', display: 'flex', alignItems: 'center' }}
+                      style={{ padding: '0 16px', fontSize: '12px', height: '38px', minWidth: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700', borderRadius: '10px' }}
                     >
-                      Add School
+                      <Icons.PlusIcon size={14} /> Add School
                     </button>
                   </div>
-                  <div style={{ maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' }}>
+
+                  {/* Premium Gold Standard Search Bar */}
+                  <div className="directory-search-box" style={{ marginBottom: '12px' }}>
+                    <Icons.SearchIcon size={15} color={theme === 'dark' ? '#94A3B8' : '#64748B'} style={{ flexShrink: 0 }} />
+                    <input
+                      type="text"
+                      placeholder="Search registered schools / firms by name..."
+                      value={schoolSearchQuery}
+                      onChange={(e) => setSchoolSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setSchoolSearchQuery('')
+                      }}
+                      aria-label="Search registered schools or firms"
+                    />
+                    {schoolSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSchoolSearchQuery('')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: '2px 4px',
+                          cursor: 'pointer',
+                          color: '#94A3B8',
+                          display: 'flex',
+                          alignItems: 'center',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          lineHeight: 1
+                        }}
+                        title="Clear search (Esc)"
+                      >
+                        <Icons.XIcon size={14} />
+                      </button>
+                    )}
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      padding: '2px 8px',
+                      borderRadius: '8px',
+                      background: schoolSearchQuery
+                        ? (filteredWaitlistSchools.length > 0 ? (theme === 'dark' ? 'rgba(59, 130, 246, 0.25)' : '#DBEAFE') : (theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2'))
+                        : (theme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : '#F1F5F9'),
+                      color: schoolSearchQuery
+                        ? (filteredWaitlistSchools.length > 0 ? (theme === 'dark' ? '#93C5FD' : '#1D4ED8') : (theme === 'dark' ? '#FCA5A5' : '#B91C1C'))
+                        : '#64748B',
+                      flexShrink: 0,
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {schoolSearchQuery
+                        ? `${filteredWaitlistSchools.length} of ${waitlistSchools.length}`
+                        : `${waitlistSchools.length} total`}
+                    </span>
+                  </div>
+
+                  {/* Filtered Schools List */}
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
                     {waitlistSchools.length === 0 ? (
-                      <p style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', margin: '12px 0' }}>No registered schools yet in directory.</p>
+                      <p style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', margin: '14px 0' }}>No registered schools yet in directory.</p>
+                    ) : filteredWaitlistSchools.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '16px 8px', color: '#64748B' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '12px' }}>
+                          No schools or firms found matching "<strong>{schoolSearchQuery}</strong>"
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setSchoolSearchQuery('')}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#2563EB',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          Clear search filter
+                        </button>
+                      </div>
                     ) : (
-                      waitlistSchools.map((s) => (
+                      filteredWaitlistSchools.map((s) => (
                         <div key={s._id} style={{
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '8px 4px',
-                          borderBottom: '1px solid var(--border-color, #E5E7EB)'
-                        }}>
+                          padding: '8px 8px',
+                          borderRadius: '6px',
+                          borderBottom: '1px solid var(--border-color, #E5E7EB)',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : '#F1F5F9'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
                           {editingSchoolId === s._id ? (
                             <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
                               <input
                                 type="text"
                                 value={editingSchoolNameInput}
                                 onChange={(e) => setEditingSchoolNameInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleRenameWaitlistSchool(s._id, editingSchoolNameInput);
+                                  if (e.key === 'Escape') { setEditingSchoolId(null); setEditingSchoolNameInput(''); }
+                                }}
+                                autoFocus
                                 style={{ flex: 1, padding: '4px 8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #2563EB', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', color: 'inherit' }}
                               />
                               <button
                                 type="button"
                                 onClick={() => handleRenameWaitlistSchool(s._id, editingSchoolNameInput)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#10B981' }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#10B981', display: 'flex', alignItems: 'center' }}
                                 title="Save Rename"
                               >
                                 <Icons.SaveIcon size={16} />
@@ -6194,7 +6410,7 @@ return sortedOrders.slice(0, visibleCount)
                               <button
                                 type="button"
                                 onClick={() => { setEditingSchoolId(null); setEditingSchoolNameInput(''); }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#EF4444' }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#EF4444', display: 'flex', alignItems: 'center' }}
                                 title="Cancel"
                               >
                                 <Icons.XIcon size={16} />
@@ -6202,12 +6418,14 @@ return sortedOrders.slice(0, visibleCount)
                             </div>
                           ) : (
                             <>
-                              <span style={{ fontSize: '13px', fontWeight: '500' }}>{s.name}</span>
-                              <div style={{ display: 'flex', gap: '10px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: '500' }}>
+                                {renderHighlightedText(s.name, schoolSearchQuery)}
+                              </span>
+                              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                 <button
                                   type="button"
                                   onClick={() => { setEditingSchoolId(s._id); setEditingSchoolNameInput(s.name); }}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '13px', color: '#2563EB' }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '13px', color: '#2563EB', display: 'flex', alignItems: 'center' }}
                                   title="Rename School"
                                 >
                                   <Icons.PencilIcon size={14} />
@@ -6215,7 +6433,7 @@ return sortedOrders.slice(0, visibleCount)
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteWaitlistSchool(s._id, s.name)}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '13px', color: '#EF4444' }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '13px', color: '#EF4444', display: 'flex', alignItems: 'center' }}
                                   title="Delete School"
                                 >
                                   <Icons.TrashIcon size={14} />
@@ -10477,12 +10695,13 @@ return sortedOrders.slice(0, visibleCount)
                     padding: '12px'
                   }}>
                     {/* Add School Row */}
-                    <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                       <input
                         type="text"
-                        placeholder="Type new school name..."
+                        placeholder="Type new school / firm name..."
                         value={newSchoolNameInput}
                         onChange={(e) => setNewSchoolNameInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveWaitlistSchool(e) }}
                         style={{
                           flex: 1,
                           padding: '6px 10px',
@@ -10503,19 +10722,56 @@ return sortedOrders.slice(0, visibleCount)
                           height: '28px',
                           minWidth: 'auto',
                           display: 'flex',
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          gap: '4px'
                         }}
                       >
-                        Add
+                        <Icons.PlusIcon size={12} /> Add
                       </button>
+                    </div>
+
+                    {/* Search Box */}
+                    <div className="directory-search-box" style={{ marginBottom: '8px', padding: '5px 8px' }}>
+                      <Icons.SearchIcon size={13} color={theme === 'dark' ? '#94A3B8' : '#64748B'} style={{ flexShrink: 0 }} />
+                      <input
+                        type="text"
+                        placeholder="Search directory..."
+                        value={schoolSearchQuery}
+                        onChange={(e) => setSchoolSearchQuery(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Escape') setSchoolSearchQuery('') }}
+                        style={{ fontSize: '12px' }}
+                      />
+                      {schoolSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSchoolSearchQuery('')}
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#94A3B8', display: 'flex', alignItems: 'center' }}
+                          title="Clear search"
+                        >
+                          <Icons.XIcon size={12} />
+                        </button>
+                      )}
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        padding: '1px 6px',
+                        borderRadius: '6px',
+                        background: schoolSearchQuery ? (theme === 'dark' ? 'rgba(59, 130, 246, 0.25)' : '#DBEAFE') : (theme === 'dark' ? '#1E293B' : '#F1F5F9'),
+                        color: schoolSearchQuery ? (theme === 'dark' ? '#93C5FD' : '#1D4ED8') : '#64748B',
+                        flexShrink: 0
+                      }}>
+                        {schoolSearchQuery ? `${filteredWaitlistSchools.length}/${waitlistSchools.length}` : `${waitlistSchools.length}`}
+                      </span>
                     </div>
 
                     {/* Schools List */}
                     <div style={{ maxHeight: '130px', overflowY: 'auto', paddingRight: '4px' }}>
                       {waitlistSchools.length === 0 ? (
                         <p style={{ fontSize: '11px', color: '#64748B', textAlign: 'center', margin: '8px 0' }}>No registered schools yet.</p>
+                      ) : filteredWaitlistSchools.length === 0 ? (
+                        <p style={{ fontSize: '11px', color: '#64748B', textAlign: 'center', margin: '8px 0' }}>No schools match "{schoolSearchQuery}".</p>
                       ) : (
-                        waitlistSchools.map((s) => (
+                        filteredWaitlistSchools.map((s) => (
                           <div key={s._id} style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -10529,6 +10785,11 @@ return sortedOrders.slice(0, visibleCount)
                                   type="text"
                                   value={editingSchoolNameInput}
                                   onChange={(e) => setEditingSchoolNameInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRenameWaitlistSchool(s._id, editingSchoolNameInput);
+                                    if (e.key === 'Escape') { setEditingSchoolId(null); setEditingSchoolNameInput(''); }
+                                  }}
+                                  autoFocus
                                   style={{
                                     flex: 1,
                                     padding: '4px 6px',
@@ -10542,7 +10803,7 @@ return sortedOrders.slice(0, visibleCount)
                                 <button
                                   type="button"
                                   onClick={() => handleRenameWaitlistSchool(s._id, editingSchoolNameInput)}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', color: '#10B981' }}
                                   title="Save Rename"
                                 >
                                   <Icons.SaveIcon size={14} />
@@ -10550,7 +10811,7 @@ return sortedOrders.slice(0, visibleCount)
                                 <button
                                   type="button"
                                   onClick={() => { setEditingSchoolId(null); setEditingSchoolNameInput(''); }}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', color: '#EF4444' }}
                                   title="Cancel"
                                 >
                                   <Icons.XIcon size={14} />
@@ -10558,12 +10819,14 @@ return sortedOrders.slice(0, visibleCount)
                               </div>
                             ) : (
                               <>
-                                <span style={{ fontSize: '12px', fontWeight: '500' }}>{s.name ? (s.name.charAt(0).toUpperCase() + s.name.slice(1)) : ''}</span>
+                                <span style={{ fontSize: '12px', fontWeight: '500' }}>
+                                  {renderHighlightedText(s.name ? (s.name.charAt(0).toUpperCase() + s.name.slice(1)) : '', schoolSearchQuery)}
+                                </span>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                   <button
                                     type="button"
                                     onClick={() => { setEditingSchoolId(s._id); setEditingSchoolNameInput(s.name); }}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', color: '#2563EB' }}
                                     title="Rename School"
                                   >
                                     <Icons.PencilIcon size={14} />
@@ -10571,7 +10834,7 @@ return sortedOrders.slice(0, visibleCount)
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteWaitlistSchool(s._id, s.name)}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '12px', color: '#EF4444' }}
                                     title="Delete School"
                                   >
                                     <Icons.TrashIcon size={14} />
