@@ -3429,6 +3429,10 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && selectedAuditLog) {
+        setSelectedAuditLog(null)
+        return
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         if ((activePage === 'Restock & Bulk Orders' || activePage === 'Supplier Restock') && poSearchInputRef.current) {
           e.preventDefault()
@@ -3438,7 +3442,7 @@ function App() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activePage])
+  }, [activePage, selectedAuditLog])
 
   useEffect(() => {
     if (activePage === 'Stock Waitlist' && token) {
@@ -13484,14 +13488,13 @@ return sortedOrders.slice(0, visibleCount)
       )}
       {/* AUDIT LOG DETAILED INSPECTION MODAL */}
       {selectedAuditLog && (
-        <div className="pdf-modal-backdrop" onClick={() => setSelectedAuditLog(null)}>
+        <div className="audit-inspection-backdrop" onClick={() => setSelectedAuditLog(null)}>
           <div
-            className="pdf-modal-card"
+            className="audit-inspection-card"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '650px', width: '92%', borderRadius: '16px', padding: '24px' }}
           >
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #E2E8F0', paddingBottom: '14px', marginBottom: '16px' }}>
+            <div className="audit-inspection-header">
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{
@@ -13504,11 +13507,11 @@ return sortedOrders.slice(0, visibleCount)
                   }}>
                     {selectedAuditLog.category || 'ORDER'}
                   </span>
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
                     {selectedAuditLog.action}
                   </span>
                 </div>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#334155' }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: theme === 'dark' ? '#CBD5E1' : '#334155', wordBreak: 'break-word' }}>
                   {selectedAuditLog.summary || selectedAuditLog.details}
                 </h3>
               </div>
@@ -13516,251 +13519,288 @@ return sortedOrders.slice(0, visibleCount)
                 type="button"
                 className="manage-modal-close"
                 onClick={() => setSelectedAuditLog(null)}
-                style={{ position: 'static', fontSize: '18px' }}
+                style={{ position: 'static', fontSize: '18px', flexShrink: 0, marginLeft: '12px' }}
+                title="Close (Esc)"
               >
                 <Icons.XIcon size={18} />
               </button>
             </div>
 
-            {/* Metadata Info Card */}
-            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px', marginBottom: '16px', fontSize: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-                <div>
-                  <span style={{ color: '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>PERFORMED BY</span>
-                  <span style={{ fontWeight: 700, color: '#0F172A' }}>{selectedAuditLog.performedBy || 'Admin'}</span>
-                  <span style={{ fontSize: '10px', color: '#2563EB', background: '#DBEAFE', padding: '1px 6px', borderRadius: '8px', marginLeft: '6px', fontWeight: 700 }}>
-                    {selectedAuditLog.userRole || 'admin'}
-                  </span>
+            {/* Scrollable Body Container (All Devices) */}
+            <div className="audit-inspection-body">
+              {/* Metadata Info Card */}
+              <div style={{
+                background: theme === 'dark' ? '#0F172A' : '#F8FAFC',
+                border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #E2E8F0',
+                borderRadius: '10px',
+                padding: '14px',
+                marginBottom: '16px',
+                fontSize: '12px'
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                  <div>
+                    <span style={{ color: theme === 'dark' ? '#94A3B8' : '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>PERFORMED BY</span>
+                    <span style={{ fontWeight: 700, color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{selectedAuditLog.performedBy || 'Admin'}</span>
+                    <span style={{ fontSize: '10px', color: '#2563EB', background: theme === 'dark' ? 'rgba(37, 99, 235, 0.25)' : '#DBEAFE', padding: '1px 6px', borderRadius: '8px', marginLeft: '6px', fontWeight: 700 }}>
+                      {selectedAuditLog.userRole || 'admin'}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: theme === 'dark' ? '#94A3B8' : '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>IP ADDRESS</span>
+                    <span style={{ fontWeight: 700, color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{selectedAuditLog.ipAddress || 'Internal Network'}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: theme === 'dark' ? '#94A3B8' : '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>TIMESTAMP</span>
+                    <span style={{ fontWeight: 700, color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>{new Date(selectedAuditLog.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: theme === 'dark' ? '#94A3B8' : '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>ENTITY ID</span>
+                    <span style={{ fontWeight: 700, color: '#059669' }}>{selectedAuditLog.entityId || selectedAuditLog.orderNumber || 'System'}</span>
+                  </div>
                 </div>
-                <div>
-                  <span style={{ color: '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>IP ADDRESS</span>
-                  <span style={{ fontWeight: 700, color: '#0F172A' }}>{selectedAuditLog.ipAddress || 'Internal Network'}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>TIMESTAMP</span>
-                  <span style={{ fontWeight: 700, color: '#0F172A' }}>{new Date(selectedAuditLog.createdAt).toLocaleString()}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#64748B', display: 'block', fontSize: '11px', fontWeight: 700 }}>ENTITY ID</span>
-                  <span style={{ fontWeight: 700, color: '#059669' }}>{selectedAuditLog.entityId || selectedAuditLog.orderNumber || 'System'}</span>
-                </div>
+                {selectedAuditLog.deviceInfo && (
+                  <div style={{
+                    marginTop: '10px',
+                    paddingTop: '8px',
+                    borderTop: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #E2E8F0',
+                    fontSize: '11px',
+                    color: theme === 'dark' ? '#94A3B8' : '#64748B',
+                    wordBreak: 'break-word'
+                  }}>
+                    <strong>Device User-Agent:</strong> {selectedAuditLog.deviceInfo}
+                  </div>
+                )}
               </div>
-              {selectedAuditLog.deviceInfo && (
-                <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #E2E8F0', fontSize: '11px', color: '#64748B' }}>
-                  <strong>Device User-Agent:</strong> {selectedAuditLog.deviceInfo}
-                </div>
-              )}
-            </div>
 
-            {/* Field-by-Field Diff Table (Supports both structured changes & text-parsed diffs) */}
-            {(() => {
-              const activeDiffs = (Array.isArray(selectedAuditLog.changes) && selectedAuditLog.changes.length > 0)
-                ? selectedAuditLog.changes
-                : (() => {
-                    const text = selectedAuditLog.details || selectedAuditLog.summary || '';
-                    if (!text || typeof text !== 'string') return [];
-                    const diffs = [];
-                    const parts = text.split(/,\s*/);
-                    parts.forEach(p => {
-                      const match = p.match(/(.+) changed from ['"](.*?)['"] to ['"](.*?)['"]/i);
-                      if (match) {
-                        diffs.push({
-                          field: match[1].trim(),
-                          oldValue: match[2],
-                          newValue: match[3]
-                        });
-                      }
-                    });
-                    return diffs;
-                  })();
+              {/* Field-by-Field Diff Table (Supports both structured changes & text-parsed diffs) */}
+              {(() => {
+                const activeDiffs = (Array.isArray(selectedAuditLog.changes) && selectedAuditLog.changes.length > 0)
+                  ? selectedAuditLog.changes
+                  : (() => {
+                      const text = selectedAuditLog.details || selectedAuditLog.summary || '';
+                      if (!text || typeof text !== 'string') return [];
+                      const diffs = [];
+                      const parts = text.split(/,\s*/);
+                      parts.forEach(p => {
+                        const match = p.match(/(.+) changed from ['"](.*?)['"] to ['"](.*?)['"]/i);
+                        if (match) {
+                          diffs.push({
+                            field: match[1].trim(),
+                            oldValue: match[2],
+                            newValue: match[3]
+                          });
+                        }
+                      });
+                      return diffs;
+                    })();
 
-              if (activeDiffs.length === 0) return null;
+                if (activeDiffs.length === 0) return null;
 
-              return (
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    🔄 Field Updates Diff ({activeDiffs.length} exact change(s) recorded)
-                  </div>
-                  <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '10px' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                      <thead>
-                        <tr style={{ background: '#F1F5F9', color: '#334155', textAlign: 'left' }}>
-                          <th style={{ padding: '8px 12px', fontWeight: 700 }}>Field Updated</th>
-                          <th style={{ padding: '8px 12px', fontWeight: 700 }}>Previous Value (Old)</th>
-                          <th style={{ padding: '8px 12px', fontWeight: 700 }}>Updated Value (New)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activeDiffs.map((ch, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                            <td style={{ padding: '8px 12px', fontWeight: 700, color: '#0F172A' }}>{ch.field}</td>
-                            <td style={{ padding: '8px 12px', color: '#DC2626', background: '#FEF2F2', fontWeight: 600 }}>
-                              {typeof ch.oldValue === 'object' ? JSON.stringify(ch.oldValue) : String(ch.oldValue ?? '-')}
-                            </td>
-                            <td style={{ padding: '8px 12px', color: '#059669', background: '#ECFDF5', fontWeight: 700 }}>
-                              {typeof ch.newValue === 'object' ? JSON.stringify(ch.newValue) : String(ch.newValue ?? '-')}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Full Item Snapshot View (Deletions / Creations / Waitlists) */}
-            {selectedAuditLog.snapshot ? (
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  📦 Complete Record Snapshot &amp; Specifications
-                </div>
-                <div style={{ background: theme === 'dark' ? '#1E293B' : '#FEF3C7', border: theme === 'dark' ? '1px solid #334155' : '1px solid #FCD34D', borderRadius: '10px', padding: '14px', fontSize: '12px', color: theme === 'dark' ? '#F8FAFC' : '#78350F' }}>
-                  {/* Grid Metadata */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '10px' }}>
-                    {selectedAuditLog.snapshot.customerName && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CUSTOMER NAME</span><strong>{selectedAuditLog.snapshot.customerName}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.clientName && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CORPORATE CLIENT</span><strong>{selectedAuditLog.snapshot.clientName}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.partyName && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>SUPPLIER / PARTY</span><strong>{selectedAuditLog.snapshot.partyName}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.boNumber && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CO NUMBER</span><strong>{selectedAuditLog.snapshot.boNumber}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.poNumber && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>RESTOCK PO NUMBER</span><strong>{selectedAuditLog.snapshot.poNumber}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.contactNumber && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CONTACT NUMBER</span><strong>{selectedAuditLog.snapshot.contactNumber}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.school && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>SCHOOL &amp; GRADE</span><strong>{selectedAuditLog.snapshot.school} {selectedAuditLog.snapshot.grade ? `(Grade ${selectedAuditLog.snapshot.grade})` : ''}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.schools && Array.isArray(selectedAuditLog.snapshot.schools) && selectedAuditLog.snapshot.schools.length > 0 && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>SCHOOLS</span><strong>{selectedAuditLog.snapshot.schools.join(', ')}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.gender && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>GENDER</span><strong>{selectedAuditLog.snapshot.gender}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.amount !== undefined && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>TOTAL AMOUNT</span><strong style={{ color: '#059669', fontSize: '13px' }}>₹{selectedAuditLog.snapshot.amount}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.status && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>STATUS</span><strong style={{ color: selectedAuditLog.snapshot.status === 'Delivered' || selectedAuditLog.snapshot.status === 'Completed' || selectedAuditLog.snapshot.status === 'Ready' ? '#059669' : '#D97706' }}>{selectedAuditLog.snapshot.status}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.paymentStatus && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>PAYMENT STATUS</span><strong style={{ color: selectedAuditLog.snapshot.paymentStatus === 'Paid' ? '#059669' : '#DC2626' }}>{selectedAuditLog.snapshot.paymentStatus}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.deliveryDate && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>DELIVERY DATE</span><strong>{selectedAuditLog.snapshot.deliveryDate}</strong></div>
-                    )}
-                    {selectedAuditLog.snapshot.targetDate && (
-                      <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>TARGET DATE</span><strong>{selectedAuditLog.snapshot.targetDate}</strong></div>
-                    )}
-                  </div>
-
-                  {/* Standard Order Items List Breakdown */}
-                  {Array.isArray(selectedAuditLog.snapshot.items) && selectedAuditLog.snapshot.items.length > 0 && (
-                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
-                      <span style={{ opacity: 0.8, fontSize: '11px', fontWeight: 800, display: 'block', marginBottom: '6px' }}>ITEMS &amp; MEASUREMENTS BREAKDOWN</span>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '6px', overflow: 'hidden' }}>
-                        <thead>
-                          <tr style={{ background: theme === 'dark' ? '#334155' : '#FEF08A', textAlign: 'left', color: theme === 'dark' ? '#F8FAFC' : '#713F12' }}>
-                            <th style={{ padding: '6px 8px' }}>Product</th>
-                            <th style={{ padding: '6px 8px' }}>Qty</th>
-                            <th style={{ padding: '6px 8px' }}>Length</th>
-                            <th style={{ padding: '6px 8px' }}>Chest</th>
-                            <th style={{ padding: '6px 8px' }}>Sleeve</th>
-                            <th style={{ padding: '6px 8px' }}>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedAuditLog.snapshot.items.map((it, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.06)', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
-                              <td style={{ padding: '6px 8px', fontWeight: 700 }}>{it.product || it.name || 'Item'}</td>
-                              <td style={{ padding: '6px 8px' }}>{it.quantity || 1} pcs</td>
-                              <td style={{ padding: '6px 8px' }}>{it.measurements?.length || '-'}</td>
-                              <td style={{ padding: '6px 8px' }}>{it.measurements?.chest || '-'}</td>
-                              <td style={{ padding: '6px 8px' }}>{it.measurements?.sleeve || '-'}</td>
-                              <td style={{ padding: '6px 8px', fontWeight: 600, color: it.status === 'Notified' ? '#059669' : '#D97706' }}>{it.status || 'Pending'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                return (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: theme === 'dark' ? '#F8FAFC' : '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      🔄 Field Updates Diff ({activeDiffs.length} exact change(s) recorded)
                     </div>
-                  )}
-
-                  {/* CO & PO Products Breakdown */}
-                  {Array.isArray(selectedAuditLog.snapshot.products) && selectedAuditLog.snapshot.products.length > 0 && (
-                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
-                      <span style={{ opacity: 0.8, fontSize: '11px', fontWeight: 800, display: 'block', marginBottom: '6px' }}>PRODUCTS &amp; SIZES SPECIFICATIONS</span>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', background: theme === 'dark' ? '#0F172A' : '#FFFFFF', borderRadius: '6px', overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto', border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E2E8F0', borderRadius: '10px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                         <thead>
-                          <tr style={{ background: theme === 'dark' ? '#334155' : '#FEF08A', textAlign: 'left', color: theme === 'dark' ? '#F8FAFC' : '#713F12' }}>
-                            <th style={{ padding: '6px 8px' }}>Product</th>
-                            <th style={{ padding: '6px 8px' }}>School</th>
-                            <th style={{ padding: '6px 8px' }}>Size Breakdown &amp; Quantities</th>
+                          <tr style={{ background: theme === 'dark' ? '#334155' : '#F1F5F9', color: theme === 'dark' ? '#F8FAFC' : '#334155', textAlign: 'left' }}>
+                            <th style={{ padding: '8px 12px', fontWeight: 700 }}>Field Updated</th>
+                            <th style={{ padding: '8px 12px', fontWeight: 700 }}>Previous Value (Old)</th>
+                            <th style={{ padding: '8px 12px', fontWeight: 700 }}>Updated Value (New)</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedAuditLog.snapshot.products.map((p, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.06)', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
-                              <td style={{ padding: '6px 8px', fontWeight: 700 }}>{p.productName}</td>
-                              <td style={{ padding: '6px 8px' }}>{p.school || '-'}</td>
-                              <td style={{ padding: '6px 8px' }}>
-                                {Array.isArray(p.sizeBreakdown) ? (
-                                  p.sizeBreakdown.map(sb => `${sb.size}: ${sb.orderedQty}pcs`).join(', ')
-                                ) : '-'}
+                          {activeDiffs.map((ch, idx) => (
+                            <tr key={idx} style={{ borderBottom: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #F1F5F9' }}>
+                              <td style={{ padding: '8px 12px', fontWeight: 700, color: theme === 'dark' ? '#F8FAFC' : '#0F172A', wordBreak: 'break-word' }}>{ch.field}</td>
+                              <td style={{ padding: '8px 12px', color: theme === 'dark' ? '#F87171' : '#DC2626', background: theme === 'dark' ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2', fontWeight: 600, wordBreak: 'break-word' }}>
+                                {typeof ch.oldValue === 'object' ? JSON.stringify(ch.oldValue) : String(ch.oldValue ?? '-')}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: theme === 'dark' ? '#34D399' : '#059669', background: theme === 'dark' ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5', fontWeight: 700, wordBreak: 'break-word' }}>
+                                {typeof ch.newValue === 'object' ? JSON.stringify(ch.newValue) : String(ch.newValue ?? '-')}
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                  )}
+                  </div>
+                );
+              })()}
 
-                  {/* Dispatches / Installments Breakdown */}
-                  {Array.isArray(selectedAuditLog.snapshot.dispatches) && selectedAuditLog.snapshot.dispatches.length > 0 && (
-                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
-                      <span style={{ opacity: 0.8, fontSize: '11px', fontWeight: 800, display: 'block', marginBottom: '6px' }}>DISPATCH / INSTALLMENT BATCHES</span>
-                      <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '11px' }}>
-                        {selectedAuditLog.snapshot.dispatches.map((d, idx) => (
-                          <li key={idx}>
-                            Batch #{idx + 1} &mdash; Challan: <strong>{d.challanNumber || 'N/A'}</strong> ({new Date(d.dispatchedAt).toLocaleDateString()}) &mdash; {d.notes || 'No notes'}
-                          </li>
-                        ))}
-                      </ul>
+              {/* Full Item Snapshot View (Deletions / Creations / Waitlists) */}
+              {selectedAuditLog.snapshot ? (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: theme === 'dark' ? '#F8FAFC' : '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    📦 Complete Record Snapshot &amp; Specifications
+                  </div>
+                  <div style={{
+                    background: theme === 'dark' ? '#0F172A' : '#FEF3C7',
+                    border: theme === 'dark' ? '1px solid #334155' : '1px solid #FCD34D',
+                    borderRadius: '10px',
+                    padding: '14px',
+                    fontSize: '12px',
+                    color: theme === 'dark' ? '#F8FAFC' : '#78350F'
+                  }}>
+                    {/* Grid Metadata */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                      {selectedAuditLog.snapshot.customerName && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CUSTOMER NAME</span><strong>{selectedAuditLog.snapshot.customerName}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.clientName && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CORPORATE CLIENT</span><strong>{selectedAuditLog.snapshot.clientName}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.partyName && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>SUPPLIER / PARTY</span><strong>{selectedAuditLog.snapshot.partyName}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.boNumber && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CO NUMBER</span><strong>{selectedAuditLog.snapshot.boNumber}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.poNumber && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>RESTOCK PO NUMBER</span><strong>{selectedAuditLog.snapshot.poNumber}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.contactNumber && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>CONTACT NUMBER</span><strong>{selectedAuditLog.snapshot.contactNumber}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.school && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>SCHOOL &amp; GRADE</span><strong>{selectedAuditLog.snapshot.school} {selectedAuditLog.snapshot.grade ? `(Grade ${selectedAuditLog.snapshot.grade})` : ''}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.schools && Array.isArray(selectedAuditLog.snapshot.schools) && selectedAuditLog.snapshot.schools.length > 0 && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>SCHOOLS</span><strong>{selectedAuditLog.snapshot.schools.join(', ')}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.gender && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>GENDER</span><strong>{selectedAuditLog.snapshot.gender}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.amount !== undefined && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>TOTAL AMOUNT</span><strong style={{ color: '#059669', fontSize: '13px' }}>₹{selectedAuditLog.snapshot.amount}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.status && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>STATUS</span><strong style={{ color: selectedAuditLog.snapshot.status === 'Delivered' || selectedAuditLog.snapshot.status === 'Completed' || selectedAuditLog.snapshot.status === 'Ready' ? '#059669' : '#D97706' }}>{selectedAuditLog.snapshot.status}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.paymentStatus && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>PAYMENT STATUS</span><strong style={{ color: selectedAuditLog.snapshot.paymentStatus === 'Paid' ? '#059669' : '#DC2626' }}>{selectedAuditLog.snapshot.paymentStatus}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.deliveryDate && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>DELIVERY DATE</span><strong>{selectedAuditLog.snapshot.deliveryDate}</strong></div>
+                      )}
+                      {selectedAuditLog.snapshot.targetDate && (
+                        <div><span style={{ opacity: 0.7, fontSize: '11px', display: 'block', fontWeight: 700 }}>TARGET DATE</span><strong>{selectedAuditLog.snapshot.targetDate}</strong></div>
+                      )}
                     </div>
-                  )}
 
-                  {/* Notes / Special Instructions */}
-                  {selectedAuditLog.snapshot.notes && (
-                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(0, 0, 0, 0.1)', fontSize: '11px' }}>
-                      <strong>Notes / Special Instructions:</strong> {selectedAuditLog.snapshot.notes}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              /* Fallback Activity Detail Box for logs without explicit snapshot */
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  📋 Recorded Log Action Summary &amp; Details
-                </div>
-                <div style={{ background: theme === 'dark' ? '#1E293B' : '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px', fontSize: '13px', color: theme === 'dark' ? '#F8FAFC' : '#1E293B', lineHeight: '1.5' }}>
-                  <strong>Activity Description:</strong>
-                  <div style={{ marginTop: '4px', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
-                    {selectedAuditLog.details || selectedAuditLog.summary || selectedAuditLog.action}
+                    {/* Standard Order Items List Breakdown */}
+                    {Array.isArray(selectedAuditLog.snapshot.items) && selectedAuditLog.snapshot.items.length > 0 && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
+                        <span style={{ opacity: 0.8, fontSize: '11px', fontWeight: 800, display: 'block', marginBottom: '6px' }}>ITEMS &amp; MEASUREMENTS BREAKDOWN</span>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', borderRadius: '6px', overflow: 'hidden' }}>
+                            <thead>
+                              <tr style={{ background: theme === 'dark' ? '#334155' : '#FEF08A', textAlign: 'left', color: theme === 'dark' ? '#F8FAFC' : '#713F12' }}>
+                                <th style={{ padding: '6px 8px' }}>Product</th>
+                                <th style={{ padding: '6px 8px' }}>Qty</th>
+                                <th style={{ padding: '6px 8px' }}>Length</th>
+                                <th style={{ padding: '6px 8px' }}>Chest</th>
+                                <th style={{ padding: '6px 8px' }}>Sleeve</th>
+                                <th style={{ padding: '6px 8px' }}>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedAuditLog.snapshot.items.map((it, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.06)', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                                  <td style={{ padding: '6px 8px', fontWeight: 700 }}>{it.product || it.name || 'Item'}</td>
+                                  <td style={{ padding: '6px 8px' }}>{it.quantity || 1} pcs</td>
+                                  <td style={{ padding: '6px 8px' }}>{it.measurements?.length || '-'}</td>
+                                  <td style={{ padding: '6px 8px' }}>{it.measurements?.chest || '-'}</td>
+                                  <td style={{ padding: '6px 8px' }}>{it.measurements?.sleeve || '-'}</td>
+                                  <td style={{ padding: '6px 8px', fontWeight: 600, color: it.status === 'Notified' ? '#059669' : '#D97706' }}>{it.status || 'Pending'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CO & PO Products Breakdown */}
+                    {Array.isArray(selectedAuditLog.snapshot.products) && selectedAuditLog.snapshot.products.length > 0 && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
+                        <span style={{ opacity: 0.8, fontSize: '11px', fontWeight: 800, display: 'block', marginBottom: '6px' }}>PRODUCTS &amp; SIZES SPECIFICATIONS</span>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', background: theme === 'dark' ? '#1E293B' : '#FFFFFF', borderRadius: '6px', overflow: 'hidden' }}>
+                            <thead>
+                              <tr style={{ background: theme === 'dark' ? '#334155' : '#FEF08A', textAlign: 'left', color: theme === 'dark' ? '#F8FAFC' : '#713F12' }}>
+                                <th style={{ padding: '6px 8px' }}>Product</th>
+                                <th style={{ padding: '6px 8px' }}>School</th>
+                                <th style={{ padding: '6px 8px' }}>Size Breakdown &amp; Quantities</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedAuditLog.snapshot.products.map((p, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.06)', color: theme === 'dark' ? '#F8FAFC' : '#0F172A' }}>
+                                  <td style={{ padding: '6px 8px', fontWeight: 700 }}>{p.productName}</td>
+                                  <td style={{ padding: '6px 8px' }}>{p.school || '-'}</td>
+                                  <td style={{ padding: '6px 8px' }}>
+                                    {Array.isArray(p.sizeBreakdown) ? (
+                                      p.sizeBreakdown.map(sb => `${sb.size}: ${sb.orderedQty}pcs`).join(', ')
+                                    ) : '-'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dispatches / Installments Breakdown */}
+                    {Array.isArray(selectedAuditLog.snapshot.dispatches) && selectedAuditLog.snapshot.dispatches.length > 0 && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
+                        <span style={{ opacity: 0.8, fontSize: '11px', fontWeight: 800, display: 'block', marginBottom: '6px' }}>DISPATCH / INSTALLMENT BATCHES</span>
+                        <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '11px' }}>
+                          {selectedAuditLog.snapshot.dispatches.map((d, idx) => (
+                            <li key={idx}>
+                              Batch #{idx + 1} &mdash; Challan: <strong>{d.challanNumber || 'N/A'}</strong> ({new Date(d.dispatchedAt).toLocaleDateString()}) &mdash; {d.notes || 'No notes'}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Notes / Special Instructions */}
+                    {selectedAuditLog.snapshot.notes && (
+                      <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(0, 0, 0, 0.1)', fontSize: '11px' }}>
+                        <strong>Notes / Special Instructions:</strong> {selectedAuditLog.snapshot.notes}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                /* Fallback Activity Detail Box for logs without explicit snapshot */
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: theme === 'dark' ? '#F8FAFC' : '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    📋 Recorded Log Action Summary &amp; Details
+                  </div>
+                  <div style={{
+                    background: theme === 'dark' ? '#0F172A' : '#F1F5F9',
+                    border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #E2E8F0',
+                    borderRadius: '10px',
+                    padding: '14px',
+                    fontSize: '13px',
+                    color: theme === 'dark' ? '#F8FAFC' : '#1E293B',
+                    lineHeight: '1.5'
+                  }}>
+                    <strong>Activity Description:</strong>
+                    <div style={{ marginTop: '4px', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+                      {selectedAuditLog.details || selectedAuditLog.summary || selectedAuditLog.action}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Modal Actions Footer */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '14px', borderTop: '1px solid #E2E8F0' }}>
+            <div className="audit-inspection-footer">
               {(selectedAuditLog.orderNumber || selectedAuditLog.entityId) && selectedAuditLog.orderNumber !== 'System' && (
                 <button
                   type="button"
@@ -13774,7 +13814,7 @@ return sortedOrders.slice(0, visibleCount)
                       fetchOrders('')
                     }
                   }}
-                  style={{ fontSize: '12px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ fontSize: '12px', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Icons.EyeIcon size={14} /> Go to Order #{selectedAuditLog.orderNumber || selectedAuditLog.entityId}
                 </button>
@@ -13784,7 +13824,7 @@ return sortedOrders.slice(0, visibleCount)
                 type="button"
                 className="action-btn secondary"
                 onClick={() => setSelectedAuditLog(null)}
-                style={{ fontSize: '12px', padding: '6px 14px', marginLeft: 'auto' }}
+                style={{ fontSize: '12px', padding: '7px 16px', marginLeft: 'auto' }}
               >
                 Close Inspection
               </button>
