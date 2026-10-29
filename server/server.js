@@ -1458,12 +1458,44 @@ app.patch("/api/orders/:id", async (req, res) => {
             fieldDiffs.push({ field: "Order Status", oldValue: oldOrder.status, newValue: payload.status });
           }
         } else if (field === 'items') {
-          updates.items = (payload.items || []).map((item) => ({
+          const newItems = (payload.items || []).map((item) => ({
             ...item,
             quantity: Number(item.quantity || 0),
           }));
-          changeLogs.push(`Order items and measurements updated`);
-          fieldDiffs.push({ field: "Items & Measurements", oldValue: `${oldOrder.items?.length || 0} item(s)`, newValue: `${payload.items?.length || 0} item(s)` });
+          updates.items = newItems;
+
+          const normalizeItems = (itemsList) => (itemsList || []).map(i => {
+            const rawMeasurements = (typeof i.measurements?.toObject === 'function')
+              ? i.measurements.toObject()
+              : (i.measurements || {});
+            const cleanMeasurements = {};
+            Object.keys(rawMeasurements).forEach(k => {
+              const val = rawMeasurements[k];
+              if (val !== undefined && val !== null && String(val).trim() !== '') {
+                cleanMeasurements[k] = String(val).trim();
+              }
+            });
+            return {
+              itemType: String(i.itemType || '').trim(),
+              product: String(i.product || i.name || '').trim(),
+              quantity: Number(i.quantity || 0),
+              sizeFarma: String(i.sizeFarma || cleanMeasurements.sizeFarma || '').trim(),
+              productionCategory: String(i.productionCategory || '').trim(),
+              measurements: cleanMeasurements
+            };
+          });
+
+          const oldNormalized = JSON.stringify(normalizeItems(oldOrder.items));
+          const newNormalized = JSON.stringify(normalizeItems(newItems));
+
+          if (oldNormalized !== newNormalized) {
+            changeLogs.push(`Order items and measurements updated`);
+            fieldDiffs.push({
+              field: "Items & Measurements",
+              oldValue: `${oldOrder.items?.length || 0} item(s)`,
+              newValue: `${newItems.length} item(s)`
+            });
+          }
         } else {
           // Handles grade, customerName, contactNumber, gender, school, contactStatus, notes, etc.
           const newVal = String(payload[field] ?? '').trim();
